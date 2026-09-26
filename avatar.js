@@ -179,10 +179,37 @@ const HAIR = {
   curly: () => ({ front: hairCut(union(ellipse(15, 12.5, 13.5, 10.5), ...[[5, 6], [10, 2.5], [16, 2], [22, 3], [26.5, 7], [3, 13], [3.5, 20], [27.5, 11], [12, 19], [18, 14.5]].map(([x, y]) => ellipse(x, y, 4.2, 4.2)))) }),
   cap: () => ({ front: union(hairCut(ellipse(15, 13, 13, 9.5)), polyS([[4, 13], [9, 15], [9, 23], [6, 23]])), cap: true }),
   hood: () => ({ front: minus(ellipse(15.5, 18, 15.5, 17.5), polyS([[10, 17], [16, 12.5], [26, 10], [29.5, 11], [29.5, 36], [9, 36]])), hood: true }),
+  // a high ponytail swinging behind the head, tied with a band
+  ponytail: () => ({ back: polyS([[3, 9], [8, 7], [7, 14], [5, 26], [3.5, 40], [1, 34], [0.5, 22]]), front: union(hairCut(union(ellipse(15, 12.3, 13.5, 10.2), tips(FRINGE))), polyS([[4, 13], [9, 15], [9, 21], [6, 21]])), tie: [4, 11] }),
+  // a big round afro, wider than the head
+  afro: () => ({ front: hairCut(union(ellipse(15, 11, 15.8, 12), ellipse(4, 18, 4.8, 7), ellipse(26.5, 7, 4.5, 5))), texture: "curl" }),
+  // clipped close to the skull, the hairline high
+  buzz: () => ({ front: minus(ellipse(15, 12.5, 13.1, 11), polyS([[6.5, 20], [11, 12], [19, 8.5], [29.5, 7], [29.5, 36], [6.5, 36]])), texture: "buzz" }),
+  // parted on the side, a long fringe swept over the forehead
+  sidepart: () => ({ front: union(hairCut(union(ellipse(15, 11.5, 13.6, 10.2), polyS([[11, 4], [28, 7], [29, 12.5], [24, 12], [18, 15.5], [12, 19]]), tips([[13, 20], [18, 16.5], [23, 13.5], [27.5, 12]]))),
+    polyS([[4, 12], [9, 14], [9, 21], [6, 21]])), part: [[11, 3], [11, 4], [12, 5], [12, 6], [13, 7]] }),
+  // two bunches low behind the ears
+  pigtails: () => ({ back: union(ellipse(3, 30, 3.2, 6.5), ellipse(27.5, 28, 2.6, 6)), front: union(hairCut(union(ellipse(15, 12.5, 13.8, 10.8), tips(FRINGE))), polyS([[1.5, 13], [8.5, 16], [9, 26], [2, 26]])), ties: [[3, 23], [27, 21]] }),
+  // one long braid down the back
+  braid: () => ({ back: union(...[0, 1, 2, 3, 4, 5].map((k) => ellipse(k % 2 ? 3.5 : 2.5, 26 + k * 4.5, 2.8, 2.6))), front: union(hairCut(union(ellipse(15, 12.3, 13.6, 10.4), tips(FRINGE))), polyS([[1.5, 12], [8.5, 15], [9, 25], [4, 27], [1.5, 22]])), tie: [3, 50] }),
+  // a knitted beanie with a folded brim; a little hair at the back
+  beanie: () => ({ front: union(hairCut(ellipse(15, 13, 13.3, 10)), polyS([[3, 14], [9, 16], [8.5, 24], [4, 24]])), beanie: true }),
+  // no hair
+  bald: () => ({ front: rectS(0, 0, 0, 0) }),
+  // long and wavy, the ends in soft points
+  wavy: () => ({
+    back: union(polyS([[3, 14], [14, 3], [26, 8], [28, 20], [27, 40], [3, 40], [1.5, 30]]), tips([[4, 44], [9, 45], [14, 44], [19, 45], [24, 43]], 5)),
+    front: union(hairCut(union(ellipse(15, 12, 14, 10.8), tips(FRINGE))), polyS([[1, 12], [9, 14], [9.5, 34], [7, 38], [1, 36]]), tips([[3, 40], [7.5, 41]], 4)),
+  }),
+  // short and tousled, tufts sticking out every way
+  messy: () => ({ front: union(hairCut(union(ellipse(15, 12, 13.4, 10), tips([[6, 1.5], [12, 0.5], [18, 1], [24, 2.5], [28.5, 6.5], [2, 8]], -4), tips([[12, 21], [16.5, 17.5], [21, 14.5], [25.5, 12.5]]))),
+    polyS([[4.5, 13], [9, 15], [9, 21], [6.5, 21]])) }),
 };
 // Hair is drawn in clumps of strands: darker strand lines follow the sweep of the fringe, a few light strands catch the
 // light near the front of the crown, and the back of the head is in shade.
-const hairTone = (r) => (x, y) => {
+const hairTone = (r, texture) => (x, y) => {
+  if (texture === "buzz") return (x + y) % 2 ? r[1] : r[2];                                    // clipped: fine stubble dots
+  if (texture === "curl") return x < 6 ? r[2] : ((x * 7 + y * 3) % 9 < 2 ? r[2] : (x * 5 + y * 11) % 13 === 0 ? r[0] : r[1]); // tight curls
   const k = x + Math.floor(y * 0.7), strand = k % 5 === 0 && (Math.floor(y / 3) + k) % 3 !== 0; // broken strands, in clumps
   if (x < 6.5) return strand ? r[3] : r[2];
   if (strand) return y < 9 && x > 12 && x % 8 === 3 ? r[0] : r[2];
@@ -203,13 +230,15 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   const c = { px: base.px, part: (...q) => on() && base.part(...q), set: (...q) => on() && base.set(...q) };
   const skin = skinRamp(look.skin), hairC = ramp(look.hair[1]), top = ramp(look.top[1]), bottom = ramp(look.bottom[1]), shoe = ramp(look.shoes);
   const hair = HAIR[look.hair[0]](), extras = look.extras || [], kind = look.top[0];
-  const longSleeve = ["sweater", "hoodie", "coat", "long"].includes(kind), coat = kind === "coat", hoodie = kind === "hoodie" || look.hair[0] === "hood";
+  const longSleeve = ["sweater", "hoodie", "coat", "long", "shirt", "jacket", "cardigan", "turtleneck"].includes(kind), coat = kind === "coat", hoodie = kind === "hoodie" || look.hair[0] === "hood";
+  const face = look.face || {}, inner = look.inner ? ramp(look.inner) : top, sleeve = kind === "overalls" ? inner : top, bKind = look.bottom[0];
+  const legSkin = bKind === "skirt" || bKind === "shorts" || kind === "dress", tights = look.tights ? ramp(look.tights) : null;
   const hoodC = look.hair[0] === "hood" ? top : hairC;
   const raised = (arm) => arm[2][1] < 36;
 
   // an arm: the sleeve (short ones end above the elbow, long ones at the wrist with a darker cuff), skin, then the hand
   const arm = ([s, e, h], near) => {
-    const w = near ? 5.5 : 4.6, cut = longSleeve ? 1.85 : 0.5, x0 = Math.min(s[0], e[0], h[0]) - 3, x1 = Math.max(s[0], e[0], h[0]) + 3;
+    const w = near ? 5.5 : 4.6, cut = longSleeve ? 1.85 : kind === "tank" ? 0.02 : 0.5, x0 = Math.min(s[0], e[0], h[0]) - 3, x1 = Math.max(s[0], e[0], h[0]) + 3;
     const along = (x, y) => {
       const seg = (p, q, off) => { const dx = q[0] - p[0], dy = q[1] - p[1], t = Math.max(0, Math.min(1, ((x + 0.5 - p[0]) * dx + (y + 0.5 - p[1]) * dy) / (dx * dx + dy * dy || 1))); return [Math.hypot(x + 0.5 - p[0] - t * dx, y + 0.5 - p[1] - t * dy), off + t]; };
       const p = seg(s, e, 0), q = seg(e, h, 1);
@@ -217,7 +246,7 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
     };
     c.part(union(limb([s, e], w), limb([e, h], w - 0.6)), (x, y) => {
       const t = along(x, y);
-      if (t < cut) return t > cut - 0.12 ? top[2] : bodyShade(top, x0, x1, 0.4)(x, y);
+      if (t < cut) return t > cut - 0.12 ? sleeve[2] : kind === "stripe" && y % 4 < 2 ? ramp(look.stripe)[1] : bodyShade(sleeve, x0, x1, 0.4)(x, y);
       return bodyShade(skin, x0, x1, 0.4)(x, y);
     });
     const L = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1, hx = h[0] + ((h[0] - e[0]) / L) * 1.4, hy = h[1] + ((h[1] - e[1]) / L) * 1.4;
@@ -238,20 +267,50 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   const shoeS = ([x0, y0, x1, y1]) => union(rectS(x0, y0 + 2, x1 - 3, y1), ellipse(x1 - 3.5, (y0 + y1) / 2 + 1, 3.5, (y1 - y0) / 2 - 0.5), ellipse(x0 + 3, y0 + 2.5, 3, 2));
   for (const [leg, foot] of [[pose.legR, pose.footR], [pose.legL, pose.footL]]) {
     const near = leg === pose.legL;
-    c.part(limb(leg, 8.5), (x, y) => (x + 0.5 < 10 || (near && x < leg[1][0] - 1) ? bottom[2] : bottom[1]));
-    for (let t = 0.1; t < 0.95; t += 0.05) {
+    const legC = legSkin ? tights || skin : bottom, bare = (y) => legSkin && (bKind === "shorts" ? y > leg[1][1] - 3 : true);
+    c.part(limb(leg, legSkin ? 7 : 8.5), (x, y) => { const r = bare(y) ? legC : bottom; return x + 0.5 < 10 || (near && x < leg[1][0] - 1) ? r[2] : r[1]; });
+    if (look.shoeStyle === "boots") c.part(limb([leg[1].map((v, i) => v + (leg[2][i] - v) * 0.45), leg[2]], legSkin ? 7.5 : 9), (x, y) => (x + 0.5 < 10 ? shoe[2] : shoe[1]));
+    if (bKind === "cargo" && near) c.part(rectS(leg[1][0] - 3.5, leg[1][1] - 6, leg[1][0] + 0.5, leg[1][1] - 1), () => bottom[2]);
+    if (!legSkin) for (let t = 0.1; t < 0.95; t += 0.05) {
       const [p, q] = t < 0.5 ? [leg[0], leg[1]] : [leg[1], leg[2]], u = t < 0.5 ? t * 2 : (t - 0.5) * 2;
       c.set(Math.round(p[0] + (q[0] - p[0]) * u + 2), Math.round(p[1] + (q[1] - p[1]) * u), jeans ? bottom[0] : bottom[2]);
     }
-    c.part(shoeS(foot), (x, y) => (y >= foot[3] - 1.5 ? sole : bodyShade(shoe, foot[0], foot[2], 0.3)(x, y)));
+    c.part(shoeS(foot), (x, y) => (y >= foot[3] - 1.5 ? sole : look.shoeStyle === "sneakers" && y === foot[1] + 4 && x > foot[0] + 2 ? ramp(look.stripe || "#c8453c")[1] : bodyShade(shoe, foot[0], foot[2], 0.3)(x, y)));
   }
   // the body: shaded at the back, lit in front, with each top's own details
   // the torso is a box in three-quarter view: its back side (x < 10) in shade, the front lit, the hem a V like the box's
   // bottom edges (lowest at the front corner, rising up-left and up-right)
-  const hem = coat ? 67 : 58, hemAt = (x) => (x < 10 ? hem - (10 - x) / 2 : hem - (x - 10) / 2), side = (r) => (x) => (x + 0.5 < 10 ? r[2] : r[1]);
-  c.part(polyS([[9.5, 30.5], [20.5, 29.5], [26.5, 32.5], [27.6, 45], [27.6, hemAt(27.6) + 0.5], [10, hem + 0.5], [4, hemAt(4) + 0.5], [4, 45], [4.5, 33]]), side(top));
+  const dress = kind === "dress", hem = coat ? 67 : dress ? 66 : 58, hemAt = (x) => (x < 10 ? hem - (10 - x) / 2 : hem - (x - 10) / 2), side = (r) => (x) => (x + 0.5 < 10 ? r[2] : r[1]);
+  // a skirt (or a dress's skirt): the same box as the body, flaring out a little, its hem a V lower down; pleats
+  const skirt = (r, waist, len) => {
+    const V = (x, y0) => (x < 10 ? y0 - (10 - x) / 2 : y0 - (x - 10) / 2);
+    c.part(polyS([[4, V(4, waist)], [10, waist], [27.6, V(27.6, waist)], [30, V(30, waist + len)], [10, waist + len], [1.5, V(1.5, waist + len)]]),
+      (x, y) => ((x > 10 && (x - 12) % 5 === 0) || (x < 10 && x % 3 === 0) ? r[2] : side(r)(x)));
+  };
+  if (bKind === "skirt" && !dress) skirt(bottom, 57, 11);
+  if (dress) skirt(top, 51, 17);
+  c.part(polyS([[9.5, 30.5], [20.5, 29.5], [26.5, 32.5], [27.6, 45], [27.6, (dress ? 45 : hemAt(27.6)) + 0.5], [10, (dress ? 54 : hem) + 0.5], [4, (dress ? 51 : hemAt(4)) + 0.5], [4, 45], [4.5, 33]]),
+    (x, y) => (kind === "stripe" && y % 4 < 2 ? side(ramp(look.stripe))(x) : side(top)(x)));
   if (kind === "sweater") { for (let x = 5; x < 27; x += 2) for (let d = 1; d < 3.5; d++) c.set(x, Math.round(hemAt(x) - d), top[2]); for (let x = 11; x < 20; x++) c.set(x, 31, top[2]); }
   const front = !back; // pockets, buttons, lapels, logos and things held in front only show from the front
+  if ((kind === "jacket" || kind === "cardigan") && front) {                                   // open front showing the shirt under it
+    c.part(polyS([[12, 31], [18.5, 30], [18.5, hemAt(18.5)], [12, hemAt(12) + 0.5]]), () => inner[1]);
+    c.part(polyS([[10.5, 31], [13.5, 31], [12.5, 42]]), () => top[2]); c.part(polyS([[17, 30.5], [20.5, 30], [18.5, 41]]), () => top[0]);
+    if (kind === "cardigan") [37, 42, 47, 52].forEach((y) => c.set(12, y, top[3]));
+    else c.part(rectS(21, 47, 25.5, 51), () => top[2]);
+  }
+  if ((kind === "shirt" || kind === "polo") && front) {                                         // a collar, a button placket, a pocket
+    c.part(polyS([[11, 30], [15, 31.5], [13, 35]]), () => top[0]); c.part(polyS([[15.5, 31.5], [20.5, 29.5], [18.5, 34.5]]), () => top[0]);
+    for (let y = 34; y < (kind === "polo" ? 42 : hemAt(15.5)); y += 1) c.set(15, y, top[2]);
+    [37, 42, 47, 52].filter((y) => kind === "shirt" || y < 42).forEach((y) => c.set(16, y, "#f4f1ea"));
+    if (kind === "shirt") c.part(rectS(19, 38, 24, 42), () => top[2]);
+  }
+  if (kind === "overalls" && front) {                                                           // a bib with straps and buttons
+    c.part(polyS([[11, 40], [22, 38], [22, hemAt(22)], [11, hemAt(11) + 0.5]]), () => bottom[1]);
+    c.part(limb([[8, 32], [11.5, 40.5]], 1.8), () => bottom[1]); c.part(limb([[22.5, 31], [21.5, 38.5]], 1.8), () => bottom[1]);
+    c.set(12, 41, "#d9a441"); c.set(21, 39, "#d9a441"); c.part(rectS(14, 44, 19, 48), () => bottom[2]);
+  }
+  if (kind === "turtleneck") c.part(polyS([[11, 28], [20, 27.5], [20.5, 32], [11, 32.5]]), (x) => side(top)(x));
   if (hoodie && front) { c.part(polyS([[11, 48], [22, 45.5], [22, 51], [11, 54]]), () => top[1]); c.set(13, 33, top[0]); c.set(13, 34, top[0]); c.set(13, 36, top[0]); c.set(18, 33, top[0]); c.set(18, 34, top[0]); c.set(18, 36, top[0]); }
   if (coat && front) {
     c.part(polyS([[11, 30.5], [15, 30.5], [15, 42]]), () => top[1]); c.part(polyS([[15.5, 30.5], [20, 30.5], [15.5, 42]]), () => top[1]);
@@ -260,7 +319,9 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   }
   if (kind === "jersey") { if (front) for (let y = 32; y < hemAt(15); y++) c.set(15, y, "#c8453c"); for (let x = 5; x < 27; x++) c.set(x, Math.round(hemAt(x) - 1), "#c8453c"); if (front) [[20, 38], [21, 38], [21, 39], [20, 40], [21, 41], [20, 42]].forEach(([x, y]) => c.set(x, y, "#c8453c")); }
   if (extras.includes("apron") && front) { const ap = ramp("#f4f1ea"); c.part(polyS([[11, 38], [24, 36], [24, 56], [11, 62]]), () => ap[1]); c.part(polyS([[13, 49], [21, 47.5], [21, 52.5], [13, 54]]), () => ap[1]); }
-  if (!coat && !hoodie && front) c.part(polyS([[11.5, 30.5], [19, 30.5], [15.5, 34.5]]), () => skin[1]);   // the neckline
+  if (!coat && !hoodie && !["shirt", "polo", "turtleneck"].includes(kind) && front) c.part(kind === "tank" || dress ? polyS([[10.5, 30.5], [20, 30], [15.5, 36]]) : polyS([[11.5, 30.5], [19, 30.5], [15.5, 34.5]]), () => skin[1]);   // the neckline
+  if (extras.includes("tie") && front) c.part(polyS([[14.5, 33], [16.5, 33], [17.5, 45], [15.5, 48], [14, 45]]), (x, y) => (y < 35 ? ramp(look.tie || "#c8453c")[2] : ramp(look.tie || "#c8453c")[1]));
+  if (extras.includes("necklace") && front) [[12, 33], [13, 34], [14, 35], [15, 35.5 | 0], [16, 35], [17, 34], [18, 33]].forEach(([x, y]) => c.set(x, y, "#d9a441"));
   // the near arm in front of the body (a raised one waits until after the head)
   if (!raised(pose.armL) && !reachesAway) nearHand = arm(pose.armL, true);
   if (extras.includes("bag") && front) { c.part(limb([[7, 32], [23, 50]], 1.6), () => "#4e5a29", null); c.part(polyS([[18, 48], [27, 47], [27.5, 55], [18.5, 56]]), bodyShade(ramp("#6b7a3a"), 18, 28, 0.25)); }
@@ -268,6 +329,8 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
 
   // head: neck, head, ear
   c.part(rectS(12, 27, 19, 35), (x, y) => (x < 14 ? skin[2] : skin[1]));
+  if (extras.includes("scarf")) { const sc = ramp(look.scarf || "#c8453c"); c.part(polyS([[7, 29], [24, 27.5], [25, 34], [8, 35.5]]), (x, y) => (y % 3 === 0 ? sc[2] : side(sc)(x)));
+    if (front) c.part(polyS([[18, 33], [22, 33], [21.5, 46], [18.5, 46]]), (x, y) => (y > 43 ? sc[2] : sc[1])); }
   cur = "head";
   c.part(headShape, (x, y) => (x < 4.5 || (y > 31.5 && x < 17) ? skin[2] : skin[1]));
   const ear = () => { c.part(ellipse(5.5, 20.5, 2.3, 3.3), (x, y) => (x < 5 ? skin[2] : skin[1])); c.set(5, 20, skin[3]); c.set(5, 21, skin[3]); };
@@ -275,30 +338,64 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   if (!back) {
     // the face, on the front of the head: small eyes looking the way they face (the far one a little higher), brows,
     // a nose line, a short mouth
-    const iris = look.eyes || "#6b4526";
-    const eye = (x, y) => {
+    const iris = look.eyes || "#6b4526", st = { eyes: "round", brows: "flat", nose: "line", mouth: "smile", ...face };
+    const darkHair = hexToHsl(look.hair[1])[2] < 38, brow = st.brows === "thin" ? skin[3] : darkHair ? OUTLINE : hairC[3];
+    const eye = (x, y, outer) => {
       if (eyes === "closed") { c.set(x, y + 3, OUTLINE); c.set(x + 1, y + 3, OUTLINE); c.set(x + 2, y + 2, OUTLINE); c.set(x + 3, y + 2, OUTLINE); return; }
-      [[1, 0], [2, 0], [3, 0], [0, 1], [0, 2], [0, 3], [1, 4]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE)); // lid and the back of the eye
-      [[1, 1], [2, 1], [1, 2], [1, 3]].forEach(([dx, dy]) => c.set(x + dx, y + dy, "#ffffff"));                      // the white
+      if (st.eyes === "narrow") { [[0, 2], [1, 2], [2, 2], [3, 2]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE)); c.set(x + 1, y + 3, "#ffffff"); c.set(x + 2, y + 3, OUTLINE); c.set(x + 3, y + 3, OUTLINE); c.set(x, y + 3, OUTLINE); return; }
+      const lid = st.eyes === "sleepy" ? 1 : 0;
+      [[1, 0], [2, 0], [3, 0], [0, 1], [0, 2], [0, 3], [1, 4]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE));   // lid and the back of the eye
+      [[1, 1], [2, 1], [1, 2], [1, 3]].forEach(([dx, dy]) => c.set(x + dx, y + dy, "#ffffff"));                        // the white
       c.set(x + 3, y + 1, iris);
-      [[2, 2], [3, 2], [2, 3], [3, 3]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE));                         // the pupil, looking right
+      [[2, 2], [3, 2], [2, 3], [3, 3]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE));                           // the pupil, looking right
+      if (lid) { c.set(x + 1, y + 1, skin[2]); c.set(x + 2, y + 1, skin[2]); c.set(x + 3, y + 1, OUTLINE); }             // a heavy lid
+      if (st.eyes === "wide") { c.set(x + 1, y + 4, "#ffffff"); c.set(x + 2, y + 4, OUTLINE); c.set(x, y + 4, OUTLINE); }
+      if (st.eyes === "lash") { c.set(outer ? x + 4 : x - 1, y, OUTLINE); c.set(outer ? x + 4 : x - 1, y - 1, OUTLINE); }
     };
-    eye(14, 18); eye(21, 15.5 | 0);
-    [[21, 13], [22, 13], [23, 12], [24, 12], [14, 16], [15, 16]].forEach(([x, y]) => c.set(x, y, OUTLINE));          // brows
-    [[20, 20], [21, 21], [21, 22], [22, 23], [21, 24], [20, 24]].forEach(([x, y]) => c.set(x, y, OUTLINE));          // the nose line
-    c.set(19, 23, skin[2]); c.set(20, 23, skin[2]);                                                                    // its shadow
+    eye(14, 18, false); eye(21, 15, true);
+    const BROWS = { flat: [[14, 16], [15, 16], [16, 16], [21, 13], [22, 13], [23, 13], [24, 13]], arched: [[14, 16], [15, 15], [16, 15], [21, 13], [22, 12], [23, 12], [24, 13]],
+      thick: [[14, 16], [15, 16], [16, 16], [15, 15], [16, 15], [21, 13], [22, 13], [23, 13], [24, 13], [22, 12], [23, 12], [24, 12]],
+      angled: [[14, 15], [15, 15], [16, 16], [21, 14], [22, 13], [23, 12], [24, 12]], thin: [[15, 16], [16, 16], [22, 13], [23, 13]] };
+    (BROWS[st.brows] || BROWS.flat).forEach(([x, y]) => c.set(x, y, brow));
+    const NOSES = { line: [[20, 20], [21, 21], [21, 22], [22, 23], [21, 24], [20, 24]], button: [[21, 22], [22, 23], [21, 24]], long: [[20, 19], [21, 20], [21, 21], [22, 22], [22, 23], [23, 24], [21, 25], [22, 25]] };
+    (NOSES[st.nose] || NOSES.line).forEach(([x, y]) => c.set(x, y, OUTLINE));
+    c.set(19, 23, skin[2]); c.set(20, 23, skin[2]);                                                                     // the nose's shadow
+    [[13, 25], [14, 26], [23, 27], [22, 28]].forEach(([x, y]) => c.set(x, y, skin[2]));                                 // cheek and chin shading
+    if (st.freckles) [[12, 22], [14, 23], [13, 24], [23, 21], [24, 22.5 | 0]].forEach(([x, y]) => c.set(x, y, mixHex(look.skin, "#8a4a2a", 0.45)));
+    const fh = ramp(look.beardColor || look.hair[1]);
+    if (st.beard === "stubble") for (let y = 26; y < 33; y++) for (let x = 11; x < 27; x++) if ((x + y) % 2 === 0 && headShape(x, y) && (y > 28 || x < 14 || x > 22)) c.set(x, y, mixHex(look.skin, look.beardColor || look.hair[1], 0.5));
+    if (st.beard === "beard") c.part(polyS([[7.5, 22], [11, 27], [16, 29.5], [22, 28], [26.5, 23], [27.4, 26.5], [25, 31], [19, 34.5], [12, 33.5], [8, 29]]), (x, y) => (x < 11 ? fh[2] : (x * 3 + y) % 5 === 0 ? fh[2] : fh[1]));
+    if (st.beard === "goatee") c.part(polyS([[16, 29], [21.5, 28.5], [21, 33.5], [17, 33.5]]), () => fh[1]);
+    if (st.beard === "mustache" || st.beard === "beard") c.part(polyS([[15.5, 25], [22.5, 24.5], [22, 26.5], [19, 26], [16, 27]]), () => fh[2]);
+    const lip = st.lips || OUTLINE;
+    const MOUTHS = { smile: [[16, 27], [17, 28], [18, 28], [19, 28], [20, 27]], flat: [[17, 28], [18, 28], [19, 28], [20, 28]], small: [[18, 28], [19, 28]],
+      smirk: [[16, 28], [17, 28], [18, 28], [19, 27], [20, 26]], grin: [[16, 27], [17, 28], [18, 28], [19, 28], [20, 28], [21, 27]] };
     if (mouth === "open") { [[16, 27], [17, 28], [18, 28], [19, 28], [20, 27]].forEach(([x, y]) => c.set(x, y, OUTLINE)); c.set(18, 27, "#c0504a"); c.set(19, 27, "#c0504a"); }
-    else [[16, 27], [17, 28], [18, 28], [19, 28], [20, 27]].forEach(([x, y]) => c.set(x, y, OUTLINE));
-    [[13, 25], [14, 26], [23, 27], [22, 28]].forEach(([x, y]) => c.set(x, y, skin[2]));                                // cheek and chin shading
+    else {
+      (MOUTHS[st.mouth] || MOUTHS.smile).forEach(([x, y]) => c.set(x, y, lip));
+      if (st.mouth === "grin") { c.set(17, 27, "#ffffff"); c.set(18, 27, "#ffffff"); c.set(19, 27, "#ffffff"); c.set(20, 27, "#ffffff"); }
+      if (st.lips) { c.set(18, 29, mixHex(st.lips, "#ffffff", 0.2)); c.set(19, 29, mixHex(st.lips, "#ffffff", 0.2)); }
+    }
   }
+  if (face.earrings) { c.set(5, 24, face.earrings); c.set(5, 25, OUTLINE); }
   // hair (and cap / hood); from behind the hair covers the whole head
   const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 29, AW, AH))) : hair.front;
   if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
   else {
-    c.part(hairShape, hairTone(hairC));
+    c.part(hairShape, hairTone(hairC, hair.texture));
+    if (hair.part && !back) hair.part.forEach(([x, y]) => c.set(x, y, hairC[3]));
+    for (const t of [hair.tie, ...(hair.ties || [])].filter(Boolean)) c.part(rectS(t[0] - 1.5, t[1] - 1, t[0] + 1.5, t[1] + 1.5), () => look.tieColor || "#e0584f");
     if (look.hair[0] === "long") for (let x = 3; x < 9; x += 3) for (let y = 22; y < 42; y++) c.set(x, y, hairC[2]);
   }
   if (back) ear();
+  if (hair.beanie) {
+    const b = ramp(look.capColor || "#6b7a8f");
+    c.part(ellipse(15, 11.5, 13.6, 10), (x, y) => (x < 7 ? b[2] : (x % 3 === 0 ? b[2] : b[1])));
+    c.part(polyS([[1.5, 13], [29, 10], [29.5, 15], [2, 18.5]]), (x, y) => (x < 7 ? b[2] : x % 2 ? b[0] : b[1]));   // the folded brim, ribbed
+    c.part(ellipse(15, 1.5, 3, 2), () => b[0]);                                                                     // the pompom
+  }
+  if (extras.includes("headphones")) { c.part(limb([[5, 16], [9, 2], [20, 0.5], [27, 7]], 1.8), () => "#2b2e35"); c.part(ellipse(5.5, 19.5, 2.8, 3.8), () => "#3a3d44"); }
+  if (extras.includes("headband") && !back) c.part(polyS([[2, 12], [28.5, 6], [29, 8.5], [2.5, 15]]), () => ramp(look.bandColor || "#e0584f")[1]);
   if (hair.cap) {
     const capC = ramp(look.capColor || "#c8102e");
     c.part(ellipse(15, 10.5, 13, 8.5), (x, y) => (x < 8 ? capC[2] : y < 5 && x > 13 && x < 22 ? capC[0] : capC[1]));
@@ -396,24 +493,24 @@ function avatarImage(look, pose, opts = {}) {
 
 // Everyone's look.
 const AVATAR_LOOKS = {
-  jen: { skin: "#f1c29b", hair: ["long", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", extras: ["sunglasses", "bag"] },
-  dancer: { skin: "#e6b08a", hair: ["bob", "#e0569b"], top: ["tee", "#8e44ad"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea" },
-  pitcher: { skin: "#d9a77c", hair: ["cap", "#3a2a24"], top: ["jersey", "#f2f2f2"], bottom: ["pants", "#c9cdd3"], shoes: "#2b2b2b", capColor: "#c8102e" },
-  radar: { skin: "#f1c29b", hair: ["spiky", "#6b4426"], top: ["hoodie", "#3f8f5a"], bottom: ["pants", "#2f3542"], shoes: "#f4f1ea" },
-  student: { skin: "#f1c29b", hair: ["bun", "#2a2a2a"], top: ["long", "#e7dcc6"], bottom: ["pants", "#5b6b8c"], shoes: "#6f4a2f", extras: ["glasses", "paper"] },
-  coffee: { skin: "#c68a62", hair: ["curly", "#b5562b"], top: ["sweater", "#e0a82e"], bottom: ["pants", "#6b4a2e"], shoes: "#f4f1ea", extras: ["cup"] },
-  labA: { skin: "#f1c29b", hair: ["bob", "#6b4226"], top: ["coat", "#f2f4f6"], bottom: ["pants", "#3d4a66"], shoes: "#2b2b2b" },
-  labB: { skin: "#e8b996", hair: ["spiky", "#1f1714"], top: ["coat", "#f2f4f6"], bottom: ["pants", "#6b7a3a"], shoes: "#2b2b2b", extras: ["glasses"], frames: "#3b82c4" },
-  analyst: { skin: "#c68a62", hair: ["curly", "#1f1714"], top: ["hoodie", "#5b3f8f"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea" },
-  tech: { skin: "#f1c29b", hair: ["bun", "#d9b25a"], top: ["tee", "#3fa3a3"], bottom: ["pants", "#3fa3a3"], shoes: "#f4f1ea" },
-  customerA: { skin: "#f1c29b", hair: ["bob", "#b5562b"], top: ["tee", "#e05a7a"], bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea" },
-  customerB: { skin: "#d9a77c", hair: ["spiky", "#2a2a2a"], top: ["tee", "#f2c94c"], bottom: ["pants", "#555555"], shoes: "#2b2b2b" },
-  barista: { skin: "#e6b08a", hair: ["bun", "#3a2a24"], top: ["tee", "#1e6b52"], bottom: ["pants", "#2d2d3a"], shoes: "#2b2b2b", extras: ["apron"] },
-  hacker: { skin: "#e9c9a8", hair: ["hood", "#2b2f3a"], top: ["hoodie", "#2b2f3a"], bottom: ["pants", "#1f222a"], shoes: "#2b2b2b", extras: ["visor"] },
-  q1: { skin: "#f1c29b", hair: ["bob", "#6b4226"], top: ["hoodie", "#f06292"], bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea" },
-  q2: { skin: "#f1c29b", hair: ["spiky", "#d9b25a"], top: ["tee", "#3fa34d"], bottom: ["pants", "#555555"], shoes: "#2b2b2b" },
-  q3: { skin: "#a8704a", hair: ["curly", "#1f1714"], top: ["sweater", "#f6c945"], bottom: ["pants", "#6b4a2e"], shoes: "#f4f1ea" },
-  q4: { skin: "#f1c29b", hair: ["cap", "#3a2a24"], top: ["long", "#e9e4d8"], bottom: ["jeans", "#2d3a5c"], shoes: "#2b2b2b", capColor: "#3b82c4" },
-  q5: { skin: "#e6b08a", hair: ["bun", "#b5562b"], top: ["tee", "#e0584f"], bottom: ["pants", "#3d4a66"], shoes: "#f4f1ea" },
-  q6: { skin: "#d9a77c", hair: ["bob", "#2a2a2a"], top: ["sweater", "#8e44ad"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea" },
+  jen: { skin: "#f1c29b", hair: ["long", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", extras: ["sunglasses", "bag"], face: { eyes: "lash", mouth: "small", brows: "arched" } },
+  dancer: { skin: "#e6b08a", hair: ["ponytail", "#e0569b"], top: ["tank", "#8e44ad"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#e0569b", face: { eyes: "lash", mouth: "grin", brows: "arched" }, tieColor: "#f6c945" },
+  pitcher: { skin: "#d9a77c", hair: ["cap", "#3a2a24"], top: ["jersey", "#f2f2f2"], bottom: ["pants", "#c9cdd3"], shoes: "#2b2b2b", capColor: "#c8102e", face: { brows: "angled", mouth: "flat", beard: "stubble" } },
+  radar: { skin: "#f1c29b", hair: ["sidepart", "#6b4426"], top: ["shirt", "#9fc4e8"], bottom: ["cargo", "#5a6048"], shoes: "#6f4a2f", extras: ["headphones"], face: { eyes: "narrow", nose: "button", mouth: "smirk" } },
+  student: { skin: "#f1c29b", hair: ["bun", "#2a2a2a"], top: ["cardigan", "#c9b48a"], inner: "#f4f1ea", bottom: ["skirt", "#34507f"], tights: "#3a3d44", shoes: "#6f4a2f", extras: ["glasses", "paper"], face: { eyes: "wide", freckles: true, mouth: "small" } },
+  coffee: { skin: "#c68a62", hair: ["curly", "#b5562b"], top: ["sweater", "#e0a82e"], bottom: ["pants", "#6b4a2e"], shoes: "#f4f1ea", extras: ["cup", "scarf"], scarf: "#3f8f5a", face: { brows: "thick", beard: "beard" } },
+  labA: { skin: "#f1c29b", hair: ["ponytail", "#6b4226"], top: ["coat", "#f2f4f6"], bottom: ["pants", "#3d4a66"], shoes: "#2b2b2b", face: { eyes: "lash", lips: "#b83a4a", brows: "arched" } },
+  labB: { skin: "#e8b996", hair: ["buzz", "#1f1714"], top: ["coat", "#f2f4f6"], bottom: ["pants", "#6b7a3a"], shoes: "#2b2b2b", extras: ["glasses"], frames: "#3b82c4", face: { beard: "goatee", nose: "long", brows: "thick" } },
+  analyst: { skin: "#8d5a3b", hair: ["afro", "#1f1714"], top: ["hoodie", "#5b3f8f"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea", face: { eyes: "sleepy", earrings: "#d9a441", mouth: "smile" } },
+  tech: { skin: "#f1c29b", hair: ["bun", "#d9b25a"], top: ["tee", "#3fa3a3"], bottom: ["pants", "#3fa3a3"], shoes: "#f4f1ea", face: { freckles: true, eyes: "round", brows: "thin" } },
+  customerA: { skin: "#f1c29b", hair: ["wavy", "#b5562b"], top: ["stripe", "#f4f1ea"], stripe: "#e05a7a", bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", extras: ["necklace"], face: { eyes: "lash", lips: "#c0504a" } },
+  customerB: { skin: "#d9a77c", hair: ["sidepart", "#2a2a2a"], top: ["polo", "#f2c94c"], bottom: ["pants", "#b8a47a"], shoes: "#6f4a2f", face: { brows: "arched", mouth: "flat", nose: "long" } },
+  barista: { skin: "#e6b08a", hair: ["bun", "#3a2a24"], top: ["shirt", "#1e6b52"], bottom: ["pants", "#2d2d3a"], shoes: "#2b2b2b", extras: ["apron"], face: { eyes: "narrow", mouth: "smile", earrings: "#c9cdd3" } },
+  hacker: { skin: "#e9c9a8", hair: ["hood", "#2b2f3a"], top: ["hoodie", "#2b2f3a"], bottom: ["pants", "#1f222a"], shoes: "#2b2b2b", extras: ["visor"], face: { mouth: "flat", beard: "stubble" } },
+  q1: { skin: "#f1c29b", hair: ["pigtails", "#6b4226"], top: ["hoodie", "#f06292"], bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#f06292", face: { eyes: "wide", freckles: true, mouth: "grin" } },
+  q2: { skin: "#f1c29b", hair: ["messy", "#d9b25a"], top: ["jacket", "#4a6fa5"], inner: "#f4f1ea", bottom: ["pants", "#2d2d3a"], shoes: "#2b2b2b", face: { beard: "stubble", brows: "angled", mouth: "smirk" } },
+  q3: { skin: "#7a4a30", hair: ["braid", "#1f1714"], top: ["turtleneck", "#e0a82e"], bottom: ["skirt", "#6b4a2e"], tights: "#3a2a24", shoes: "#2b2b2b", shoeStyle: "boots", face: { eyes: "lash", lips: "#8a3a3a", earrings: "#d9a441" } },
+  q4: { skin: "#f1c29b", hair: ["beanie", "#9aa0a6"], capColor: "#8a5a3a", top: ["shirt", "#b5533a"], bottom: ["jeans", "#2d3a5c"], shoes: "#6f4a2f", shoeStyle: "boots", face: { beard: "beard", brows: "thick", eyes: "sleepy" }, beardColor: "#b9bec6" },
+  q5: { skin: "#e6b08a", hair: ["bald", "#3a2a24"], top: ["tee", "#e0584f"], bottom: ["cargo", "#3d4a66"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#3b82c4", extras: ["glasses"], frames: "#2b2e35", face: { beard: "mustache", mouth: "smile" } },
+  q6: { skin: "#d9a77c", hair: ["bob", "#2a2a2a"], top: ["dress", "#8e44ad"], bottom: ["pants", "#2a2a2a"], tights: "#2b2e35", shoes: "#2b2b2b", extras: ["headband"], bandColor: "#f6c945", face: { eyes: "lash", lips: "#9a3050", brows: "arched" } },
 };
