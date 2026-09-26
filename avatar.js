@@ -132,6 +132,18 @@ const POSES = {
   sitWave: { ...SIT, armL: [[6, 33], [1, 25], [2, 14]] },
 };
 
+// An in-between pose, t of the way from pose a to pose b: every joint and foot moved part way (named "a>b@t", made once).
+const lerpPts = (A, B, t) => A.map((p, i) => [p[0] + (B[i][0] - p[0]) * t, p[1] + (B[i][1] - p[1]) * t]);
+function tweenPose(a, b, t) {
+  const name = `${a}>${b}@${t}`;
+  if (!POSES[name]) {
+    const A = POSES[a], B = POSES[b], near = t < 0.5 ? A : B, box = (p, q) => p.map((v, i) => v + (q[i] - v) * t);
+    POSES[name] = { armL: lerpPts(A.armL, B.armL, t), armR: lerpPts(A.armR, B.armR, t), legL: lerpPts(A.legL, B.legL, t), legR: lerpPts(A.legR, B.legR, t),
+      footL: box(A.footL, B.footL), footR: box(A.footR, B.footR), seat: near.seat, phone: near.phone, cupNear: near.cupNear, bob: A.bob && B.bob };
+  }
+  return name;
+}
+
 // A limb as a thick polyline (pixel test).
 function limb(points, w) {
   const segs = points.slice(1).map(([bx, by], i) => { const [ax, ay] = points[i], dx = bx - ax, dy = by - ay; return [ax, ay, dx, dy, dx * dx + dy * dy]; });
@@ -216,8 +228,10 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
 
   if (hair.back) c.part(hair.back, bodyShade(hairC, 2, 28, 0.4));
   if (hoodie) c.part(polyS([[6, 29], [23, 28.5], [25, 34], [5, 35]]), bodyShade(top, 5, 25));   // the hood lying behind the neck
-  // the far arm, behind the body (a raised one behind the head too)
-  const farHand = arm(pose.armR, false);
+  // the far arm, behind the body (a raised one behind the head too). Seen from behind, a near arm reaching forward
+  // (toward what the person faces) also goes behind the body.
+  const farHand = arm(pose.armR, false), reachesAway = back && !raised(pose.armL) && pose.armL[2][0] > pose.armL[0][0] + 4;
+  let nearHand = reachesAway ? arm(pose.armL, true) : null;
   if (extras.includes("cup") && !pose.cupNear) cupAt(farHand);
   // legs and shoes, the far side first; trousers shaded at the back, a front crease (a lighter seam on jeans), soles
   const jeans = look.bottom[0] === "jeans", sole = look.shoes === "#f4f1ea" ? "#c9c3b8" : "#e8e2d6";
@@ -248,8 +262,7 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   if (extras.includes("apron") && front) { const ap = ramp("#f4f1ea"); c.part(polyS([[11, 38], [24, 36], [24, 56], [11, 62]]), () => ap[1]); c.part(polyS([[13, 49], [21, 47.5], [21, 52.5], [13, 54]]), () => ap[1]); }
   if (!coat && !hoodie && front) c.part(polyS([[11.5, 30.5], [19, 30.5], [15.5, 34.5]]), () => skin[1]);   // the neckline
   // the near arm in front of the body (a raised one waits until after the head)
-  let nearHand = null;
-  if (!raised(pose.armL)) nearHand = arm(pose.armL, true);
+  if (!raised(pose.armL) && !reachesAway) nearHand = arm(pose.armL, true);
   if (extras.includes("bag") && front) { c.part(limb([[7, 32], [23, 50]], 1.6), () => "#4e5a29", null); c.part(polyS([[18, 48], [27, 47], [27.5, 55], [18.5, 56]]), bodyShade(ramp("#6b7a3a"), 18, 28, 0.25)); }
   if (extras.includes("paper") && front) { c.part(polyS([[10, 40], [22, 39], [22, 51], [10, 52]]), () => "#fbfbf6"); for (const y of [43, 46, 49]) for (let x = 12; x < 20; x++) c.set(x, y, "#9aa4b1"); }
 
@@ -296,8 +309,8 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   // raised arms over the head, and whatever the near hand holds
   cur = "over";
   if (raised(pose.armL)) nearHand = arm(pose.armL, true);
-  if (pose.cupNear) cupAt(nearHand);
-  if (pose.phone) { const [hx, hy] = nearHand; c.part(rectS(hx - 1.5, hy - 5, hx + 2, hy + 1), () => "#2b2e35"); c.set(Math.round(hx), Math.round(hy - 4), "#8cc8f0"); }
+  if (pose.cupNear && !back) cupAt(nearHand);
+  if (pose.phone && !back) { const [hx, hy] = nearHand; c.part(rectS(hx - 1.5, hy - 5, hx + 2, hy + 1), () => "#2b2e35"); c.set(Math.round(hx), Math.round(hy - 4), "#8cc8f0"); }
   // things worn on the face
   cur = "head";
   if (!back) {
@@ -323,9 +336,22 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
 // Each picture is defined once in the page's <defs id="img-defs"> and placed with <use>, so a prop drawn 50 times
 // doesn't carry its PNG 50 times.
 let imageCount = 0;
+// Colours as [r, g, b, a] (parsed once each, by letting the canvas normalise any CSS colour).
+const RGBA = new Map();
+let colourCtx = null;
+function rgba(col) {
+  if (!RGBA.has(col)) {
+    colourCtx ||= document.createElement("canvas").getContext("2d");
+    colourCtx.fillStyle = "#000"; colourCtx.fillStyle = col;
+    const s = colourCtx.fillStyle, n = s.startsWith("#") ? [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16)).concat(255) : s.match(/[\d.]+/g).map(Number);
+    RGBA.set(col, n.length === 4 && !s.startsWith("#") ? [n[0], n[1], n[2], Math.round(n[3] * 255)] : n);
+  }
+  return RGBA.get(col);
+}
 function toImage(px, W, Ht) {
-  const canvas = Object.assign(document.createElement("canvas"), { width: W, height: Ht }), ctx = canvas.getContext("2d");
-  px.forEach((col, k) => { if (col) { ctx.fillStyle = col; ctx.fillRect(k % W, Math.floor(k / W), 1, 1); } });
+  const canvas = Object.assign(document.createElement("canvas"), { width: W, height: Ht }), ctx = canvas.getContext("2d"), img = ctx.createImageData(W, Ht), d = img.data;
+  px.forEach((col, k) => { if (col) d.set(rgba(col), k * 4); });
+  ctx.putImageData(img, 0, 0);
   const url = canvas.toDataURL(), id = `img${imageCount++}`;
   document.getElementById("img-defs").insertAdjacentHTML("beforeend", `<image id="${id}" href="${url}" width="${W / 2}" height="${Ht / 2}" style="image-rendering:pixelated"/>`);
   return { url, id, w: W / 2, h: Ht / 2 };
@@ -342,6 +368,20 @@ function joinFrames(list, W, Ht) {
   return toImage(px, W * n, Ht);
 }
 const STRIPS = new Map();
+// The same, drawn a few frames at a time so the page never stalls while a long strip is made.
+async function avatarStripAsync(look, frames) {
+  const key = look + JSON.stringify(frames);
+  if (!STRIPS.has(key)) {
+    const out = [];
+    for (let i = 0; i < frames.length; i++) {
+      const { pose = "stand", ...o } = frames[i];
+      out.push(drawAvatar(AVATAR_LOOKS[look], pose, o));
+      if (i % 5 === 4) await new Promise((r) => setTimeout(r, 0));
+    }
+    if (!STRIPS.has(key)) STRIPS.set(key, joinFrames(out, AW, AH));
+  }
+  return STRIPS.get(key);
+}
 function avatarStrip(look, frames) {
   const key = look + JSON.stringify(frames);
   if (!STRIPS.has(key)) STRIPS.set(key, joinFrames(frames.map(({ pose = "stand", ...o }) => drawAvatar(AVATAR_LOOKS[look], pose, o)), AW, AH));

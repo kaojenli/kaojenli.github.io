@@ -41,6 +41,7 @@ for (let i = 0; i < 25; i++) {
   undecoded.push(...JSON.parse(await p.ev(`JSON.stringify([...document.querySelectorAll('#scene use')].map((u) => u.getAttribute('href').slice(1)).filter((id) => !DECODED.has(id)))`)));
   await p.sleep(160);
 }
+ok(await p.ev(`[...document.querySelectorAll('#scene .who')].every((el) => el.getAnimations({ subtree: true }).every((a) => !a.effect.getKeyframes().some((k) => 'transform' in k || 'translate' in k)))`), "nobody drifts: no CSS animation moves any person or animal (their frames are set by script)");
 ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((f) => f.split("|")[1])).size >= 2, "the dancer dances and the hacker types (frames change)");
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
 // when someone talks, the people near them turn their heads to look
@@ -68,22 +69,22 @@ ok(await p.ev(`!!document.querySelector('.bubble[data-for="dancer"]')`), "Enter 
 // walkers: wanderers roam, people with a route walk between their stations; never onto furniture or each other,
 // only through doors; the cat stays indoors, the dog outdoors
 const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.map((w) => [w.look, w.route ? "route" : "wander"])))`));
-const paths = Object.fromEntries(Object.keys(kinds).map((k) => [k, []])); const bad = [];
-for (let i = 0; i < 70; i++) {
-  const snap = JSON.parse(await p.ev(`JSON.stringify(WALKERS.map((w) => ({ look: w.look, level: w.level, tile: w.tile, off: !onFloorOK(w, w.tile), outdoor: !!roomAt(w.level, ...w.tile).outdoor })))`));
+// record every step as it is taken (stepTo is the one place walkers move)
+await p.ev(`(() => { window.STEPS = []; const orig = stepTo; stepTo = (wk, to, done) => { STEPS.push({ look: wk.look, from: wk.tile.slice(), to: to.slice(), ok: walkable(wk, wk.tile, to) && onFloorOK(wk, to), taken: takenBy(wk, to) }); return orig(wk, to, done); }; })()`);
+const bad = [];
+for (let i = 0; i < 35; i++) {
+  const snap = JSON.parse(await p.ev(`JSON.stringify(WALKERS.map((w) => ({ look: w.look, level: w.level, tile: w.tile, outdoor: !!roomAt(w.level, ...w.tile).outdoor })))`));
   for (const w of snap) {
-    const t = w.tile.join(","), path = paths[w.look];
-    if (path.at(-1) !== t) path.push(t);
-    if (w.off) bad.push(`${w.look} on a tile it may not use ${t}`);
-    if (w.look === "cat" && w.outdoor) bad.push(`cat outdoors at ${t}`);
-    if (w.look === "dog" && !w.outdoor) bad.push(`dog indoors at ${t}`);
+    if (w.look === "cat" && w.outdoor) bad.push(`cat outdoors at ${w.tile}`);
+    if (w.look === "dog" && !w.outdoor) bad.push(`dog indoors at ${w.tile}`);
   }
   if (new Set(snap.map((w) => w.level + ":" + w.tile.join(","))).size < snap.length) bad.push("two walkers share a tile");
-  await p.sleep(400);
+  await p.sleep(800);
 }
-for (const [look, path] of Object.entries(paths)) ok(path.length > (kinds[look] === "route" ? 2 : 3), `${look} ${kinds[look] === "route" ? "walks between stations" : "wanders"} (${path.length} tiles: ${path.slice(0, 8).join(" → ")} …)`);
-ok(bad.length === 0, "walkers stay off furniture and each other; cat indoors, dog outdoors" + (bad.length ? ": " + bad.slice(0, 3).join("; ") : ""));
-const through = await p.ev(`Object.entries(${JSON.stringify(paths)}).flatMap(([look, path]) => { const wk = WALKERS.find((w) => w.look === look); return path.slice(1).filter((t, i) => { const a = path[i].split(',').map(Number), b = t.split(',').map(Number); return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) !== 1 || !walkable(wk, a, b); }); }).length`);
+const steps = JSON.parse(await p.ev(`JSON.stringify(STEPS)`));
+for (const look of Object.keys(kinds)) { const n = steps.filter((s) => s.look === look).length; ok(n > 2, `${look} ${kinds[look] === "route" ? "walks between stations" : "wanders"} (${n} steps)`); }
+ok(bad.length === 0 && steps.every((s) => !s.taken), "walkers stay off furniture and each other; cat indoors, dog outdoors" + (bad.length ? ": " + bad.slice(0, 3).join("; ") : ""));
+const through = steps.filter((s) => Math.abs(s.from[0] - s.to[0]) + Math.abs(s.from[1] - s.to[1]) !== 1 || !s.ok).length;
 ok(through === 0, "every step goes to a neighbouring tile through a door, never through a wall");
 ok(p.logs.length === 0, "no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
 p.close();

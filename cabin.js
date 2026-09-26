@@ -171,6 +171,8 @@ const who = (look, w, h, x, y, z, cls, inner) => {
 // person does while standing still, each "pose" or "pose:ms". `face` is the way they look: "front" (down-right, +x),
 // "frontL" (down-left, +y), "back" (up-left, -x) or "backR" (up-right, -y). `glance`: now and then they look around.
 const WALK = ["walkA", "passA", "walkB", "passB"], EXTRA = {}, PEOPLE = new Map();
+// The walk cycle in eight frames (62.5 ms each, two steps a tile): each key pose, then halfway to the next.
+const WALK8 = WALK.flatMap((p, i) => [p, tweenPose(p, WALK[(i + 1) % 4], 0.5)]);
 const POSE_MS = { stand: 1800, shift: 1500, phone: 2200, think: 1800, reach: 900, typeA: 150, typeB: 150, talk1: 380, talk2: 380, drink: 1300,
   sit: 2200, sitDrink: 1500, sitWave: 300, wave1: 260, wave2: 260, armsUp: 260, danceL: 260, danceMix: 260, danceR: 260, pSet: 700, pLift: 380, pCock: 320, pRelease: 480 };
 const parsePose = (s) => { const [pose, ms] = s.split(":"); return { pose, ms: +ms || POSE_MS[pose] || 1200 }; };
@@ -183,7 +185,7 @@ function person(look, idle, x, y, { cls = "", top = "", dy = 0, extra = null, wa
   PEOPLE.set(look, { idle, face: walker ? "front" : face, glance, walker, x, y, level: curLevel });
   const body = avatarStrip(look, [{ pose: first, back, layer: "body" }]), head = avatarStrip(look, [{ back, layer: "head" }]);
   const over = hasOver(first) ? frameWin(avatarStrip(look, [{ pose: first, back, layer: "over" }]), 0, w, h, "ov") : "";
-  return who(look, w, h, x, y, -dy, cls, `<g class="face"${faceMirror(face) && !walker ? ` transform="${MIRROR}"` : ""}><g class="bob">${frameWin(body, 0, w, h, "bv")}` +
+  return who(look, w, h, x, y, -dy, cls, `<g class="face"${faceMirror(face) && !walker ? ` transform="${MIRROR}"` : ""}><g class="lift">${frameWin(body, 0, w, h, "bv")}` +
     `<g class="hl">${frameWin(head, 0, w, h, "hv")}</g><g class="ol">${over}</g><g class="extra">${EXTRA[look] ? EXTRA[look](first) : ""}</g></g></g>` + top);
 }
 // Animals and the robot: a strip of their frames (props.js), mirrored when they walk toward the left of the screen.
@@ -293,7 +295,7 @@ const ROOMS = [
       add(X + Y + 3.4, tableF(X + 1.45, Y + 1.35, 1.1, 0.7, { h: 6, wood: FC.walnut }) + bookStack(X + 1.6, Y + 1.45, 6) + onTop(X, Y, 6, [[2.2, 1.85, "mug"]]) + candle3(X + 2.1, Y + 1.55, 6));
       add(X + Y + 3.2, armchair(X + 3.35, Y + 1.1, "left", { col: FC.rust }));
       add(X + Y + 5.2, sofa(X + 1.1, Y + 2.65, 2.2, "up", { col: FC.cream, cushion: "#f3ead8" }));
-      add(X + Y + 7.1, person("jen", ["stand:2600", "shift:1600", "stand:2200", "shift"], X + 2.5, Y + 4.55, { glance: true }));
+      add(X + Y + 7.1, person("jen", ["stand"], X + 2.5, Y + 4.55, { glance: true }));
       add(X + Y + 5.2, recordPlayer(X + 0.1, Y + 4.4));
       add(X + Y + 7.2, person("dancer", ["armsUp", "danceL", "danceMix", "danceR"], X + 1.5, Y + 5.7, {}));
       add(X + Y + 7.9, onFloor(X + 0.45, Y + 7.45, 0, "monstera"));
@@ -336,8 +338,8 @@ const ROOMS = [
       add(X + Y + 4.7, stool(X + 1.1, Y + 2.5, { h: 12 }) + stool(X + 2.1, Y + 2.5, { h: 12 }) + stool(X + 3.1, Y + 2.5, { h: 12 }));
       // banquette under the window with two customers, their tables in front
       add(X + Y + 7.1, sofa(X + 5.3, Y + 0.05, 2.6, "down", { col: FC.teal, cushion: "#56a8a0", pillows: [[0.3], [1.2], [2.1]] }));
-      add(X + Y + 7.2, person("customerA", ["sit", "sit", "sit", "sitDrink"], X + 5.9, Y + 0.95, { dy: 1, top: bbox(GREEN), face: "frontL", glance: true }));
-      add(X + Y + 8.3, person("customerB", ["sit", "sitDrink", "sit", "sit"], X + 7.3, Y + 0.95, { dy: 1, top: bbox("#ff4fd8"), face: "frontL", glance: true }));
+      add(X + Y + 7.2, person("customerA", ["sit:6000", "sitDrink:2200"], X + 5.9, Y + 0.95, { dy: 1, top: bbox(GREEN), face: "frontL", glance: true }));
+      add(X + Y + 8.3, person("customerB", ["sit:4500", "sitDrink:2200", "sit:3000"], X + 7.3, Y + 0.95, { dy: 1, top: bbox("#ff4fd8"), face: "frontL", glance: true }));
       add(X + Y + 7.6, roundTable(X + 6.0, Y + 1.6) + cups(X + 5.9, Y + 1.55, 12, 1) + bookStack(X + 6.05, Y + 1.5, 12, 2));
       add(X + Y + 8.95, roundTable(X + 7.35, Y + 1.6) + cups(X + 7.25, Y + 1.55, 12, 2));
       // a table for four in the middle, a table for two by the entrance hall
@@ -394,7 +396,7 @@ const ROOMS = [
       // the queue outside the café door, each person tracked with a box
       // the first in line goes in to order (see ROUTES) and comes back; the rest wait facing the door, glancing about
       add(X + Y + 24, person("q1", ["stand"], X + 10.5, Y + 0.5, { cls: "walker", walker: true, top: bbox(GREEN) }));
-      [[11.3, 1.3, "back", ["stand", "shift"]], [12.15, 1.3, "frontL", ["phone"]], [13.0, 1.3, "back", ["stand", "stand", "shift"]], [13.85, 1.3, "back", ["phone", "phone", "stand"]], [14.7, 1.3, "backR", ["shift", "stand"]]].forEach(([u, v, face, idle], k) => {
+      [[11.3, 1.3, "back", ["stand"]], [12.15, 1.3, "frontL", ["phone"]], [13.0, 1.3, "back", ["stand:6000", "shift:4000"]], [13.85, 1.3, "back", ["phone"]], [14.7, 1.3, "backR", ["stand"]]].forEach(([u, v, face, idle], k) => {
         add(X + u + Y + v, person(`q${k + 2}`, idle, X + u, Y + v, { face, glance: true, top: bbox(["#ff4fd8", "#3bb8ff", "#ffb800", GREEN, "#ff4fd8"][k]) }));
       });
       add(X + Y + 1.9, tree(X + 0.5, Y + 1.4));
@@ -493,7 +495,7 @@ const ROOMS = [
         monitor(X + 3.0, Y + 0.25, 0.7, 12, rect(1.5, 4, 2, 1, GREEN) + rect(3.5, 6, 1, 1, GREEN) + rect(4.5, 3, 1, 1, GREEN) + rect(5.5, 4, 2, 1, GREEN) + rect(7, 5, 2, 1, GREEN)) +
         `<polyline points="${ax},${ay} ${ax - 6},${ay - 6} ${mx},${my}" fill="none" stroke="#c8102e" stroke-width="0.8"/>`);
       add(X + Y + 4.4, officeChair(X + 2.9, Y + 1.0, "up", FC.navy));
-      add(X + Y + 4.9, person("tech", ["stand", "think", "stand", "reach"], X + 2.7, Y + 2.2, { face: "back", glance: true }));
+      add(X + Y + 4.9, person("tech", ["stand:5200", "think:2600"], X + 2.7, Y + 2.2, { face: "back", glance: true }));
       // cart with a spare gradient coil
       add(X + Y + 6.0, legs(X + 3.25, Y + 2.3, 0.55, 0.55, 9, pal(FC.steel), 0.05) + box(X + 3.22, Y + 2.27, 0.6, 0.6, 1, pal(FC.steel), 9) + box(X + 3.22, Y + 2.27, 0.6, 0.6, 1, pal(FC.steel), 2) +
         disc(X + 3.52, Y + 2.57, 0.2, 10, 4, "#c9763a") + disc(X + 3.52, Y + 2.57, 0.1, 14, 0.2, "#3a2a20"));
@@ -513,7 +515,7 @@ const ROOMS = [
       add(X + Y + 1.5, officeChair(X + 0.5, Y + 0.95, "up", FC.charcoal));
       add(X + Y + 2.2, shelves(X + 1.85, Y + 0.05, 1.1, 0.42, { h: 44, wood: FC.walnut }));
       add(X + Y + 3.6, armchair(X + 1.65, Y + 1.6, "down", { col: FC.navy }));
-      add(X + Y + 3.9, person("student", ["sit", "sit", "sitDrink"], X + 2.05, Y + 2.45, { dy: 1, face: "frontL", glance: true }));
+      add(X + Y + 3.9, person("student", ["sit:7000", "sitDrink:2000"], X + 2.05, Y + 2.45, { dy: 1, face: "frontL", glance: true }));
       add(X + Y + 3.9, floorLamp(X + 2.75, Y + 1.65));
       add(X + Y + 3.1, tableF(X + 1.1, Y + 1.85, 0.4, 0.4, { h: 9, wood: FC.oak }) + bookStack(X + 1.17, Y + 1.95, 9));
       add(X + Y + 3.1, paper(X + 0.25, Y + 2.5, 0, 0.3, 0.35) + paper(X + 0.55, Y + 2.8, 0, 0.3, 0.35));
@@ -766,7 +768,7 @@ function cabinSVG() {
     for (const r of rooms) if (r.live) add(r.rect[0] + r.rect[1] - 0.2, liveWall(r));
     curLevel = level;
     if (level === 0) {
-      add(12.5 + 11.5, person("coffee", ["stand", "stand", "drink", "stand"], 12.5, 11.5, { cls: "walker", walker: true }));
+      add(12.5 + 11.5, person("coffee", ["stand"], 12.5, 11.5, { cls: "walker", walker: true }));
       addOut(3.5 + 14.5, critter("dog", ["dog", "dogB"], 3.5, 14.5, { cls: "walker" }));
     } else {
       add(6.5 + 2.5, critter("cat", ["cat", "catB"], 6.5, 2.5, { cls: "walker" }));
@@ -839,7 +841,7 @@ for (const el of scene.querySelectorAll(".who")) {
   if (human) {
     const idle = cfg.idle.map(parsePose), view = faceBack(cfg.face) ? "back" : "front";
     Object.assign(st, { idle, idleI: reduceMotion ? 0 : Math.floor(Math.random() * idle.length), idleNext: 0, view, mirror: faceMirror(cfg.face),
-      head: win(el.querySelector(".hv")), over: win(el.querySelector(".ov")), bob: el.querySelector(".bob"), hl: el.querySelector(".hl"), ol: el.querySelector(".ol"),
+      head: win(el.querySelector(".hv")), over: win(el.querySelector(".ov")), lift: el.querySelector(".lift"), hl: el.querySelector(".hl"), ol: el.querySelector(".ol"),
       extraG: el.querySelector(".extra"), blinkAt: now + Math.random() * 4500, blinkEnd: 0, talkUntil: 0, mouthOpen: false, mouthNext: 0, lookUntil: 0, lookRight: true,
       gesture: null, pose: idle[0].pose, headMirror: false });
     st.blinkEnd = st.blinkAt + 150;
@@ -869,10 +871,19 @@ function act(el, kind = "wave", ms = 3000) {
 }
 // Every frame a person may need, drawn once into strips after the page is showing (walkers first), and swapped in only
 // once decoded, so nobody ever blinks out.
+// Poses change through in-between frames (see tweenPose in avatar.js): every change that can happen gets them drawn.
+const TWEENS = [1 / 3, 2 / 3], tweensOf = (a, b) => (a === b ? [] : TWEENS.map((t) => tweenPose(a, b, t)));
+const loopPairs = (list) => list.map((p, i) => [p, list[(i + 1) % list.length]]);
 function framesNeeded(st) {
-  const views = st.cfg.walker ? ["front", "back"] : [st.view], poses = new Set(st.idle.map((p) => p.pose));
-  if (st.cfg.walker) { [...WALK, "stand"].forEach((p) => poses.add(p)); (ROUTES[st.look]?.stops || []).forEach((s) => s.poses.forEach((p) => poses.add(parsePose(p).pose))); }
-  else if (bodyKind(st)) Object.values(GESTURES).forEach((g) => g[bodyKind(st)].forEach((p) => poses.add(p)));
+  const views = st.cfg.walker ? ["front", "back"] : [st.view], poses = new Set(st.idle.map((p) => p.pose)), pairs = [];
+  const seq = (list) => { list.forEach((p) => poses.add(p)); pairs.push(...loopPairs(list)); };
+  seq(st.idle.map((p) => p.pose));
+  if (st.cfg.walker) { WALK8.forEach((p) => poses.add(p)); poses.add("stand"); (ROUTES[st.look]?.stops || []).forEach((s) => seq(s.poses.map((p) => parsePose(p).pose))); }
+  else if (bodyKind(st)) {
+    const rest = st.idle[0].pose;
+    Object.values(GESTURES).forEach((g) => { const list = g[bodyKind(st)]; seq(list); pairs.push([rest, list[0]], ...list.map((p) => [p, rest])); });
+  }
+  pairs.forEach(([a, b]) => tweensOf(a, b).forEach((p) => poses.add(p)));
   const bodyKeys = views.flatMap((v) => [...poses].map((pose) => ({ pose, back: v === "back", key: `${pose}|${v}` })));
   const headKeys = views.flatMap((v) => (v === "back" ? [{ back: true, key: "back|open|closed" }]
     : ["open|closed", "closed|closed", "open|open", "closed|open"].map((e) => { const [eyes, mouth] = e.split("|"); return { back: false, eyes, mouth, key: `front|${e}` }; })));
@@ -881,9 +892,9 @@ function framesNeeded(st) {
 function swapStrip(w, strip, keys) { w.svg.querySelector("use").setAttribute("href", `#${strip.id}`); w.keys = new Map(keys.map((k, i) => [k.key, i])); w.i = -1; }
 async function upgrade(st) {
   const { bodyKeys, headKeys, overKeys } = framesNeeded(st), look = st.look;
-  const body = avatarStrip(look, bodyKeys.map(({ pose, back }) => ({ pose, back, layer: "body" })));
-  const head = avatarStrip(look, headKeys.map(({ back, eyes, mouth }) => ({ back, eyes, mouth, layer: "head" })));
-  const over = overKeys.length ? avatarStrip(look, overKeys.map(({ pose, back }) => ({ pose, back, layer: "over" }))) : null;
+  const body = await avatarStripAsync(look, bodyKeys.map(({ pose, back }) => ({ pose, back, layer: "body" })));
+  const head = await avatarStripAsync(look, headKeys.map(({ back, eyes, mouth }) => ({ back, eyes, mouth, layer: "head" })));
+  const over = overKeys.length ? await avatarStripAsync(look, overKeys.map(({ pose, back }) => ({ pose, back, layer: "over" }))) : null;
   await Promise.all([body, head, over].filter(Boolean).map(decodeStrip));
   swapStrip(st.body, body, bodyKeys);
   swapStrip(st.head, head, headKeys);
@@ -897,13 +908,21 @@ async function upgrade(st) {
 // Pick and show one person's (or animal's) frame for this moment.
 function draw(st, now) {
   if (!st.human) return setWin(st.body, st.walking ? Math.floor((now - st.walkT0) / 250) % 2 : 0);
-  let pose;
-  if (st.walking) pose = WALK[Math.floor((now - st.walkT0) / 125) % 4];
-  else if (st.gesture && now < st.gesture.until) pose = st.gesture.poses[Math.floor((now - st.gesture.t0) / st.gesture.ms) % st.gesture.poses.length];
+  let target, hold;
+  if (st.walking) target = WALK8[Math.floor((now - st.walkT0) / 62.5) % 8];
+  else if (st.gesture && now < st.gesture.until) { target = st.gesture.poses[Math.floor((now - st.gesture.t0) / st.gesture.ms) % st.gesture.poses.length]; hold = st.gesture.ms; }
   else {
     if (st.gesture) { st.gesture = null; st.el.classList.remove("acting"); }
     if (!reduceMotion && now >= st.idleNext) { st.idleI = (st.idleI + 1) % st.idle.length; st.idleNext = now + st.idle[st.idleI].ms * (0.85 + Math.random() * 0.3); }
-    pose = st.idle[st.idleI].pose;
+    target = st.idle[st.idleI].pose; hold = st.idle[st.idleI].ms;
+  }
+  // a new target pose: move there through the in-between frames (not while walking: the walk cycle is its own)
+  if (target !== st.to) { st.from = st.walking || WALK8.includes(st.to) ? null : st.to; st.to = target; st.tAt = now; st.tDur = Math.min(280, 0.45 * (hold || 300)); }
+  let pose = target;
+  if (st.from && now - st.tAt < st.tDur) {
+    const k = Math.floor(((now - st.tAt) / st.tDur) * 3);
+    const tw = k === 0 ? st.from : tweenPose(st.from, st.to, TWEENS[k - 1]);
+    if (st.body.keys.has(`${tw}|${st.view}`)) pose = tw;
   }
   if (now > st.blinkEnd) { st.blinkAt = now + 4500 + Math.random() * 1000; st.blinkEnd = st.blinkAt + 50 + Math.random() * 200; }
   const eyes = now >= st.blinkAt && now < st.blinkEnd ? "closed" : "open";
@@ -918,7 +937,7 @@ function draw(st, now) {
   const hm = now < st.lookUntil && st.lookRight !== bodyRight(st);
   if (hm !== st.headMirror) { st.headMirror = hm; st.hl.setAttribute("transform", hm ? HEAD_MIRROR : ""); }
   if (pose !== st.pose) {
-    st.bob.setAttribute("transform", POSES[pose].bob ? "translate(0 -0.5)" : "");
+    st.lift.setAttribute("transform", POSES[pose].bob ? "translate(0 -0.5)" : ""); // the walk cycle's lifted frames
     if (EXTRA[st.look]) st.extraG.innerHTML = EXTRA[st.look](pose);
     if (st.look === "pitcher" && pose === "pRelease") { const ball = scene.querySelector(".ball"); ball.classList.remove("fly"); void ball.getBBox(); ball.classList.add("fly"); }
     st.pose = pose;
@@ -1095,7 +1114,7 @@ WALKERS.filter((wk) => wk.route).forEach(arrive);
   for (const st of [...STATES.values()].filter((s) => s.human).sort((a, b) => !!b.cfg.walker - !!a.cfg.walker)) { await upgrade(st); await new Promise((r) => setTimeout(r, 0)); }
 })();
 if (!reduceMotion) {
-  setInterval(() => { const now = performance.now(); STATES.forEach((st) => draw(st, now)); }, 80);
+  (function tick(now) { STATES.forEach((st) => draw(st, now)); requestAnimationFrame(tick); })(performance.now());
   WALKERS.forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
   setTimeout(glance, 2000);
   (function chatter() { setTimeout(() => { randomChat(); chatter(); }, 2500 + Math.random() * 2500); })();
