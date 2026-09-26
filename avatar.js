@@ -493,7 +493,7 @@ function avatarImage(look, pose, opts = {}) {
 
 // Everyone's look.
 const AVATAR_LOOKS = {
-  jen: { skin: "#f1c29b", hair: ["long", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", extras: ["sunglasses", "bag"], face: { eyes: "lash", mouth: "small", brows: "arched" } },
+  jen: { skin: "#f1c29b", hair: ["long", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", face: { eyes: "lash", mouth: "small", brows: "arched" } },
   dancer: { skin: "#e6b08a", hair: ["ponytail", "#e0569b"], top: ["tank", "#8e44ad"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#e0569b", face: { eyes: "lash", mouth: "grin", brows: "arched" }, tieColor: "#f6c945" },
   pitcher: { skin: "#d9a77c", hair: ["cap", "#3a2a24"], top: ["jersey", "#f2f2f2"], bottom: ["pants", "#c9cdd3"], shoes: "#2b2b2b", capColor: "#c8102e", face: { brows: "angled", mouth: "flat", beard: "stubble" } },
   radar: { skin: "#f1c29b", hair: ["sidepart", "#6b4426"], top: ["shirt", "#9fc4e8"], bottom: ["cargo", "#5a6048"], shoes: "#6f4a2f", extras: ["headphones"], face: { eyes: "narrow", nose: "button", mouth: "smirk" } },

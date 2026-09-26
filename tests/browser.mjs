@@ -3,6 +3,8 @@ import { open, SITE } from "./cdp.mjs";
 let failed = 0;
 const ok = (cond, msg) => { console.log((cond ? "✓ " : "✗ ") + msg); if (!cond) failed++; };
 const center = (sel) => `(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`;
+// wait until a (smooth) scroll has come to rest: scrollY unchanged for 300 ms, at most 5 s
+const settle = `new Promise((done) => { let last = -1, still = 0; const t0 = Date.now(); (function poll() { if (scrollY === last) still += 50; else { still = 0; last = scrollY; } if (still >= 300 || Date.now() - t0 > 5000) done(); else setTimeout(poll, 50); })(); })`;
 const reveal = (sel) => `document.querySelector(${JSON.stringify(sel)}).scrollIntoView({ block: "center", behavior: "instant" })`;
 // At the top of the screen, or (for the last panels) the page is at its bottom and the panel is on screen.
 const inView = (id) => `(() => { const r = document.getElementById(${JSON.stringify(id)}).getBoundingClientRect();
@@ -23,7 +25,7 @@ ok(await p.ev(`(() => { const h = document.querySelector('.hero h1').getBounding
 for (const id of ["about", "projects", "experience", "education", "papers", "skills", "contact"]) {
   await p.ev("scrollTo(0, 0)"); await p.sleep(300);
   await p.click(...(await p.ev(center(`#nav a[href="#${id}"]`))));
-  await p.sleep(1200);
+  await p.ev(settle);
   ok(await p.ev(inView(id)), `navigation link → #${id} scrolls into view`);
   ok(await p.ev(`(() => { const r = document.getElementById('nav').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`), `  the navigation stays on screen (sticky) at #${id}`);
 }
@@ -41,7 +43,7 @@ for (let i = 0; i < 25; i++) {
   undecoded.push(...JSON.parse(await p.ev(`JSON.stringify([...document.querySelectorAll('#scene use')].map((u) => u.getAttribute('href').slice(1)).filter((id) => !DECODED.has(id)))`)));
   await p.sleep(160);
 }
-ok(await p.ev(`[...document.querySelectorAll('#scene .who')].every((el) => el.getAnimations({ subtree: true }).every((a) => !a.effect.getKeyframes().some((k) => 'transform' in k || 'translate' in k)))`), "nobody drifts: no CSS animation moves any person or animal (their frames are set by script)");
+ok(await p.ev(`[...document.querySelectorAll('#scene .who')].every((el) => el.getAnimations({ subtree: true }).every((a) => !(a instanceof CSSAnimation) || !a.effect.getKeyframes().some((k) => 'transform' in k || 'translate' in k)))`), "nobody drifts: no CSS animation moves any person or animal (walking between tiles is a transition; frames are set by script)");
 ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((f) => f.split("|")[1])).size >= 2, "the dancer dances and the hacker types (frames change)");
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
 // when someone talks, the people near them turn their heads to look

@@ -273,7 +273,7 @@ const CONTENT = {
 
   // Speech bubbles. `lines` pop up on their own; `click` when you click the NPC.
   npcs: {
-    jen: { name: "Jen", lines: [], click: ["Hi! I'm Jen ^ ω ^", "every room is one of my projects!", "(^_^)/"] },
+    jen: { name: "Jen", lines: [], click: ["Hi, I'm Jen. Welcome in.", "Every room here is one of my projects.", "Click around, everyone's busy with something."] },
     dancer: { name: "Dancer", lines: ["\\o/", "~(˘▾˘~)", "training converged!"], click: ["(~˘▾˘)~ join me"] },
     pitcher: { name: "Pitcher", lines: ["keypoints: 17/17 ✓", "one more rep!", "fastball incoming"], click: ["relax, my elbow is tracked in 3D"] },
     barista: { name: "Barista", lines: ["one latte, coming up!", "next, please!", "oat milk?"], click: ["☕ on the house"] },
@@ -290,11 +290,11 @@ const CONTENT = {
     robot: { name: "LLM bot", lines: ["title: Suspicious Process", "detection: selection", "level: high"], click: ["beep. rule generated."] },
     labA: { name: "Phantom maker", lines: ["skin layer next!", "mixing the phantom...", "this one gets a tumor"], click: ["pink = breast tissue phantom"] },
     radar: { name: "Radar person", lines: ["scanning 62–69 GHz...", "beamforming...", "3D volume ready"], click: ["good phantom, holding very still"] },
-    labB: { name: "Mouse researcher", lines: ["good mouse ♥", "tumor scan in progress", "time for a scan"], click: ["the sensor is imaging the mouse's tumor"] },
+    labB: { name: "Mouse researcher", lines: ["good mouse", "tumor scan in progress", "time for a scan"], click: ["the sensor is imaging the mouse's tumor"] },
     tech: { name: "MRI tech", lines: ["shimming...", "spin echo acquired", "k-space → FFT!"], click: ["mini MRI, maxi fun"] },
     student: { name: "Grad student", lines: ["GLCM features look good", "SVM vs CNN, round 2", "reviewer 2 again..."], click: ["(╯°□°)╯ LaTeX"] },
-    cat: { name: "Cat", lines: ["meow", "(=^･ω･^=)", "*sits on keyboard*"], click: ["purr..."] },
-    dog: { name: "Dog", lines: ["woof!", "*chases the fastball*", "woof woof"], click: ["good dog ♥"] },
+    cat: { name: "Cat", lines: ["meow", "*stretches*", "*sits on keyboard*"], click: ["purr..."] },
+    dog: { name: "Dog", lines: ["woof!", "*chases the fastball*", "woof woof"], click: ["good dog"] },
     parrot: { name: "Parrot", lines: ["hello world!", "squawk! CUDA!", "pretty bird"], click: ["hello! hello!"] },
     coffee: { name: "Coffee person", lines: ["brb, coffee", "CUDA out of memory??", "is the SLURM queue moving?"], click: ["espresso-driven development"] },
   },
