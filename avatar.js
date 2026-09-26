@@ -149,20 +149,32 @@ function limb(points, w) {
 // ---------- the head: a skull with a flat front and a jaw, 26×31; the face shows through a window in the hair
 const HEAD = { cx: 15, cy: 15, rx: 12.5, ry: 13 };
 const headShape = union(ellipse(15, 15, 12.5, 13), polyS([[6, 20], [27.5, 14], [27.8, 24], [25.8, 29], [21.5, 32.6], [15, 34], [10, 31.5], [6.5, 26]]));
-const faceWindow = polyS([[10.5, 14], [19, 12], [29.5, 10.5], [29.5, 36], [8, 36], [8, 22]]);
-const hairCut = (shape, top) => minus(shape, minus(faceWindow, rectS(0, 0, AW, top))); // the hair stays off the face below `top`
+// The hairline sweeps diagonally, high over the far eye and low toward the ear, so the fringe falls across the forehead.
+const faceWindow = polyS([[8.5, 23.5], [12, 19], [17, 15], [23, 11.5], [29.5, 9.5], [29.5, 36], [8.5, 36]]);
+const hairCut = (shape) => minus(shape, faceWindow);
+// Pointed tips hanging off a fringe or a nape: [x, y] where the tip points, drawn as small triangles.
+const tips = (list, down = 3) => union(...list.map(([x, y]) => polyS([[x - 2, y - down], [x + 2.2, y - down], [x - 0.3, y + 0.6]])));
+const FRINGE = [[11.5, 21.5], [15.5, 18], [20, 14.5], [24.5, 12]];
 const HAIR = {
   long: () => ({
     back: polyS([[3, 14], [14, 3], [26, 8], [28, 20], [26, 46], [21, 49], [17, 46], [13, 50], [8, 46], [4, 49], [2, 38]]),
-    front: hairCut(union(ellipse(15, 12, 13.8, 10.5), polyS([[1.5, 12], [9, 12], [9.5, 38], [6, 44], [1.5, 38]])), 15),
+    front: union(hairCut(union(ellipse(15, 12, 13.8, 10.5), tips(FRINGE))), polyS([[1.5, 12], [8.5, 14], [9.5, 38], [6, 44], [1.5, 38]])),
   }),
-  bob: () => ({ front: hairCut(union(ellipse(15, 12.5, 14, 11), polyS([[1.2, 13], [10, 13], [10, 30], [6, 33], [1.2, 30]])), 15) }),
-  spiky: () => ({ front: hairCut(union(ellipse(15, 12, 13.2, 9.8), polyS([[3, 11], [4, 2], [8, 6], [10, 0], [14, 5], [17, 0], [19, 5], [23, 0.5], [24, 7], [28.5, 4], [28, 13]]),
-    polyS([[5, 13], [10, 13], [9, 22], [6.5, 22]])), 15) }),
-  bun: () => ({ front: hairCut(union(ellipse(15, 12.5, 13.5, 10.2), ellipse(10, 4.5, 5, 4), polyS([[4, 13], [10, 13], [9, 23], [6, 23]])), 15) }),
-  curly: () => ({ front: hairCut(union(ellipse(15, 12.5, 13.5, 10.5), ...[[5, 6], [10, 2.5], [16, 2], [22, 3], [26.5, 7], [3, 13], [3.5, 20], [27.5, 12]].map(([x, y]) => ellipse(x, y, 4.2, 4.2))), 14) }),
-  cap: () => ({ front: hairCut(union(ellipse(15, 13, 13, 9.5), polyS([[4, 13], [10, 13], [9, 24], [6, 24]])), 17), cap: true }),
-  hood: () => ({ front: hairCut(ellipse(15.5, 18, 15.5, 17.5), 12), hood: true }),
+  bob: () => ({ front: union(hairCut(union(ellipse(15, 12.5, 14, 11), tips(FRINGE))), polyS([[1.2, 13], [8.5, 16], [9.5, 30], [6, 33.5], [1.2, 30]]), tips([[3.5, 34], [7, 33.5]])) }),
+  spiky: () => ({ front: union(hairCut(union(ellipse(15, 12, 13.2, 9.8), polyS([[3, 11], [4, 2], [8, 6], [10, 0], [14, 5], [17, 0], [19, 5], [23, 0.5], [24, 7], [28.5, 4], [28, 13]]), tips(FRINGE, 3.5))),
+    polyS([[5, 13], [9, 15], [9, 21], [6.5, 21]])) }),
+  bun: () => ({ front: union(hairCut(union(ellipse(15, 12.5, 13.5, 10.2), tips(FRINGE))), ellipse(10, 4.5, 5, 4), polyS([[4, 13], [9, 15], [9, 22], [6, 22]])) }),
+  curly: () => ({ front: hairCut(union(ellipse(15, 12.5, 13.5, 10.5), ...[[5, 6], [10, 2.5], [16, 2], [22, 3], [26.5, 7], [3, 13], [3.5, 20], [27.5, 11], [12, 19], [18, 14.5]].map(([x, y]) => ellipse(x, y, 4.2, 4.2)))) }),
+  cap: () => ({ front: union(hairCut(ellipse(15, 13, 13, 9.5)), polyS([[4, 13], [9, 15], [9, 23], [6, 23]])), cap: true }),
+  hood: () => ({ front: minus(ellipse(15.5, 18, 15.5, 17.5), polyS([[10, 17], [16, 12.5], [26, 10], [29.5, 11], [29.5, 36], [9, 36]])), hood: true }),
+};
+// Hair is drawn in clumps of strands: darker strand lines follow the sweep of the fringe, a few light strands catch the
+// light near the front of the crown, and the back of the head is in shade.
+const hairTone = (r) => (x, y) => {
+  const k = x + Math.floor(y * 0.7), strand = k % 5 === 0 && (Math.floor(y / 3) + k) % 3 !== 0; // broken strands, in clumps
+  if (x < 6.5) return strand ? r[3] : r[2];
+  if (strand) return y < 9 && x > 12 && x % 8 === 3 ? r[0] : r[2];
+  return r[1];
 };
 
 // ---------- draw one avatar. opts: eyes "open"/"closed", mouth "closed"/"open", back (seen from behind: no face).
@@ -250,24 +262,27 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   if (!back) {
     // the face, on the front of the head: small eyes looking the way they face (the far one a little higher), brows,
     // a nose line, a short mouth
-    const iris = look.eyes || "#5a3a24", brow = hairC[3];
+    const iris = look.eyes || "#6b4526";
     const eye = (x, y) => {
-      if (eyes === "closed") { for (let i = 0; i < 3; i++) c.set(x + i, y + 1, OUTLINE); return; }
-      for (let i = 0; i < 3; i++) c.set(x + i, y, OUTLINE);
-      c.set(x, y + 1, "#ffffff"); c.set(x + 1, y + 1, iris); c.set(x + 2, y + 1, OUTLINE);
-      c.set(x, y + 2, "#ffffff"); c.set(x + 1, y + 2, OUTLINE); c.set(x + 2, y + 2, OUTLINE);
+      if (eyes === "closed") { c.set(x, y + 3, OUTLINE); c.set(x + 1, y + 3, OUTLINE); c.set(x + 2, y + 2, OUTLINE); c.set(x + 3, y + 2, OUTLINE); return; }
+      [[1, 0], [2, 0], [3, 0], [0, 1], [0, 2], [0, 3], [1, 4]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE)); // lid and the back of the eye
+      [[1, 1], [2, 1], [1, 2], [1, 3]].forEach(([dx, dy]) => c.set(x + dx, y + dy, "#ffffff"));                      // the white
+      c.set(x + 3, y + 1, iris);
+      [[2, 2], [3, 2], [2, 3], [3, 3]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE));                         // the pupil, looking right
     };
-    eye(15, 18); eye(21, 16);
-    [[15, 16], [16, 16], [21, 14], [22, 14], [23, 14]].forEach(([x, y]) => c.set(x, y, brow));
-    [[20, 20], [21, 21], [21, 22], [22, 23], [21, 24], [20, 24]].forEach(([x, y]) => c.set(x, y, skin[3]));
-    if (mouth === "open") { [[17, 27], [18, 27], [19, 27], [20, 27]].forEach(([x, y]) => c.set(x, y, "#4a2a22")); c.set(18, 28, "#c0504a"); c.set(19, 28, "#c0504a"); }
-    else [[17, 28], [18, 28], [19, 27], [20, 27], [21, 26]].forEach(([x, y]) => c.set(x, y, "#4a2a22"));
+    eye(14, 18); eye(21, 15.5 | 0);
+    [[21, 13], [22, 13], [23, 12], [24, 12], [14, 16], [15, 16]].forEach(([x, y]) => c.set(x, y, OUTLINE));          // brows
+    [[20, 20], [21, 21], [21, 22], [22, 23], [21, 24], [20, 24]].forEach(([x, y]) => c.set(x, y, OUTLINE));          // the nose line
+    c.set(19, 23, skin[2]); c.set(20, 23, skin[2]);                                                                    // its shadow
+    if (mouth === "open") { [[16, 27], [17, 28], [18, 28], [19, 28], [20, 27]].forEach(([x, y]) => c.set(x, y, OUTLINE)); c.set(18, 27, "#c0504a"); c.set(19, 27, "#c0504a"); }
+    else [[16, 27], [17, 28], [18, 28], [19, 28], [20, 27]].forEach(([x, y]) => c.set(x, y, OUTLINE));
+    [[13, 25], [14, 26], [23, 27], [22, 28]].forEach(([x, y]) => c.set(x, y, skin[2]));                                // cheek and chin shading
   }
   // hair (and cap / hood); from behind the hair covers the whole head
-  const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 26, AW, AH))) : hair.front;
+  const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 29, AW, AH))) : hair.front;
   if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
   else {
-    c.part(hairShape, (x, y) => (x < 7 ? hairC[2] : y < 7 && x > 13 && x < 24 ? hairC[0] : hairC[1]));
+    c.part(hairShape, hairTone(hairC));
     if (look.hair[0] === "long") for (let x = 3; x < 9; x += 3) for (let y = 22; y < 42; y++) c.set(x, y, hairC[2]);
   }
   if (back) ear();
@@ -287,15 +302,16 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   cur = "head";
   if (!back) {
     if (extras.includes("sunglasses")) {
-      for (let y = 17; y < 21; y++) { for (let x = 14; x < 18; x++) c.set(x, y, "#15171c"); }
-      for (let y = 15; y < 19; y++) { for (let x = 20; x < 24; x++) c.set(x, y, "#15171c"); }
-      c.set(18, 17, OUTLINE); c.set(19, 16, OUTLINE); c.set(14, 17, "#8a93a3"); c.set(20, 15, "#8a93a3");
+      for (let y = 17; y < 22; y++) for (let x = 13; x < 18; x++) c.set(x, y, y === 17 ? OUTLINE : "#15171c");
+      for (let y = 14; y < 19; y++) for (let x = 20; x < 25; x++) c.set(x, y, y === 14 ? OUTLINE : "#15171c");
+      [[18, 17], [19, 16]].forEach(([x, y]) => c.set(x, y, OUTLINE)); c.set(14, 18, "#6a7384"); c.set(21, 15, "#6a7384"); c.set(22, 15, "#6a7384");
     }
     if (extras.includes("glasses")) {
       const fr = look.frames || "#c8102e";
-      for (const [x0, y0] of [[14, 17], [20, 15]]) { for (let x = x0; x < x0 + 5; x++) { c.set(x, y0, fr); c.set(x, y0 + 4, fr); } for (let y = y0; y < y0 + 5; y++) { c.set(x0, y, fr); c.set(x0 + 4, y, fr); } }
+      for (const [x0, y0] of [[13, 17], [20, 14]]) { for (let x = x0; x < x0 + 6; x++) { c.set(x, y0, fr); c.set(x, y0 + 5, fr); } for (let y = y0; y < y0 + 6; y++) { c.set(x0, y, fr); c.set(x0 + 5, y, fr); } }
+      c.set(19, 17, fr); c.set(19, 16, fr);
     }
-    if (extras.includes("visor")) for (let x = 11; x < 26; x++) for (let y = 16; y < 20; y++) c.set(x, y, y === 16 ? "#b9ffd6" : "#39ff88");
+    if (extras.includes("visor")) for (let x = 11; x < 27; x++) for (let y = Math.round(17.5 - (x - 11) * 0.2); y < Math.round(22 - (x - 11) * 0.2); y++) c.set(x, y, y === Math.round(17.5 - (x - 11) * 0.2) ? "#b9ffd6" : "#39ff88");
   }
   // the silhouette: every pixel on the edge of the figure goes black
   const px = c.px, out = px.slice(), empty = (x, y) => x < 0 || y < 0 || x >= AW || y >= AH || !px[y * AW + x];
