@@ -1,0 +1,1100 @@
+// Jen's building: a two-storey cabin, cut away like a Habbo room build. The ground floor is open plan: the living
+// room, the entrance hall with the stairs, the café (its counter under the loft) and the hacker room, with the sidewalk
+// and the practice field outside. The loft behind and above it holds the labs (mmWave, MRI, reading room, server room,
+// security room) along a railed gallery. Each project has its own room (customer tracking has the café and the hacker
+// room next to it). Draws the hero overview (speech bubbles; a coffee drinker, a cat and a dog who wander through
+// doorways) and a close-up of each project's room(s) for the project list.
+const OX = 248, OY = 186, NX = 20, NY = 15;          // ground grid NX×NY tiles
+// The floors: the ground floor's rooms run from its back wall (y = 5) to y = 13; the loft sits behind it, y = 0..5.
+const FLOORS = [{ level: 0, y0: 5, depth: 8 }, { level: 1, y0: 0, depth: 5 }];
+const H = 64, SLAB = 6, WALL = H - SLAB, LOW = 12;   // storey height, floor slab, wall height, low partitions
+const VW = 576, VH = 480;                            // overview viewBox
+const lift = (level, inner) => (level ? `<g transform="translate(0 ${-level * H})">${inner}</g>` : inner);
+const INK = "#161616"; // Habbo furni: black outlines
+const iso = (x, y) => [OX + (x - y) * 16, OY + (x + y) * 8];
+const up = ([x, y], h) => [x, y - h];
+const poly = (p, fill, stroke = INK) => `<polygon points="${p.join(" ")}" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>`;
+const circle = (cx, cy, r, fill, extra = "") => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}"${extra}/>`;
+const rect = (x, y, w, h, fill, extra = "") => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"${extra}/>`;
+// Flat drawing on a vertical plane: u runs along the plane, v is height above the floor.
+// dir 0.5 = plane runs toward the front-right (right walls, box left faces); -0.5 = toward the back-right.
+const plane = ([x, y], dir, inner) => `<g transform="matrix(1 ${dir} 0 -1 ${x} ${y})">${inner}</g>`;
+const onWall = (name, u, v) => `<g transform="translate(${u} ${v}) scale(1 -1)">${propImg(name)}</g>`; // prop upright on a plane
+const tiles = (inner) => `<g transform="matrix(16 8 -16 8 ${OX} ${OY})">${inner}</g>`; // draw in floor-tile units
+
+// While drawing a scene this collects the ground shadows of boxes standing on the floor (drawn under everything).
+let shadows = null;
+// Box on footprint [x0, x0+w] × [y0, y0+d], height h, lifted by z. c = [top, left face, right face].
+// Sides get a light-to-dark gradient and the top's front edges a highlight, so boxes read as solid.
+function box(x0, y0, w, d, h, c, z = 0) {
+  const A = iso(x0, y0 + d), B = iso(x0 + w, y0 + d), C = iso(x0 + w, y0), D = iso(x0, y0);
+  if (shadows && z === 0 && h >= 6) {
+    const s = Math.min(h / 36, 0.9); // light from the back-right: the shadow falls toward the front-left
+    shadows.push(poly([D, C, iso(x0 + w, y0 + d + s), iso(x0, y0 + d + s)], "rgba(20,40,60,.16)", "none"));
+  }
+  const L = [up(A, z), up(B, z), up(B, z + h), up(A, z + h)], R = [up(B, z), up(C, z), up(C, z + h), up(B, z + h)];
+  const lift = ([x, y]) => [x, y + 0.6], mix = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+  const [tD, tC, tB, tA] = [D, C, B, A].map((p) => up(p, z + h));
+  // thin pieces (legs, rails, poles) get flat faces only: the banding, sheen, grain and edge light wouldn't show
+  if (Math.min(w, d) * 16 < 3) return poly(L, c[1]) + poly(R, c[2]) + poly([tD, tC, tB, tA], c[0]);
+  const sheen = w * d > 0.2 ? poly([mix(tD, tC, 0.32), mix(tD, tC, 0.52), mix(tA, tB, 0.52), mix(tA, tB, 0.32)], "rgba(255,255,255,.16)", "none") : ""; // "vertical banding" on tops
+  const bands = h >= 2.5 ? poly(L, "url(#shadeL)", "none") + poly(R, "url(#shadeR)", "none") : "";
+  return poly(L, c[1]) + poly(R, c[2]) + bands + poly([tD, tC, tB, tA], c[0]) + sheen + material(c, x0, y0, w, d, h, z) +
+    `<polyline points="${[up(A, z + h), up(B, z + h), up(C, z + h)].map(lift).join(" ")}" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="0.5"/>`;
+}
+// Material texture on a box's faces, picked from the palette it was drawn with (see MATERIAL below).
+function material(c, x0, y0, w, d, h, z) {
+  const kind = MATERIAL.get(c);
+  if (!kind || h < 3) return "";
+  const lw = w * 16, rw = d * 16, onL = (inner) => plane(up(iso(x0, y0 + d), z), 0.5, inner), onR = (inner) => plane(up(iso(x0 + w, y0 + d), z), -0.5, inner);
+  const top = (inner) => raised(z + h, inner);
+  if (kind === "wood") {
+    const grain = (len) => [0.3, 0.62].map((f) => rect(0, h * f, len, 0.5, "rgba(70,35,10,.28)")).join("") + (len > 6 ? rect(len * 0.4, h * 0.45, 2, 0.5, "rgba(70,35,10,.22)") : "");
+    const lines = w >= d ? [0.3, 0.6].map((f) => rect(x0, y0 + d * f, w, 0.03, "rgba(70,35,10,.18)")).join("") : [0.3, 0.6].map((f) => rect(x0 + w * f, y0, 0.03, d, "rgba(70,35,10,.18)")).join("");
+    return onL(grain(lw)) + onR(grain(rw)) + top(lines);
+  }
+  if (kind === "metal") return onL(rect(1, 1, 1, h - 2, "rgba(255,255,255,.35)") + rect(lw - 2, 1, 0.8, h - 2, "rgba(0,0,0,.18)")) + onR(rect(1, 1, 0.8, h - 2, "rgba(255,255,255,.2)")) +
+    top(rect(x0 + w * 0.15, y0 + d * 0.2, w * 0.25, 0.04, "rgba(255,255,255,.7)"));
+  if (kind === "fabric") return onL(rect(0, 0, lw, h, "url(#weave)")) + onR(rect(0, 0, rw, h, "url(#weave)")) + top(rect(x0, y0, w, d, "url(#weaveTop)"));
+  if (kind === "glass") return onL([0.25, 0.45].map((f) => `<polygon points="${lw * f},1 ${lw * f + 2},1 ${lw * f + 0.5},${h - 1} ${lw * f - 1.5},${h - 1}" fill="rgba(255,255,255,.55)"/>`).join(""));
+  return "";
+}
+const leftFace = (x0, y0, d, z, inner) => plane(up(iso(x0, y0 + d), z), 0.5, inner);          // faces +y, length w*16
+const rightFace = (x0, y0, w, d, z, inner) => plane(up(iso(x0 + w, y0 + d), z), -0.5, inner);  // faces +x, length d*16
+
+// Stable hash in [0, 1) for material variation (board tones, joints, knots), independent of the seeded rnd().
+const hsh = (a, b = 0) => { const t = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return t - Math.floor(t); };
+// Deterministic "random" so the scene looks the same on every visit.
+let seed = 11;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const pickSeeded = (arr) => arr[Math.floor(rnd() * arr.length)];
+
+// Top-left corner that puts a w×h picture's bottom-centre on floor point (x, y).
+const at = (x, y, w, h) => { const [sx, sy] = iso(x, y); return [Math.round(sx - w / 2), Math.round(sy - h)]; };
+const onFloor = (x, y, z, name, cls = "") => {
+  const { w, h } = propImage(name), [px, py] = at(x, y, w, h);
+  const g = propImg(name, px, py - z);
+  return cls ? `<g class="${cls}">${g}</g>` : g; // animated class on a wrapper: a CSS transform would replace the translate
+};
+
+const WOOD = ["#c98b4f", "#a86f3b", "#8a5a2e"], DARK = ["#8b5a2b", "#6f4722", "#58381b"], CASE = ["#555c6b", "#3f4552", "#2d323c"];
+const BLUE = ["#4f86c6", "#3b6fb6", "#2c5892"], RED = ["#e0584f", "#c2433b", "#9e342d"], WHITE = ["#f4f6f8", "#dfe4e9", "#c6cdd4"];
+const LOG = ["#c47e40", "#a8652f", "#8a4f22"], SHELF = ["#d9d2c3", "#bfb6a4", "#a59b88"], BOOKCASE = ["#a0683a", "#8b5a2b", "#6f4722"];
+const WOODS = { walnut: "#6e4630", brown: "#7d5237", honey: "#946a45", pale: "#b99a74", dark: "#4a3326" }; // wall boards
+const STONE = ["#b3aea5", "#948f86", "#78736b"];
+const stones = (len, h, shade) => {
+  let s = rect(0, 0, len, h, "#5e5a54");
+  for (let v = 0, row = 0; v < h - 1; v += 4, row++) for (let u = row % 2 ? -3 : 0; u < len; u += 6) {
+    const u0 = Math.max(0, u) + 0.5, w = Math.min(u + 6, len) - u0 - 0.5, t = pickSeeded(shade), sh = Math.min(3, h - v - 0.5);
+    if (w <= 0 || sh <= 0) continue;
+    s += rect(u0, v + 0.5, w, sh, t) + rect(u0, v + 0.5 + sh - 0.6, w, 0.6, "rgba(255,255,255,.32)") + rect(u0, v + 0.5, 0.5, sh, "rgba(255,255,255,.16)") +
+      rect(u0, v + 0.5, w, 0.5, "rgba(0,0,0,.24)") + rect(u0 + w - 0.5, v + 0.5, 0.5, sh, "rgba(0,0,0,.18)") + (hsh(u, v + len) < 0.3 ? rect(u0 + w * 0.4, v + 1.6, 0.7, 0.6, "rgba(0,0,0,.18)") : "");
+  }
+  return s;
+};
+const GRASS = ["#6cbd4a", "#6cbd4a"], GREEN = "#39ff88", HEDGE = ["#5cb346", "#469a3a", "#357d2d"];
+const raised = (h, inner) => `<g transform="translate(0 ${-h})">${tiles(inner)}</g>`; // floor-space drawing lifted h
+// Surface texture for one floor tile (tile units; 0.05 of a tile is about 2 screen pixels).
+const specks = (i, j, n, colors, size = 0.05) => Array.from({ length: n }, () => rect(i + rnd() * 0.94, j + rnd() * 0.94, size, size, pickSeeded(colors))).join("");
+// A flat slab (tile, flagstone) in floor space, inset from its grout: lit far edges, shaded near ones.
+const flag = (x, y, w, d, t) => rect(x + 0.02, y + 0.02, w - 0.04, d - 0.04, t) + rect(x + 0.03, y + 0.03, w - 0.06, 0.035, "rgba(255,255,255,.4)") + rect(x + 0.03, y + 0.03, 0.035, d - 0.06, "rgba(255,255,255,.28)") +
+  rect(x + 0.03, y + d - 0.065, w - 0.06, 0.035, "rgba(0,0,0,.16)") + rect(x + w - 0.065, y + 0.03, 0.035, d - 0.06, "rgba(0,0,0,.22)");
+const TEX = {
+  grass: (i, j) => specks(i, j, 3, ["rgba(255,255,255,.18)", "rgba(20,70,10,.2)"]) + rect(i + rnd() * 0.8, j + rnd() * 0.8, 0.03, 0.12, "rgba(20,70,10,.25)"),
+  // wood: four planks per tile running along x, each board its own tone with a lit edge, a dark gap, staggered end joints,
+  // grain and the odd knot
+  wood: (i, j, c) => {
+    const tones = [c, mixHex(c, "#ffffff", 0.08), mixHex(c, "#000000", 0.1), mixHex(c, "#d08a4a", 0.12)];
+    let s = "";
+    for (let k = 0; k < 4; k++) {
+      const R = j * 4 + k, y0 = j + k * 0.25, off = hsh(R) * 1.5;
+      for (let a = i; a < i + 1 - 1e-6;) {
+        const n = Math.floor((a - off) / 1.5), b = Math.min(i + 1, off + (n + 1) * 1.5), t = tones[Math.floor(hsh(R, n) * 4)];
+        s += rect(a, y0, b - a, 0.25, t);
+        if (hsh(R, n + 7) < 0.6) s += rect(a + (b - a) * 0.15, y0 + 0.08 + hsh(R, n + 3) * 0.08, (b - a) * 0.55, 0.018, mixHex(t, "#000000", 0.16));
+        if (hsh(R, n + 11) < 0.07) s += `<ellipse cx="${a + (b - a) * 0.6}" cy="${y0 + 0.13}" rx="0.05" ry="0.035" fill="${mixHex(t, "#000000", 0.28)}"/>`;
+        if (b < i + 1 - 1e-6) s += rect(b - 0.012, y0, 0.024, 0.25, "rgba(30,15,5,.6)") + rect(b + 0.012, y0, 0.02, 0.25, "rgba(255,230,190,.18)");
+        a = b;
+      }
+      s += rect(i, y0, 1, 0.022, "rgba(255,230,190,.2)") + rect(i, y0 + 0.228, 1, 0.022, "rgba(30,15,5,.55)");
+    }
+    return s;
+  },
+  tile: (i, j, c) => rect(i, j, 1, 1, mixHex(c, "#000000", 0.22)) + flag(i, j, 1, 1, mixHex(c, hsh(i, j) < 0.5 ? "#ffffff" : "#000000", 0.035)) + rect(i + 0.15, j + 0.15, 0.25, 0.04, "rgba(255,255,255,.4)"),
+  carpet: (i, j) => specks(i, j, 2, ["rgba(255,255,255,.1)", "rgba(0,0,0,.12)"]),
+  field: (i, j) => rect(i, j, 1, 1, i % 2 ? "rgba(255,255,255,.07)" : "rgba(0,40,0,.05)") + specks(i, j, 2, ["rgba(255,255,255,.15)", "rgba(20,70,10,.18)"]),
+  paving: (i, j, c) => { const t = (a, b) => mixHex(c, hsh(a, b) < 0.5 ? "#ffffff" : "#000000", 0.06 * hsh(b, a)), g = mixHex(c, "#000000", 0.28);
+    return rect(i, j, 1, 1, g) + (j % 2 ? flag(i, j, 1, 0.5, t(i, j)) + flag(i, j + 0.5, 0.6, 0.5, t(i + 3, j)) + flag(i + 0.6, j + 0.5, 0.4, 0.5, t(i + 5, j))
+      : flag(i, j, 0.45, 0.5, t(i, j + 9)) + flag(i + 0.45, j, 0.55, 0.5, t(i + 1, j + 9)) + flag(i, j + 0.5, 1, 0.5, t(i + 2, j + 9))); },
+};
+const tree = (x, y, name = "tree") => { const [bx, by] = iso(x, y); return `<ellipse cx="${bx - 3}" cy="${by}" rx="12" ry="4.5" fill="rgba(20,40,60,.2)"/>` + onFloor(x, y, 0, name); };
+function lamp(x, y) {
+  const [lx, ly] = up(iso(x, y), 33);
+  return box(x - 0.04, y - 0.04, 0.08, 0.08, 30, CASE) + box(x - 0.13, y - 0.13, 0.26, 0.26, 6, ["#fff3b0", "#f6c945", "#c9962a"], 30) +
+    box(x - 0.16, y - 0.16, 0.32, 0.32, 1.5, CASE, 36) + circle(lx, ly, 16, "url(#glow)", ' class="glow"');
+}
+const codeLines = (u, v, n, w, color) => Array.from({ length: n }, (_, i) => rect(u, v - 2 * i, Math.max(2, Math.round(w * (0.4 + rnd() * 0.6))), 1, color)).join("");
+const blinkAttr = () => ` class="blink" style="animation-delay:-${pickSeeded([0, 0.4, 0.8])}s"`; // three shared phases: few repaints
+// A rack's front: the frame, the servers set back in it, each blade with a handle and blinking lights.
+const rackFront = (len, h) => hole(1.2, 1.5, len - 2.4, h - 3, 2.5, { back: "#15171b", side: "#2b2e35", floor: "#3a3d44",
+  inside: `<g transform="translate(1.2 1.2)">${Array.from({ length: Math.floor((h - 5) / 4.2) }, (_, k) => { const v = 2.3 + k * 4.2;
+    return rect(2, v, len - 5, 3.6, "#2b2f37", ` stroke="#111" stroke-width="0.3"`) + rect(3, v + 1.2, 1.2, 1.2, "#8a8f98") + [0, 1, 2].map((i) => rect(len - 8 + i * 1.6, v + 1.4, 0.9, 0.8, pickSeeded([GREEN, "#3bb8ff", "#ffb800"]), blinkAttr())).join(""); }).join("")}</g>` });
+const leds = (len, h) => {
+  let s = "";
+  for (let v = 5; v < h - 3; v += 5) for (let u = 2; u < len - 2; u += 3) s += rect(u, v, 2, 1, pickSeeded([GREEN, "#3bb8ff", "#ffb800"]), blinkAttr());
+  return s;
+};
+
+// The pitcher's wind-up drawn as a pose-estimation skeleton, from the avatar's own joints in each frame (design grid → units).
+const skeleton = (poseName) => {
+  const P = POSES[poseName], u = ([x, y]) => [(x * K) / 2, (y * K) / 2];
+  const k = { head: u([22, 22]), neck: u([22, 37]), ls: u(P.armL[0]), rs: u(P.armR[0]), le: u(P.armL[1]), re: u(P.armR[1]), lw: u(P.armL[2]), rw: u(P.armR[2]),
+    lh: u(P.legL[0]), rh: u(P.legR[0]), lk: u(P.legL[1]), rk: u(P.legR[1]), la: u(P.legL[2]), ra: u(P.legR[2]) };
+  const bones = ["head-neck", "neck-ls", "neck-rs", "ls-le", "le-lw", "rs-re", "re-rw", "ls-lh", "rs-rh", "lh-rh", "lh-lk", "lk-la", "rh-rk", "rk-ra"];
+  return `<g class="skel">` +
+    bones.map((b) => { const [p, q] = b.split("-").map((n) => k[n]); return `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${GREEN}" stroke-width="0.5"/>`; }).join("") +
+    Object.values(k).map(([x, y]) => rect(x - 0.75, y - 0.75, 1.5, 1.5, "#ff3b7f")).join("") + `</g>`;
+};
+// Tracking box drawn around a person, like a detector's output (sized from the avatar canvas, in units).
+const bbox = (color) => `<g class="bbox"><rect x="1.5" y="1.5" width="${AW / 2 - 3}" height="${AH / 2 - 1.5}" fill="none" stroke="${color}" stroke-width="0.5" stroke-dasharray="2 1"/>` + rect(1, -1.5, 6, 2.5, color) + `</g>`;
+
+// Everyone drawn in the overview, with where they stand (for the sidebar's head count).
+let placed = [], curLevel = 0;
+const who = (look, w, h, x, y, z, cls, inner) => {
+  placed.push({ look, x, y, level: curLevel, walker: cls.includes("walker") });
+  const [px, py] = at(x, y, w, h);
+  return `<g class="person who ${cls}" data-look="${look}" data-w="${w}" data-h="${h}" role="button" tabindex="0" aria-label="${CONTENT.npcs[look].name}" style="transform:translate(${px}px,${py - z}px)">` +
+    (z > 0 ? "" : `<ellipse cx="${w / 2}" cy="${h - 1}" rx="${Math.ceil(w / 3)}" ry="2.5" fill="rgba(0,0,0,.2)"/>`) + `${inner}<rect class="hit" width="${w}" height="${h}" fill="transparent"/></g>`;
+};
+// People (avatar.js, 17×32 units), built like Habbo avatars from layers: the body, the head (which can turn on its own)
+// and "over" (a raised arm in front of the head). Each layer is a window onto a sprite strip of frames, so changing
+// frame only moves the window; the animator (after the scene is drawn) picks the frames. `idle` is the loop of poses a
+// person does while standing still, each "pose" or "pose:ms". `face` is the way they look: "front" (down-right, +x),
+// "frontL" (down-left, +y), "back" (up-left, -x) or "backR" (up-right, -y). `glance`: now and then they look around.
+const WALK = ["walkA", "passA", "walkB", "passB"], EXTRA = {}, PEOPLE = new Map();
+const POSE_MS = { stand: 1800, shift: 1500, phone: 2200, think: 1800, reach: 900, typeA: 150, typeB: 150, talk1: 380, talk2: 380, drink: 1300,
+  sit: 2200, sitDrink: 1500, sitWave: 300, wave1: 260, wave2: 260, armsUp: 260, danceL: 260, danceMix: 260, danceR: 260, pSet: 700, pLift: 380, pCock: 320, pRelease: 480 };
+const parsePose = (s) => { const [pose, ms] = s.split(":"); return { pose, ms: +ms || POSE_MS[pose] || 1200 }; };
+const MIRROR = `translate(${AW / 2} 0) scale(-1 1)`, HEAD_MIRROR = "translate(16.5 0) scale(-1 1)"; // the head turns about its own middle
+const faceBack = (face) => face.startsWith("back"), faceMirror = (face) => face === "frontL" || face === "backR";
+const frameWin = (strip, k, w, h, cls) => `<svg class="${cls}" x="0" y="0" width="${w}" height="${h}" viewBox="${k * w} 0 ${w} ${h}" overflow="hidden"><use href="#${strip.id}"/></svg>`;
+function person(look, idle, x, y, { cls = "", top = "", dy = 0, extra = null, walker = false, face = "front", glance = false } = {}) {
+  if (extra) EXTRA[look] = extra;
+  const back = faceBack(face) && !walker, first = parsePose(idle[0]).pose, w = AW / 2, h = AH / 2;
+  PEOPLE.set(look, { idle, face: walker ? "front" : face, glance, walker, x, y, level: curLevel });
+  const body = avatarStrip(look, [{ pose: first, back, layer: "body" }]), head = avatarStrip(look, [{ back, layer: "head" }]);
+  const over = hasOver(first) ? frameWin(avatarStrip(look, [{ pose: first, back, layer: "over" }]), 0, w, h, "ov") : "";
+  return who(look, w, h, x, y, -dy, cls, `<g class="face"${faceMirror(face) && !walker ? ` transform="${MIRROR}"` : ""}><g class="bob">${frameWin(body, 0, w, h, "bv")}` +
+    `<g class="hl">${frameWin(head, 0, w, h, "hv")}</g><g class="ol">${over}</g><g class="extra">${EXTRA[look] ? EXTRA[look](first) : ""}</g></g></g>` + top);
+}
+// Animals and the robot: a strip of their frames (props.js), mirrored when they walk toward the left of the screen.
+const critter = (look, frames, x, y, { cls = "", z = 0, extra = "" } = {}) => {
+  const { w, h } = PROPS[frames[0]], W = w / 2, Hh = h / 2;
+  PEOPLE.set(look, { level: curLevel, x, y });
+  return who(look, W, Hh, x, y, z, `${cls} critter`, `<g class="face">${frameWin(propStrip(frames), 0, W, Hh, "bv")}</g>${extra}`);
+};
+
+const monitorFacingViewer = (x0, y0, w, z, screen) => box(x0, y0, w, 0.12, 10, CASE, z) + leftFace(x0, y0, 0.12, z, rect(1, 2, w * 16 - 2, 7, "#07140c") + screen);
+const monitorFacingRight = (x0, y0, d, z, screen) => box(x0, y0, 0.12, d, 10, CASE, z) + rightFace(x0, y0, 0.12, d, z, rect(1, 2, d * 16 - 2, 7, "#07140c") + screen);
+const camera = (x, y) => {
+  return camera3(x, y);
+};
+
+const STEEL = ["#c9cdd3", "#9aa3ad", "#7d8792"], GLASS = ["rgba(225,238,248,.45)", "rgba(190,212,228,.55)", "rgba(170,192,210,.55)"];
+const MATERIAL = new Map([[WOOD, "wood"], [DARK, "wood"], [BOOKCASE, "wood"], [CASE, "metal"], [STEEL, "metal"], [WHITE, "metal"], [SHELF, "metal"], [RED, "fabric"], [BLUE, "fabric"], [GLASS, "glass"]]);
+const RAIL = ["#7a4e33", "#5e3b26", "#4a2e1c"], BEAM = ["#8a5634", "#7a4a2c", "#5e3820"];
+[RAIL, BEAM].forEach((p) => MATERIAL.set(p, "wood"));
+// The big beam along the front of an upper floor: light top edge, joints, iron straps.
+const beamFace = (len) => rect(0, SLAB - 1.2, len, 0.7, "rgba(255,255,255,.22)") + rect(0, 0, len, 0.8, "rgba(0,0,0,.25)") +
+  Array.from({ length: Math.floor(len / 9) }, (_, k) => rect(k * 9 + hsh(k) * 4, 1.6 + (k % 3) * 1.1, 5 + hsh(k, 1) * 3, 0.35, "rgba(40,20,8,.3)")).join("") +
+  Array.from({ length: Math.floor(len / 72) }, (_, k) => rect(60 + k * 72, 0.5, 0.6, SLAB - 1, "rgba(0,0,0,.35)") + rect(56 + k * 72, 1.5, 9, 1, "#3a3d44") + rect(56 + k * 72, SLAB - 2.5, 9, 1, "#3a3d44")).join("");
+// Planter box hung on the outside of a railing, flowers on top and ivy trailing down the beam.
+function railPlanter(x, y) {
+  const [sx, sy] = up(iso(x + 0.35, y + 0.12), 4);
+  let ivy = "";
+  for (const [dx, n] of [[-5, 9], [0, 13], [5, 7]]) for (let t = 0; t < n; t++) ivy += rect(Math.round(sx + dx + Math.sin(t * 1.3) * 1.5), Math.round(sy + t * 2.2), 2, 2, t % 3 ? "#3f8a3a" : "#5fb04a") + (t % 4 === 1 ? rect(Math.round(sx + dx + Math.sin(t * 1.3) * 1.5) + 1, Math.round(sy + t * 2.2) + 1, 1, 1, "#23602c") : "");
+  return ivy + box(x, y, 0.7, 0.22, 4, pal(FC.oak, "wood"), 2) + onFloor(x + 0.15, y + 0.1, 6, "flowerP") + onFloor(x + 0.35, y + 0.12, 6, "flowerR") + onFloor(x + 0.55, y + 0.1, 6, "flowerP");
+}
+// Flower box under an outside window (wall units).
+const flowerBox = (u, v, w, wall = "back") => slab3(u, v - 1, w, 3.5, 3.5, "#8a5634", "", wall) +
+  `<g transform="translate(${wall === "back" ? -1.75 : 1.75} -1.75)">${[0, 1, 2, 3, 4].map((k) => rect(u + 2 + k * 4, v + 2.5, 3, 2.5, ["#f06292", "#f6c945", "#e0584f", "#ffffff", "#b39ddb"][k]) + rect(u + 3 + k * 4, v + 1.5, 1, 1.5, "#3f8a3a")).join("")}</g>`;
+// Dotted walking path on the floor (tile units), like the output of a tracker.
+const trail = (pts, color) => pts.slice(1).map((b, i) => {
+  const a = pts[i], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.22);
+  return Array.from({ length: n }, (_, k) => rect(a[0] + ((b[0] - a[0]) * k) / n - 0.04, a[1] + ((b[1] - a[1]) * k) / n - 0.04, 0.08, 0.08, color)).join("");
+}).join("");
+// Stone stairs from the entrance hall (front, y = Y + 4) up to the loft (back, y = Y, one storey up): a post on every
+// step and a handrail on the open (café) side.
+const stairs = (X, Y) => (add) => {
+  const S = pal("#a19c93"), tops = [];
+  for (let k = 7; k >= 0; k--) {
+    const y0 = Y + 3.5 - k * 0.5, h = (k + 1) * (H / 8);
+    tops.push(up(iso(X + 1.8, y0 + 0.25), h + 13));
+    add(X + 1 + y0, box(X + 0.15, y0, 1.7, 0.5, h, S) + raised(h, rect(X + 0.15, y0 + 0.42, 1.7, 0.08, "rgba(255,255,255,.3)")) +
+      rightFace(X + 0.15, y0, 1.7, 0.5, 0, stones(8, h, ["#8a857c", "#7d786f", "#948f86"])) + box(X + 1.77, y0 + 0.22, 0.06, 0.06, 13, RAIL, h) + box(X + 1.74, y0 + 0.19, 0.12, 0.12, 1.2, RAIL, h + 12));
+  }
+  add(X + Y + 6, `<polyline points="${tops.join(" ")}" fill="none" stroke="${INK}" stroke-width="2.2"/><polyline points="${tops.join(" ")}" fill="none" stroke="${RAIL[0]}" stroke-width="1.2"/>`);
+};
+
+// ---------- rooms: level (0 = ground floor), rect [x, y, w, h] in tiles, `blocked` tiles local to the room.
+// `right` decorates the room's back wall (u along it, 16 per tile; v up, walls are 58 tall), `left` the left wall of a
+// room on x = 0 (u from the wall's front end backward), `live` holds animated wall pieces. `wall` and `wains` colour
+// the boards and the wainscot.
+const tumorMap = Array.from({ length: 20 }, (_, i) => { const x = i % 5, y = Math.floor(i / 5), d = Math.hypot(x - 2.6, y - 1.6); return rect(1.5 + x * 2.6, 1.5 + y * 1.8, 2.6, 1.8, d < 0.8 ? "#c8102e" : d < 1.6 ? "#f7a21b" : d < 2.4 ? "#3fa34d" : "#2c5892"); }).join("");
+const cups = (x, y, z, n = 2) => Array.from({ length: n }, (_, i) => cup3(x + 0.05 + i * 0.16, y + 0.05, z)).join("");
+const FLOOR_WOOD = ["#7a4a30", "#7a4a30"];
+const ROOMS = [
+  // --- ground floor: living room, stairs and entrance hall, café, hacker room; the sidewalk and the practice field outside
+  {
+    key: "living", wall: WOODS.walnut, level: 0, rect: [0, 5, 5, 8], href: "#about", label: "Living room", tex: "wood", floor: FLOOR_WOOD,
+    blocked: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [0, 2], [1, 2], [2, 2], [3, 2], [1, 3], [2, 3], [3, 3], [2, 4], [0, 4], [0, 5], [1, 5], [0, 7]],
+    rug: (X, Y) => rugF(X + 0.8, Y + 0.85, 3.0, 3.1) + furRug(X + 1.7, Y + 5.7, 0.7, 0.45),
+    // a lamp, a landscape and a clock by the fireplace; on the left wall a curtained window, a picture and a shelf of books
+    right: sconce(52, 32) + frame3("frameLandscape", 53, 51, { col: "#c9962a" }) + prop3("clock", 68, 53),
+    left: windowW(18, 24, 22, 18, { curtain: FC.rust, wall: "left" }) + sconce(48, 32, "left") + frame3("frameAbstract", 56, 50, { col: "#2b2e35", wall: "left" }) + wallShelf(74, 38, 28, shelfBooks(76, 38, 24, "left"), "left"),
+    draw(add, X, Y) {
+      add(X + Y + 0.6, shelves(X + 0.1, Y + 0.05, 1.05, 0.42, { h: 44, wood: FC.walnut }));
+      // stone fireplace standing out from the wall: the surround and firebox, a wooden mantel with candles, the chimney breast with antlers
+      const F = X + 1.25, ST = ["#b3aea5", "#a19c93", "#bdb8af"], SD = ["#8a857c", "#7d786f", "#948f86"], D = 0.55, HEARTH = 1.2;
+      // The firebox, drawn on the fireplace's face (u along it, v up) as a hole d deep into the stone: a sooty back wall, the
+      // left inner side lit orange from below, an ash floor with embers, and a stone lintel with a keystone and soot above.
+      // The fire itself (crossed logs and flames, a pixel sprite in two shapes) sits inside, seen only through the opening.
+      const d = 7, pts = (p) => p.map(([u, v]) => `${u},${v}`).join(" ");
+      const firebox = rect(4, 0, 16, 15, "#0b0605") +
+        `<polygon points="${pts([[4, 0], [4 + d, d], [4 + d, 15], [4, 15]])}" fill="#2e211a"/><polygon points="${pts([[4, 0], [4 + d, d], [4 + d, d + 3], [4, 4]])}" fill="#7a3f1c"/>` +
+        `<polygon points="${pts([[4, 0], [20, 0], [20, d], [4 + d, d]])}" fill="#1c120c"/>` + rect(4, 11.5, 16, 3.5, "rgba(0,0,0,.6)") +
+        [[6, 1], [8, 2.5], [12, 0.8], [16, 2], [18.5, 1.2], [14.5, 3]].map(([u, v], i) => rect(u, v, 1, 0.6, ["#ff6a1f", "#c8453c", "#ffb627"][i % 3])).join("") + rect(5, 0.3, 3, 0.5, "#6e6a63") +
+        `<ellipse cx="13" cy="4" rx="6.5" ry="4" fill="rgba(255,150,60,.3)"/>` +
+        rect(4, 0, 16, 15, "none", ` stroke="${INK}" stroke-width="0.6"`) +
+        rect(6, 18.5, 12, 3.5, "rgba(20,15,10,.3)") + rect(2.5, 15, 19, 3.5, "#8a857c", ` stroke="${INK}" stroke-width="0.4"`) + [6.5, 14, 17.5].map((u) => rect(u, 15, 0.5, 3.5, "#6e6a63")).join("") +
+        rect(10.5, 14.6, 3, 4.4, "#a8a39a", ` stroke="${INK}" stroke-width="0.4"`);
+      const o = iso(F, Y + D), hole = [[4, HEARTH], [20, HEARTH], [20, 15], [4, 15]].map(([u, v]) => [o[0] + u, o[1] + 0.5 * u - v]), [fx, fy] = at(F + 0.53, Y + D - 0.22, 16, 16); // a little behind the face, centred in the opening
+      const fire = `<clipPath id="firebox"><polygon points="${hole.join(" ")}"/></clipPath><g clip-path="url(#firebox)">` +
+        `<svg x="${fx}" y="${fy - HEARTH - 1.5}" width="16" height="16" viewBox="0 0 16 16" overflow="hidden"><use class="fire" href="#${propStrip(["fireA", "fireB"]).id}"/></svg></g>`;
+      add(X + Y + 0.9, box(F, Y, 1.5, D, 27, STONE) + leftFace(F, Y, D, 0, stones(24, 27, ST) + firebox) + fire +
+        rightFace(F, Y, 1.5, D, 0, stones(D * 16, 27, SD)) + box(F - 0.12, Y, 1.74, D + 0.13, 3, pal(FC.walnut, "wood"), 27) +
+        box(F + 0.37, Y, 0.76, 0.4, WALL - 30, STONE, 30) + leftFace(F + 0.37, Y, 0.4, 30, stones(12.2, WALL - 30, ST) + onWall("antlers", -1.4, 26)) + rightFace(F + 0.37, Y, 0.76, 0.4, 30, stones(6.4, WALL - 30, SD)) +
+        candle3(F + 0.12, Y + 0.45, 30) + candle3(F + 0.3, Y + 0.45, 30, 3.5) + candle3(F + 1.5, Y + 0.45, 30));
+      // the hearth stone in front, warm from the fire; firewood stacked beside
+      // the hearth stone in front, warm from the fire, with an iron grate standing on it; firewood stacked beside
+      const iron = pal("#2b2b30");
+      add(X + Y + 1.7, box(F - 0.1, Y + D, 1.7, 0.45, HEARTH, STONE) + raised(HEARTH, `<ellipse cx="${F + 0.72}" cy="${Y + D + 0.18}" rx="0.42" ry="0.14" fill="rgba(255,170,80,.28)"/>`) +
+        box(F + 0.3, Y + D + 0.03, 0.05, 0.05, 6.5, iron, HEARTH) + box(F + 1.15, Y + D + 0.03, 0.05, 0.05, 6.5, iron, HEARTH) + box(F + 0.3, Y + D + 0.03, 0.9, 0.05, 0.8, iron, HEARTH + 3.5) +
+        disc(F + 0.325, Y + D + 0.055, 0.05, HEARTH + 6.5, 0.8, "#2b2b30") + disc(F + 1.175, Y + D + 0.055, 0.05, HEARTH + 6.5, 0.8, "#2b2b30") + onFloor(X + 3.1, Y + 0.45, 0, "logs"));
+      add(X + Y + 1.0, onFloor(X + 4.45, Y + 0.5, 0, "palm"));
+      add(X + Y + 2.2, armchair(X + 0.15, Y + 1.15, "right", { col: FC.rust, pillows: [[0.4]] }));
+      add(X + Y + 2.9, floorLamp(X + 0.3, Y + 2.55));
+      add(X + Y + 3.4, tableF(X + 1.45, Y + 1.35, 1.1, 0.7, { h: 6, wood: FC.walnut }) + bookStack(X + 1.6, Y + 1.45, 6) + onTop(X, Y, 6, [[2.2, 1.85, "mug"]]) + candle3(X + 2.1, Y + 1.55, 6));
+      add(X + Y + 3.2, armchair(X + 3.35, Y + 1.1, "left", { col: FC.rust }));
+      add(X + Y + 5.2, sofa(X + 1.1, Y + 2.65, 2.2, "up", { col: FC.cream, cushion: "#f3ead8" }));
+      add(X + Y + 7.1, person("jen", ["stand:2600", "shift:1600", "stand:2200", "shift"], X + 2.5, Y + 4.55, { glance: true }));
+      add(X + Y + 5.2, recordPlayer(X + 0.1, Y + 4.4));
+      add(X + Y + 7.2, person("dancer", ["armsUp", "danceL", "danceMix", "danceR"], X + 1.5, Y + 5.7, {}));
+      add(X + Y + 7.9, onFloor(X + 0.45, Y + 7.45, 0, "monstera"));
+    },
+  },
+  { key: "stairs", level: 0, rect: [5, 5, 2, 4], hidden: true, tex: "wood", floor: FLOOR_WOOD, blocked: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3], [1, 3]],
+    draw(add, X, Y) { stairs(X, Y)(add); } },
+  {
+    key: "foyer", level: 0, rect: [5, 9, 2, 4], label: "Entrance hall", tex: "wood", floor: FLOOR_WOOD,
+    blocked: [[0, 3]],
+    rug: (X, Y) => rect(X + 0.55, Y + 0.3, 0.9, 3.4, "#6e2a22") + rect(X + 0.63, Y + 0.38, 0.74, 3.24, "none", ` stroke="#e9c46a" stroke-width="0.03"`),
+    draw(add, X, Y) { add(X + Y + 3.9, coatRack(X + 0.3, Y + 3.6)); },
+  },
+  {
+    key: "cafe", wall: WOODS.honey, level: 0, rect: [7, 5, 8, 8], label: "Café", href: "#project-tracking", slug: "tracking", tex: "wood", floor: ["#8e5634", "#8e5634"],
+    blocked: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [0, 1], [1, 1], [2, 1], [3, 1], [5, 1], [6, 1], [7, 1], [0, 2], [1, 2], [2, 2], [3, 2],
+      [4, 3], [5, 3], [4, 4], [5, 4], [0, 4], [1, 4], [2, 4], [7, 3], [7, 7], [2, 7]],
+    // a doormat at the entrance, and people's paths through the café as the tracker saw them
+    rug: (X, Y) => rect(X + 3.05, Y + 7.5, 0.9, 0.45, "#6e2a22") + rect(X + 3.1, Y + 7.55, 0.8, 0.35, "#8e3a2e") +
+      trail([[X + 3.5, Y + 8], [X + 3.5, Y + 5.6], [X + 1.4, Y + 3.1]], "rgba(57,255,136,.75)") +
+      trail([[X + 3.6, Y + 8], [X + 4.6, Y + 6.3], [X + 6.4, Y + 5.8], [X + 6.9, Y + 3.2], [X + 7.4, Y + 2.3]], "rgba(255,79,216,.75)") +
+      trail([[X + 3.4, Y + 8], [X + 5.8, Y + 7.2], [X + 6.3, Y + 2.5]], "rgba(59,184,255,.75)"),
+    right: slab3(36, 34, 40, 18, 1.5, "#5a3a22", rect(1, 1, 38, 16, "#2f4a3a") + [0, 1, 2].map((k) => rect(4, 13 - k * 4, 16 + ((k * 5) % 9), 1, "#e8efe9") + rect(28, 13 - k * 4, 6, 1, "#f6c945")).join("")) +
+      wallShelf(40, 26, 34, shelfJars(42, 26, 6)) + frame3("cafeSign", 80, 57, { col: "#c8102e" }) + prop3("clock", 86, 45) + sconce(96, 32) + windowW(102, 22, 18, 18, { curtain: FC.teal }) + frame3("frameAbstract", 107, 57, { col: "#2b2e35" }),
+    draw(add, X, Y) {
+      // back counter: espresso machines, sink, cups, upper cabinets; a drinks fridge
+      // back counter: the big espresso machine, a grinder, the sink, cups, flowers and fruit; upper cabinets over it
+      const pro = espresso(X + 0.2, Y + 0.1, 14);
+      add(X + Y + 2.6, cabinets(X + 0.1, Y + 0.05, 4.2, 0.62, { h: 14, body: FC.walnut, top: "#e8e2d6" }) + pro.svg + grinder(X + 1.55, Y + 0.2, 14) +
+        [0, 1, 2].map((i) => rect(pro.steam[0] - 2 + i * 2, pro.steam[1] - 5, 1, 2, "#ffffff", ` class="steam" style="animation-delay:-${i * 0.6}s"`)).join("") +
+        sinkTop(X + 2.05, Y + 0.17, 14) + cups(X + 2.7, Y + 0.25, 14, 3) + onTop(X, Y, 14, [[3.4, 0.3, "vaseFlowers"], [3.95, 0.3, "fruitBowl"]]) + upperCabinets(X + 1.5, Y + 0.02, 0.75, { z: 30, body: FC.walnut }));
+      add(X + Y + 5.2, fridge(X + 4.4, Y + 0.05, { w: 0.75, col: "#d9e2e8" }));
+      add(X + Y + 3, person("barista", ["stand"], X + 1.5, Y + 1.5, { cls: "walker", walker: true }));
+      add(X + Y + 3.3, pendant(X + 1.8, Y + 1.95, 33, FC.mustard, 24) + pendant(X + 3.3, Y + 1.95, 33, FC.mustard, 24));
+      // island: panelled front, marble top, register, espresso with steam, glass case of pastries
+      add(X + Y + 4.2, cabinets(X + 0.6, Y + 1.6, 3.4, 0.6, { h: 15, body: FC.walnut, top: "#e8e2d6", drawers: false, doors: 7 }) +
+        tipJar(X + 0.95, Y + 1.85, 15) +
+        smallBox(X + 1.4, Y + 1.75, 15, 0.34, 0.28, 4, FC.charcoal, (L) => rect(1, 1, L - 2, 2, "#8cc8f0")) + cups(X + 1.95, Y + 1.85, 15, 2) +
+        [[2.6, "#c98b4f"], [2.9, "#f06292"], [3.2, "#f6c945"], [3.45, "#c98b4f"]].map(([dx, col]) => box(X + dx, Y + 1.75, 0.2, 0.2, 1.5, pal(col), 15.8)).join("") + box(X + 2.5, Y + 1.65, 1.25, 0.5, 7, GLASS, 15));
+      add(X + Y + 4.7, stool(X + 1.1, Y + 2.5, { h: 12 }) + stool(X + 2.1, Y + 2.5, { h: 12 }) + stool(X + 3.1, Y + 2.5, { h: 12 }));
+      // banquette under the window with two customers, their tables in front
+      add(X + Y + 7.1, sofa(X + 5.3, Y + 0.05, 2.6, "down", { col: FC.teal, cushion: "#56a8a0", pillows: [[0.3], [1.2], [2.1]] }));
+      add(X + Y + 7.2, person("customerA", ["sit", "sit", "sit", "sitDrink"], X + 5.9, Y + 0.95, { dy: 1, top: bbox(GREEN), face: "frontL", glance: true }));
+      add(X + Y + 8.3, person("customerB", ["sit", "sitDrink", "sit", "sit"], X + 7.3, Y + 0.95, { dy: 1, top: bbox("#ff4fd8"), face: "frontL", glance: true }));
+      add(X + Y + 7.6, roundTable(X + 6.0, Y + 1.6) + cups(X + 5.9, Y + 1.55, 12, 1) + bookStack(X + 6.05, Y + 1.5, 12, 2));
+      add(X + Y + 8.95, roundTable(X + 7.35, Y + 1.6) + cups(X + 7.25, Y + 1.55, 12, 2));
+      // a table for four in the middle, a table for two by the entrance hall
+      add(X + Y + 7.6, chairF(X + 4.3, Y + 3.1, "down", { wood: FC.walnut, seat: FC.red }) + chairF(X + 4.9, Y + 3.1, "down", { wood: FC.walnut, seat: FC.red }));
+      add(X + Y + 8.8, tableF(X + 4.2, Y + 3.6, 1.2, 0.8, { wood: FC.walnut }) + cups(X + 4.4, Y + 3.8, 12, 2) + onFloor(X + 5.05, Y + 4.05, 12, "vaseFlowers"));
+      add(X + Y + 9.5, chairF(X + 4.3, Y + 4.45, "up", { wood: FC.walnut, seat: FC.red }) + chairF(X + 4.9, Y + 4.45, "up", { wood: FC.walnut, seat: FC.red }));
+      add(X + Y + 6.6, chairF(X + 0.75, Y + 4.5, "right", { wood: FC.walnut, seat: FC.red }) + tableF(X + 1.3, Y + 4.4, 0.6, 0.6, { wood: FC.walnut }) + cups(X + 1.45, Y + 4.6, 12, 2) + chairF(X + 2.0, Y + 4.5, "left", { wood: FC.walnut, seat: FC.red }));
+      add(X + Y + 11.0, disc(X + 7.5, Y + 3.3, 0.18, 0, 1, FC.iron) + box(X + 7.47, Y + 3.27, 0.06, 0.06, 18, CASE) + box(X + 7.3, Y + 3.27, 0.4, 0.06, 1, pal(FC.oak), 18) + critter("parrot", ["parrot"], X + 7.5, Y + 3.3, { z: 19 }));
+      add(X + Y + 15.0, onFloor(X + 7.5, Y + 7.45, 0, "palm"));
+      add(X + Y + 10.3, easel3(X + 2.3, Y + 7.55));
+      // two cameras high on the back wall, with translucent fields of view over the room
+      for (const [cx, a, b] of [[0.25, [3.2, 7.4], [6.8, 4.2]], [7.85, [5.6, 3.4], [2.2, 7.2]]]) {
+        const cam = up(iso(X + cx, Y + 0.1), 50);
+        add(X + Y + cx + 0.1, wallCam(X + cx, Y, 46));
+        add(99, `<g class="fov">${poly([cam, iso(X + a[0], Y + a[1]), iso(X + b[0], Y + b[1])], "rgba(255,220,80,.1)", "none")}</g>`);
+      }
+    },
+  },
+  {
+    key: "hacker", wall: WOODS.dark, wains: "#4a4f5c", level: 0, rect: [15, 5, 5, 4], label: "Hacker room", href: "#project-tracking", slug: "tracking", tex: "carpet", floor: ["#23262e", "#262a33"],
+    blocked: [[0, 0], [1, 1], [2, 1], [3, 1], [2, 2], [3, 0], [4, 0], [4, 2], [3, 3]],
+    rug: (X, Y) => rect(X + 0.6, Y + 1.9, 3.2, 1.7, "#2e3440") + rect(X + 0.7, Y + 2.0, 3.0, 1.5, "none", ` stroke="${GREEN}" stroke-width="0.03"`) +
+      `<polyline points="${X + 3.7},${Y + 0.8} ${X + 3.3},${Y + 1.9} ${X + 2.4},${Y + 1.8}" fill="none" stroke="#111" stroke-width="0.05"/><polyline points="${X + 4.4},${Y + 0.8} ${X + 4.1},${Y + 2.2} ${X + 3.4},${Y + 2.9}" fill="none" stroke="#3b82c4" stroke-width="0.04"/>`,
+    // wall screen: bird's-eye floor plan of the café, heat, and people moving as dots; an LED strip and a neon sign
+    right: rect(0, 2, 80, 0.8, "#b14cff") + rect(0, 2.8, 80, 0.4, "rgba(177,76,255,.35)") +
+      slab3(6, 20, 56, 32, 2.5, "#1b1f2a", rect(2, 2, 52, 28, "#07140c") + rect(5, 5, 30, 22, "none", ` stroke="#9aa4b1" stroke-width="0.5"`) +
+        rect(7, 7, 10, 8, "rgba(200,16,46,.45)") + rect(15, 13, 12, 9, "rgba(246,201,69,.4)") + rect(21, 21, 10, 5, "rgba(59,130,196,.4)") +
+        [0, 1, 2, 3, 4].map((k) => rect(40 + k * 2.4, 5, 1.6, 4 + ((k * 7) % 11), ["#3fa34d", "#f6c945", "#f7a21b", "#e0584f", "#3bb8ff"][k])).join("")) +
+      slab3(66, 30, 12, 8, 1.5, "#2f3542", rect(1, 1, 10, 6, "#f06292") + rect(3, 3, 6, 2, "#1b1f2a")),
+    live: [[11.5, 26.5, "dot"], [21.5, 32.5, "dot dot2"], [27.5, 40.5, "dot dot3"], [15.5, 36.5, "dot dot4"]].map(([u, v, c]) => rect(u, v, 1.5, 1.5, GREEN, ` class="${c}"`)).join(""),
+    draw(add, X, Y) {
+      const heat = Array.from({ length: 15 }, (_, i) => rect(1.5 + (i % 5) * 1.6, 2.5 + Math.floor(i / 5) * 2, 1.4, 1.8, pickSeeded(["#2c5892", "#3fa34d", "#f6c945", "#f7a21b", "#c8102e"]))).join("");
+      const paths = `<polyline points="2,3 4,6 6,4 9,7" fill="none" stroke="#ff4fd8" stroke-width="0.6"/><polyline points="2,7 5,4 7,5 9,3" fill="none" stroke="${GREEN}" stroke-width="0.6"/>`;
+      const can = (u, v, col) => rect(u, v, 1.8, 2.6, col, ` stroke="${INK}" stroke-width="0.3"`) + rect(u, v + 1, 1.8, 0.5, "rgba(255,255,255,.5)") + `<ellipse cx="${u + 0.9}" cy="${v + 2.6}" rx="0.9" ry="0.4" fill="#dfe4e9" stroke="${INK}" stroke-width="0.3"/>`;
+      const cans = [1.2, 4.9, 8.6].map((v, r) => rect(1.8, v - 0.4, 7.4, 0.4, "#9aa4b1") + [2.2, 4.4, 6.6].map((u, i) => can(u, v, pickSeeded(["#39ff88", "#f06292", "#3bb8ff", "#f6c945", "#e0584f"]))).join("")).join("");
+      add(X + Y + 0.8, box(X + 0.25, Y + 0.12, 0.55, 0.5, 14, pal("#2b2e35")) + onL(X + 0.25, Y + 0.12, 0.55, 0.5, 0, (L) =>
+        hole(1, 1.2, L - 2, 11.5, 4, { back: "#0e1a22", side: "#1c2a36", floor: "#2a3848", art: rect(1, 1.2, L - 2, 11.5, "rgba(120,200,255,.18)"), inside: `<g transform="translate(1 1)">${cans}</g>` }) +
+        rect(1, 1.2, L - 2, 11.5, "rgba(190,230,255,.12)") + `<polygon points="2,2 3.5,2 7.5,12 6,12" fill="rgba(255,255,255,.18)"/>` + rect(1, 12.7, L - 2, 0.5, "#b14cff") + slab3(L - 2.2, 4, 0.8, 5, 1, "#c9cdd3")));
+      add(X + Y + 2.2, officeChair(X + 1.35, Y + 1.75, "up", "#5b2d86"));
+      add(X + Y + 3.0, desk(X + 1.0, Y + 1.05, 2.25, 0.62, { wood: "#2f323a" }) + monitor(X + 1.05, Y + 1.12, 0.62, 12, heat) + monitor(X + 1.75, Y + 1.12, 0.62, 12, paths) +
+        monitor(X + 2.45, Y + 1.12, 0.62, 12, codeLines(3, 7, 3, 6, GREEN)) + keyboard(X + 1.8, Y + 1.42, 12) +
+        box(X + 1.15, Y + 1.5, 0.08, 0.08, 2, pal("#3fa34d"), 12) + box(X + 3.0, Y + 1.45, 0.08, 0.08, 2, pal("#e0584f"), 12) + box(X + 2.8, Y + 1.4, 0.3, 0.2, 0.6, pal("#c98b4f"), 12));
+      add(X + Y + 4.7, person("hacker", ["typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "stand:900", "think:1500"], X + 2.3, Y + 2.4, { face: "backR" }));
+      for (const x0 of [3.4, 4.1]) add(X + Y + x0 + 0.6, box(X + x0, Y + 0.15, 0.6, 0.6, 32, pal("#2b2e35")) + leftFace(X + x0, Y + 0.15, 0.6, 0, rackFront(9.6, 32)) + rightFace(X + x0, Y + 0.15, 0.6, 0.6, 0, [6, 12, 18, 24].map((v) => rect(2, v, 5.6, 0.6, "#1c1e24")).join("")));
+      add(X + Y + 6.9, onFloor(X + 4.35, Y + 2.6, 0, "beanbag"));
+      add(X + Y + 6.6, box(X + 3.1, Y + 3.2, 0.5, 0.5, 0.8, pal("#e9dcc2")) + raised(0.8, rect(X + 3.15, Y + 3.25, 0.4, 0.4, "none", ` stroke="#c8453c" stroke-width="0.03"`)));
+    },
+  },
+  {
+    key: "street", level: 0, rect: [0, 13, 15, 2], label: "Sidewalk", outdoor: true, tex: "paving", floor: ["#c9c4bb", "#bfb9ae"],
+    blocked: [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 0], [7, 0], [9, 1], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]],
+    rug: (X, Y) => rect(X, Y + 1.88, 15, 0.12, "#8d8d8d"),
+    draw(add, X, Y) {
+      // the queue outside the café door, each person tracked with a box
+      // the first in line goes in to order (see ROUTES) and comes back; the rest wait facing the door, glancing about
+      add(X + Y + 24, person("q1", ["stand"], X + 10.5, Y + 0.5, { cls: "walker", walker: true, top: bbox(GREEN) }));
+      [[11.3, 1.3, "back", ["stand", "shift"]], [12.15, 1.3, "frontL", ["phone"]], [13.0, 1.3, "back", ["stand", "stand", "shift"]], [13.85, 1.3, "back", ["phone", "phone", "stand"]], [14.7, 1.3, "backR", ["shift", "stand"]]].forEach(([u, v, face, idle], k) => {
+        add(X + u + Y + v, person(`q${k + 2}`, idle, X + u, Y + v, { face, glance: true, top: bbox(["#ff4fd8", "#3bb8ff", "#ffb800", GREEN, "#ff4fd8"][k]) }));
+      });
+      add(X + Y + 1.9, tree(X + 0.5, Y + 1.4));
+      add(X + Y + 2.6, box(X + 0.95, Y + 0.1, 1.6, 0.36, 6, pal("#8a5634", "wood")) + [1.2, 1.55, 1.9, 2.25].map((x, k) => onFloor(X + x, Y + 0.28, 6, k % 2 ? "flowerR" : "flowerP")).join(""));
+      add(X + Y + 3.6, legs(X + 2.85, Y + 0.18, 0.95, 0.28, 5, pal(FC.iron), 0.06) + box(X + 2.8, Y + 0.12, 1.05, 0.36, 1.5, pal(FC.oak, "wood"), 5) + box(X + 2.8, Y + 0.1, 1.05, 0.08, 8, pal(FC.oak, "wood"), 6.5));
+      add(X + Y + 4.6, lantern3(X + 4.55, Y + 0.25));
+      add(X + Y + 5.9, lamp(X + 4.5, Y + 1.45));
+      add(X + Y + 7.8, mailbox3(X + 7.4, Y + 0.35));
+      add(X + Y + 10.5, lamp(X + 9.2, Y + 1.5));
+    },
+  },
+  {
+    key: "yard", level: 0, rect: [15, 9, 5, 6], label: "Practice field", href: "#project-pitching", slug: "pitching", outdoor: true, tex: "field", floor: ["#62b444", "#6cbd4a"],
+    blocked: [[1, 0], [3, 0], [0, 2], [4, 1], [4, 2], [4, 3], [4, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5]],
+    rug: (X, Y) => `<ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.6" ry="0.6" fill="#b9834a"/><ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.45" ry="0.45" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.65, 0.08, 0.3, "#fff") +
+      `<ellipse cx="${X + 4.3}" cy="${Y + 3.1}" rx="0.5" ry="0.5" fill="#b9834a"/>` + `<polygon points="${X + 4.2},${Y + 3.0} ${X + 4.4},${Y + 3.0} ${X + 4.45},${Y + 3.15} ${X + 4.3},${Y + 3.25} ${X + 4.15},${Y + 3.15}" fill="#fff"/>` +
+      `<line x1="${X + 0.9}" y1="${Y + 2.8}" x2="${X + 4.3}" y2="${Y + 3.1}" stroke="rgba(255,255,255,.35)" stroke-width="0.03" stroke-dasharray="0.1 0.1"/>` +
+      [[3.85, 2.5], [3.85, 3.35]].map(([a, b]) => rect(X + a, Y + b, 0.9, 0.55, "none", ` stroke="rgba(255,255,255,.85)" stroke-width="0.04"`)).join(""),
+    draw(add, X, Y) {
+      add(X + Y + 9.3, lamp(X + 4.6, Y + 4.7));
+      // the pitcher throws across the field toward the net; the ball flies during the wind-up frame
+      // wind-up in four frames (set, leg lift, arm cocked, release); the ball leaves the hand on the release frame
+      const [px, py] = at(X + 0.9, Y + 2.8, AW / 2, AH / 2), [nx, ny] = up(iso(X + 4.5, Y + 3.1), 10), [bx, by] = POSES.pRelease.armR[2].map((v) => (v * K) / 2);
+      add(X + Y + 3.7, person("pitcher", ["pSet", "pLift", "pCock", "pRelease"], X + 0.9, Y + 2.8, { extra: skeleton }) +
+        `<g class="ball" style="--dx:${nx - px - bx}px;--dy:${ny - py - by}px">${rect(px + bx - 1, py + by - 1, 2, 2, "#fff", ` stroke="${INK}" stroke-width="0.5"`)}</g>`);
+      let mesh = "";
+      for (let u = 0; u <= 22; u += 2) mesh += rect(u, 0, 0.5, 18, "#dfe4e9");
+      for (let v = 0; v <= 18; v += 3) mesh += rect(0, v, 22, 0.5, "#dfe4e9");
+      add(X + Y + 7.9, box(X + 4.75, Y + 2.35, 0.06, 0.06, 18, CASE) + box(X + 4.75, Y + 3.7, 0.06, 0.06, 18, CASE) + rightFace(X + 4.72, Y + 2.35, 0.06, 1.4, 0, mesh));
+      for (const [cx, cy] of [[1.9, 0.45], [3.3, 0.4], [4.35, 5.45]]) add(X + Y + cx + cy, camera(X + cx, Y + cy));
+      add(X + Y + 5.3, onFloor(X + 4.45, Y + 1.0, 0, "treeSmall"));
+      add(X + Y + 5.8, tableF(X + 0.2, Y + 5.1, 0.7, 0.6, { h: 11, wood: FC.oak }) + laptop3(X + 0.35, Y + 5.25, 11));
+      add(X + Y + 7.2, legs(X + 1.45, Y + 5.4, 1.2, 0.3, 5, pal(FC.iron), 0.06) + box(X + 1.4, Y + 5.35, 1.3, 0.4, 1.5, pal(FC.oak, "wood"), 5));
+      add(X + Y + 8.7, disc(X + 3.2, Y + 5.5, 0.16, 0, 6, "#3b6fb6") + [[3.16, 5.46], [3.26, 5.5], [3.2, 5.56]].map(([a, b]) => rect(...up(iso(X + a, Y + b), 7), 1.5, 1.5, "#fff", ` stroke="${INK}" stroke-width="0.3"`)).join(""));
+    },
+  },
+  // --- the loft: mmWave lab, landing and gallery, MRI lab, reading room, server room, security room
+  {
+    key: "lab", wall: WOODS.pale, wains: "#e3e7ea", level: 1, rect: [0, 0, 5, 5], href: "#project-mmwave", slug: "mmwave", tex: "tile", floor: ["#e2e8ee", "#d4dce4"],
+    blocked: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [3, 1], [4, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 3]],
+    // reagent shelf, and a poster of a phantom scan (breast phantom with a tumour); a window on the left wall
+    right: wallShelf(4, 34, 34, shelfJars(6, 34, 6)) +
+      slab3(42, 36, 22, 18, 0.8, "#dfe4e9", rect(1, 1, 20, 16, "#ffffff") + `<ellipse cx="11" cy="9" rx="7" ry="4.5" fill="none" stroke="#f06292" stroke-width="0.6"/>` + rect(10, 8, 2, 2, "#c8102e") + codeLines(3, 15, 2, 14, "#3b82c4")),
+    left: windowW(20, 24, 20, 16, { curtain: "#8fb3d9", wall: "left" }) + sconce(48, 32, "left"),
+    draw(add, X, Y) {
+      // phantom bench: breast phantoms, flasks, a microscope
+      add(X + Y + 1.3, cabinets(X + 0.1, Y + 0.05, 2.6, 0.65, { h: 14, body: FC.white, top: FC.iron }) +
+        onFloor(X + 0.45, Y + 0.4, 14, "phantom") + onFloor(X + 0.95, Y + 0.35, 14, "phantom") + onFloor(X + 1.45, Y + 0.45, 14, "flasks") + onFloor(X + 1.95, Y + 0.35, 14, "microscope") + onFloor(X + 2.4, Y + 0.45, 14, "beaker"));
+      add(X + Y + 1.8, person("labA", ["reach:1100", "stand:900", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "reach:1100", "think:1400"], X + 0.8, Y + 0.95, { face: "backR" }));
+      // mouse imaging: the mmWave sensor panel at the back of the scan table sends pulses at the tumour of a mouse lying on its pad
+      const panel = up(iso(X + 3.95, Y + 0.22), 22), target = up(iso(X + 3.95, Y + 0.72), 15);
+      add(X + Y + 4.0, tableF(X + 3.1, Y + 0.12, 1.75, 0.9, { h: 12, wood: "#dfe4e9" }) + radar3(X + 3.55, Y + 0.14, 12) + box(X + 3.6, Y + 0.45, 0.7, 0.45, 1.2, pal("#8fb3d9"), 12) +
+        raised(13.2, rect(X + 3.64, Y + 0.49, 0.62, 0.37, "none", ` stroke="#ffffff" stroke-width="0.03"`)) + onFloor(X + 3.95, Y + 0.72, 13.2, "mouse") + rect(...up(iso(X + 3.95, Y + 0.72), 15.5), 1.5, 1.5, "#ff2a2a", ' class="blink"') + pulses(panel, target));
+      add(X + Y + 4.8, person("radar", ["typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "reach:1300", "stand:1000"], X + 3.3, Y + 1.5, { face: "backR" }));
+      add(X + Y + 5.1, onFloor(X + 4.55, Y + 1.55, 0, "fern"));
+      // mouse cages on a rack by the wall
+      const cage = (y0, z) => box(X + 0.12, Y + y0, 0.42, 0.42, 1, pal(FC.steel), z) + onFloor(X + 0.33, Y + y0 + 0.3, z + 1, "mouse") + box(X + 0.12, Y + y0, 0.42, 0.42, 5, GLASS, z + 1) + box(X + 0.12, Y + y0, 0.42, 0.42, 0.6, pal(FC.steel), z + 6);
+      add(X + Y + 3.0, legs(X + 0.1, Y + 2.25, 0.46, 1.0, 20, pal(FC.steel), 0.05) + box(X + 0.1, Y + 2.25, 0.46, 1.0, 0.8, pal(FC.steel), 1) + box(X + 0.1, Y + 2.25, 0.46, 1.0, 0.8, pal(FC.steel), 11) +
+        cage(2.3, 1.8) + cage(2.78, 1.8) + cage(2.3, 11.8) + cage(2.78, 11.8));
+      add(X + Y + 5, person("labB", ["stand"], X + 1.5, Y + 3.5, { cls: "walker", walker: true }));
+      // console: the reconstructed image of the mouse's tumour
+      add(X + Y + 6.4, desk(X + 2.3, Y + 3.3, 1.6, 0.62, { wood: FC.white }) + monitor(X + 2.45, Y + 3.38, 0.9, 12, tumorMap) + keyboard(X + 2.6, Y + 3.68, 12) + onFloor(X + 3.6, Y + 3.6, 12, "mug"));
+    },
+  },
+  {
+    key: "hall", wall: WOODS.walnut, level: 1, rect: [5, 0, 2, 5], label: "Landing", tex: "wood", floor: FLOOR_WOOD,
+    blocked: [[0, 0], [1, 0]],
+    right: windowW(7, 24, 18, 16, { curtain: FC.mustard }) + frame3("frameLandscape", 10, 57, { col: "#c9962a" }),
+    draw(add, X, Y) {
+      add(X + Y + 0.7, legs(X + 0.25, Y + 0.12, 1.1, 0.34, 6, pal(FC.walnut), 0.06) + box(X + 0.2, Y + 0.08, 1.2, 0.42, 1.5, pal(FC.walnut, "wood"), 6) + bookStack(X + 0.45, Y + 0.2, 7.5));
+      add(X + Y + 1.9, onFloor(X + 1.65, Y + 0.4, 0, "plant"));
+    },
+  },
+  { key: "gallery", level: 1, rect: [7, 4, 7, 1], countAs: "hall", tex: "wood", floor: FLOOR_WOOD, blocked: [], draw() {} },
+  {
+    key: "mri", wall: WOODS.pale, wains: "#e3e7ea", level: 1, rect: [7, 0, 4, 4], href: "#project-mri", slug: "mri", tex: "tile", floor: ["#e9edf0", "#dbe1e6"],
+    blocked: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [2, 0], [3, 0], [2, 2], [3, 2], [0, 3]],
+    // magnet warning sign and a k-space poster
+    right: `<polygon points="3,37 13,37 8,47" fill="#8a6a1a" stroke="${INK}" stroke-width="0.5"/><polygon points="2,36 12,36 7,46" fill="#f6c945" stroke="${INK}" stroke-width="0.5"/>` + rect(6.5, 39, 1, 4, INK) + rect(6.5, 37.5, 1, 1, INK) +
+      slab3(15, 34, 15, 16, 1.2, "#2b2e35", rect(1, 1, 14, 14, "#101216") + rect(3, 4, 10, 8, "rgba(255,255,255,.12)") + rect(5, 6, 6, 4, "rgba(255,255,255,.35)") + rect(7, 7, 2, 2, "#ffffff")) +
+      windowW(40, 26, 18, 16, { curtain: "#8fb3d9" }),
+    draw(add, X, Y) {
+      const M = pal("#eef2f5");
+      add(X + Y + 2, box(X + 0.3, Y + 0.3, 1.6, 1.3, 24, M) +
+        leftFace(X + 0.3, Y + 0.3, 1.3, 0, rect(0, 19, 25.6, 2, "#3b82c4") + (() => { const id = `clip${clipCount++}`, B = `x="6.5" y="3.5" width="12.6" height="12" rx="6"`, d = 8;
+          return `<rect x="5" y="2" width="15.6" height="15" rx="7" fill="#c9d0d8" stroke="${INK}" stroke-width="0.5"/><clipPath id="${id}"><rect ${B}/></clipPath><g clip-path="url(#${id})">` +
+            `<rect ${B} fill="#aeb7c1"/><rect x="${6.5 + d}" y="${3.5 + d}" width="12.6" height="12" rx="6" fill="#262b33"/>` +
+            `<polygon points="8.8,8.5 16.8,8.5 ${16.8 + d},${8.5 + d} ${8.8 + d},${8.5 + d}" fill="#8cc8f0"/>` + rect(8.8, 7, 8, 1.5, "#dfe4e9") +
+            `<rect ${B} fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.4"/></g><rect ${B} fill="none" stroke="${INK}" stroke-width="0.5"/>`; })() + rect(21, 12, 2, 1, GREEN)) +
+        rightFace(X + 0.3, Y + 0.3, 1.6, 1.3, 0, rect(0, 19, 20.8, 2, "#3b82c4") + panelF(4, 4, 12, 10)));
+      add(X + Y + 3.4, legs(X + 0.88, Y + 1.65, 0.44, 1.1, 6, pal(FC.steel), 0.05) + box(X + 0.85, Y + 1.6, 0.5, 1.2, 1.5, WHITE, 6) + box(X + 0.9, Y + 1.65, 0.4, 1.1, 1, pal("#8cc8f0"), 7.5) + box(X + 0.93, Y + 2.45, 0.34, 0.25, 1.5, pal("#ffffff"), 8.5));
+      const [ax, ay] = up(iso(X + 2.55, Y + 0.45), 14), [mx, my] = up(iso(X + 1.9, Y + 0.7), 20);
+      add(X + Y + 3.7, desk(X + 2.35, Y + 0.15, 1.55, 0.7, { wood: FC.oak }) +
+        box(X + 2.5, Y + 0.35, 0.35, 0.3, 3, pal("#3b82c4"), 12) +
+        monitor(X + 3.0, Y + 0.25, 0.7, 12, rect(1.5, 4, 2, 1, GREEN) + rect(3.5, 6, 1, 1, GREEN) + rect(4.5, 3, 1, 1, GREEN) + rect(5.5, 4, 2, 1, GREEN) + rect(7, 5, 2, 1, GREEN)) +
+        `<polyline points="${ax},${ay} ${ax - 6},${ay - 6} ${mx},${my}" fill="none" stroke="#c8102e" stroke-width="0.8"/>`);
+      add(X + Y + 4.4, officeChair(X + 2.9, Y + 1.0, "up", FC.navy));
+      add(X + Y + 4.9, person("tech", ["stand", "think", "stand", "reach"], X + 2.7, Y + 2.2, { face: "back", glance: true }));
+      // cart with a spare gradient coil
+      add(X + Y + 6.0, legs(X + 3.25, Y + 2.3, 0.55, 0.55, 9, pal(FC.steel), 0.05) + box(X + 3.22, Y + 2.27, 0.6, 0.6, 1, pal(FC.steel), 9) + box(X + 3.22, Y + 2.27, 0.6, 0.6, 1, pal(FC.steel), 2) +
+        disc(X + 3.52, Y + 2.57, 0.2, 10, 4, "#c9763a") + disc(X + 3.52, Y + 2.57, 0.1, 14, 0.2, "#3a2a20"));
+      add(X + Y + 3.9, onFloor(X + 0.45, Y + 3.45, 0, "fern"));
+    },
+  },
+  {
+    key: "reading", wall: WOODS.brown, level: 1, rect: [11, 0, 3, 4], href: "#project-mammo", slug: "mammo", tex: "wood", floor: ["#86563a", "#86563a"],
+    blocked: [[0, 0], [1, 0], [2, 0], [1, 1], [2, 1], [1, 2], [2, 2], [0, 3]],
+    rug: (X, Y) => rugF(X + 1.3, Y + 1.3, 1.6, 1.6, { edge: "#d9cbb5", field: "#34507f", inner: "#23385a", accent: "#e9c46a" }),
+    // lightbox with two mammograms over the desk, a pinboard over the bookcase
+    right: slab3(3, 30, 26, 18, 1.5, "#9aa4b1", rect(1, 1, 24, 16, "#f5fbff") +
+        [3, 14].map((u) => rect(u, 2, 9, 14, "#1c1f24") + `<rect x="${u + 1.5}" y="4" width="6" height="9" rx="3" fill="#8d96a0"/>` + rect(u + 4, 7, 1.5, 1.5, "#e8eef2")).join("")) + frame3("pinboard", 32, 57, { col: "#8a5a36" }),
+    draw(add, X, Y) {
+      const glcm = Array.from({ length: 12 }, (_, i) => rect(2 + (i % 4) * 2.4, 2.5 + Math.floor(i / 4) * 2, 2, 1.6, `hsl(0 0% ${25 + Math.floor(rnd() * 60)}%)`)).join("");
+      add(X + Y + 0.9, desk(X + 0.1, Y + 0.08, 1.65, 0.62, { wood: FC.walnut }) + monitor(X + 0.25, Y + 0.14, 0.75, 12, glcm) + keyboard(X + 0.35, Y + 0.48, 12) + paper(X + 1.1, Y + 0.3, 12) + tableLamp(X + 1.55, Y + 0.25, 12));
+      add(X + Y + 1.5, officeChair(X + 0.5, Y + 0.95, "up", FC.charcoal));
+      add(X + Y + 2.2, shelves(X + 1.85, Y + 0.05, 1.1, 0.42, { h: 44, wood: FC.walnut }));
+      add(X + Y + 3.6, armchair(X + 1.65, Y + 1.6, "down", { col: FC.navy }));
+      add(X + Y + 3.9, person("student", ["sit", "sit", "sitDrink"], X + 2.05, Y + 2.45, { dy: 1, face: "frontL", glance: true }));
+      add(X + Y + 3.9, floorLamp(X + 2.75, Y + 1.65));
+      add(X + Y + 3.1, tableF(X + 1.1, Y + 1.85, 0.4, 0.4, { h: 9, wood: FC.oak }) + bookStack(X + 1.17, Y + 1.95, 9));
+      add(X + Y + 3.1, paper(X + 0.25, Y + 2.5, 0, 0.3, 0.35) + paper(X + 0.55, Y + 2.8, 0, 0.3, 0.35));
+      add(X + Y + 3.9, onFloor(X + 0.45, Y + 3.45, 0, "palm"));
+    },
+  },
+  {
+    key: "server", wall: WOODS.walnut, level: 1, rect: [14, 0, 3, 5], href: "#project-metagenomic", slug: "metagenomic", tex: "tile", floor: ["#3b4049", "#343941"],
+    blocked: [[0, 0], [1, 0], [2, 0], [0, 2], [0, 3], [1, 2], [2, 1], [2, 4]],
+    // an air-conditioner and a framed gold record above the racks
+    right: frame3("frameGold", 30, 57, { col: "#6e4631" }) + slab3(4, 46, 18, 8, 3, "#eef0ee", [0, 1, 2, 3].map((k) => rect(2, 1.5 + k * 1.4, 14, 0.5, "#b8bfc7")).join("") + rect(14, 6, 2, 1, GREEN)),
+    draw(add, X, Y) {
+      for (let i = 0; i < 3; i++) {
+        const x0 = X + 0.1 + i * 0.95;
+        add(x0 + 0.4 + Y + 0.4, box(x0, Y + 0.05, 0.85, 0.75, 40, pal("#2b2e35")) + leftFace(x0, Y + 0.05, 0.75, 0, rackFront(13.6, 40)) + rightFace(x0, Y + 0.05, 0.85, 0.75, 0, rect(1, 1, 10, 38, "rgba(255,255,255,.05)")));
+      }
+      add(X + Y + 1.2, box(X + 0.1, Y + 0.1, 2.8, 0.3, 1, pal(FC.steel, "metal"), 44) + box(X + 0.15, Y + 0.12, 2.7, 0.26, 1.5, pal("#e0584f"), 42.5));
+      add(X + Y + 3.0, desk(X + 0.05, Y + 2.3, 0.8, 1.35, { front: "R", wood: FC.charcoal }) + monitor(X + 0.3, Y + 2.5, 0.75, 12, codeLines(3, 7, 3, 8, GREEN), "R") + keyboard(X + 0.55, Y + 2.7, 12, 0.16, 0.45));
+      add(X + Y + 3.8, officeChair(X + 1.0, Y + 2.75, "left"));
+      add(X + Y + 4.1, onFloor(X + 2.75, Y + 1.35, 0, "extinguisher"));
+      add(X + Y + 6.6, crate(X + 2.3, Y + 4.1, 0.5, 8) + crate(X + 2.35, Y + 4.15, 0.4, 6, 8));
+    },
+  },
+  {
+    key: "security", wall: WOODS.dark, wains: "#4a4f5c", level: 1, rect: [17, 0, 3, 5], href: "#project-sigma", slug: "sigma", tex: "carpet", floor: ["#2f3d60", "#2a3858"],
+    blocked: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1], [1, 2], [2, 2], [2, 4]],
+    right: slab3(4, 18, 40, 32, 2.5, "#1b1f2a", rect(2, 2, 36, 28, "#07140c") + codeLines(5, 26, 11, 18, GREEN) + onWall("iconShield", 26, 24)),
+    draw(add, X, Y) {
+      add(X + Y + 0.7, box(X + 0.15, Y + 0.15, 0.55, 0.55, 14, pal("#3a3f4b", "metal")) + onL(X + 0.15, Y + 0.15, 0.55, 0.55, 0, (L) => panelF(1, 1, L - 2, 12) + stud(L / 2, 7, 2, 1.2, "#c9cdd3", "L", `<line x1="{cx}" y1="{cy}" x2="{cx}" y2="${7 - 1.2 + 1.5}" stroke="${INK}" stroke-width="0.4"/>`) + slab3(L - 3, 4, 1, 4, 1.2, "#c9cdd3")));
+      add(X + Y + 2.7, box(X + 2.3, Y + 0.1, 0.6, 0.6, 22, pal("#8d96a0", "metal")) + onL(X + 2.3, Y + 0.1, 0.6, 0.6, 0, (L) => [0, 1, 2, 3].map((k) => panelF(1, 1 + k * 5.2, L - 2, 4.6) + pull(L / 2 - 1.5, 3 + k * 5.2, 3, "L", "#c9cdd3")).join("")));
+      add(X + Y + 3.4, desk(X + 0.3, Y + 1.35, 2.4, 0.6, { wood: FC.charcoal }) +
+        monitor(X + 0.45, Y + 1.41, 0.7, 12, codeLines(3, 7, 3, 8, GREEN)) + monitor(X + 1.2, Y + 1.41, 0.7, 12, codeLines(3, 7, 3, 8, "#ffb800")) + monitor(X + 1.95, Y + 1.41, 0.6, 12, codeLines(3, 7, 3, 7, "#ff5a5a")) +
+        keyboard(X + 1.1, Y + 1.71, 12) + onFloor(X + 0.55, Y + 1.8, 12, "mug") + onFloor(X + 2.55, Y + 1.75, 12, "cactus"));
+      add(X + Y + 4.0, person("analyst", ["typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "think:1700", "stand:900", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB"], X + 1.4, Y + 2.6, { face: "backR" }));
+      add(X + Y + 5.3, critter("robot", ["robot"], X + 2.4, Y + 2.9, { extra: rect(5.5, 0, 1, 1, "#ff3b3b", ' class="blink"') }));
+      add(X + Y + 7, onFloor(X + 2.55, Y + 4.45, 0, "monstera"));
+    },
+  },
+];
+const ROOM = Object.fromEntries(ROOMS.map((r) => [r.key, r]));
+const roomsAt = (level) => ROOMS.filter((r) => r.level === level);
+const roomLabel = (r) => r.label || CONTENT.projects.find((p) => p.slug === r.slug).room;
+const roomAt = (level, i, j) => ROOMS.find(({ level: l, rect: [x, y, w, h] }) => l === level && i >= x && i < x + w && j >= y && j < y + h);
+// Same seed per room, so its overview and its close-up get the same colours.
+const drawRoom = (r, add) => { seed = 101 + ROOMS.indexOf(r) * 7919; curLevel = r.level; r.draw(add, r.rect[0], r.rect[1]); };
+
+// ---------- walls and doors, per floor. Two tiles in different rooms have a wall between them unless both are
+// outdoors or the edge is a door. "L:v:x,y" = floor L, plane x between tiles (x-1,y) and (x,y); "L:h:x,y" = plane y.
+const DOORS = new Set([
+  // ground floor: open plan around the stairs and the entrance hall; café entrance, café↔hacker room
+  ...[5, 6, 7, 8].flatMap((y) => [`0:v:5,${y}`, `0:v:7,${y}`]), "0:h:5,9", "0:h:6,9", ...[9, 10, 11, 12].flatMap((y) => [`0:v:5,${y}`, `0:v:7,${y}`]),
+  "0:h:5,13", "0:h:6,13", "0:h:10,13", "0:v:15,7",
+  // loft: lab↔landing, landing↔gallery, gallery↔MRI, gallery↔reading room, gallery↔server room, server↔security; the stairs arrive at 5..7
+  "1:v:5,2", "1:v:5,3", "1:v:7,4", "1:h:9,4", "1:h:12,4", "1:v:14,4", "1:v:17,3", "1:h:5,5", "1:h:6,5",
+]);
+const edgeKey = ([x, y], [nx, ny]) => (nx !== x ? `v:${Math.max(x, nx)},${y}` : `h:${x},${Math.max(y, ny)}`);
+const isWall = (level, a, b) => {
+  const ra = roomAt(level, ...a), rb = roomAt(level, ...b);
+  return ra !== rb && !(ra.outdoor && rb.outdoor) && !DOORS.has(`${level}:${edgeKey(a, b)}`);
+};
+
+// ---------- shell: floors, back walls, slabs, walls between rooms, railings, hedges
+const floorTiles = (r) => {
+  const [X, Y, w, h] = r.rect;
+  seed = 7 + ROOMS.indexOf(r) * 104729;
+  let s = "";
+  for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) s += rect(X + i, Y + j, 1, 1, r.floor[(i + j) % 2]) + TEX[r.tex](X + i, Y + j, r.floor[(i + j) % 2]);
+  return s + (r.rug ? r.rug(X, Y) : "");
+};
+// Soft shadow on the floor along the foot of the back walls.
+const wallShade = (X, Y, lenX, lenY) => rect(X, Y, lenX, 0.45, "url(#aoY)") + rect(X, Y, 0.45, lenY, "url(#aoX)");
+// Plank walls like a Habbo cabin interior: vertical boards (a lit edge, a dark gap, the odd knot) over a panelled
+// wainscot with a chair rail and a dark baseboard. `wood` colours the boards; `wains` the wainscot (null: a stone base).
+const WAINS = 18, CAP = "#5e3b26";
+function planks(len, h, wood = WOODS.brown, wains = "#c9a26a") {
+  const r = ramp(wood), top = wains ? WAINS : 8, bh = h - top, tones = [wood, mixHex(wood, "#ffffff", 0.07), mixHex(wood, "#000000", 0.09), mixHex(wood, "#c07040", 0.1)];
+  let s = rect(0, 0, len, h, r[3]);
+  // boards: each its own tone, a lit left bevel and a shaded right one, grain streaks, the odd knot and butt joint, nails
+  for (let u = 0, k = 0; u < len; u += 6, k++) {
+    const bw = Math.min(6, len - u), t = tones[Math.floor(hsh(k, len + h) * 4)], dk = mixHex(t, "#000000", 0.14);
+    if (bw <= 1) continue;
+    s += rect(u + 0.6, top, bw - 0.6, bh, t) + rect(u + 0.6, top, 0.8, bh, mixHex(t, "#ffffff", 0.13)) + rect(u + bw - 1, top, 1, bh, dk) +
+      rect(u + 2.1 + hsh(k, 1) * 1.2, top + 1.5 + hsh(k, 2) * 8, 0.45, bh * 0.42, mixHex(t, "#000000", 0.1)) + rect(u + 3.3 + hsh(k, 7) * 0.8, top + bh * 0.35 + hsh(k, 3) * 6, 0.4, bh * 0.38, mixHex(t, "#000000", 0.08));
+    if (hsh(k, 4) < 0.22) { const kv = top + 8 + hsh(k, 8) * (bh - 16); s += `<ellipse cx="${u + 3.2}" cy="${kv}" rx="1.1" ry="1.5" fill="${dk}"/><ellipse cx="${u + 3.2}" cy="${kv}" rx="0.5" ry="0.7" fill="${mixHex(t, "#000000", 0.28)}"/>`; }
+    if (hsh(k, 5) < 0.3) { const jv = top + 10 + hsh(k, 6) * (bh - 20); s += rect(u + 0.6, jv, bw - 0.6, 0.5, r[3]) + rect(u + 0.6, jv + 0.5, bw - 0.6, 0.4, mixHex(t, "#ffffff", 0.12)); }
+    s += rect(u + 2.8, h - 3.2, 0.8, 0.8, "#2b1a10") + rect(u + 2.8, top + 1.6, 0.8, 0.8, "#2b1a10");
+  }
+  if (!wains) return s + rect(0, 0, len, 8, STONE[2]) + `<g>${stones(len, 8, ["#a19c93", "#948f86", "#b3aea5"])}</g>`;
+  // wainscot: raised panels with a lighter field, grain in the stiles, a chair rail and a baseboard
+  const w = ramp(wains);
+  s += rect(0, 0, len, WAINS, w[1]);
+  for (let u = 2; u + 10 <= len; u += 12) s += rect(u + 1.2, 5.2, 7.6, WAINS - 10.4, mixHex(wains, "#ffffff", 0.09)) + panelF(u, 4, 10, WAINS - 8) + rect(u + 2.5, 6.5, 4, 0.35, mixHex(wains, "#000000", 0.08)) + rect(u - 1.2, 3.5, 0.35, WAINS - 7, mixHex(wains, "#000000", 0.12));
+  return s + rect(0, WAINS - 1.5, len, 1.5, w[2]) + rect(0, WAINS, len, 1.2, w[0]) + rect(0, WAINS + 1.2, len, 0.6, r[3]) + rect(0, 0, len, 2.5, "#4a2e1c") + rect(0, 2.5, len, 0.5, "#8a5a3a");
+}
+// Tall walls at the back of a floor: the left wall on plane x = X0 (length lenY; `left` = [wood, wainscot], `leftDeco` on
+// it, u from its front end), the back wall on plane y = Y0 in per-room segments [[u offset, length, wood, wainscot], ...],
+// a thick dark cap along the top, and deco = [[u offset, content]] on the back wall.
+function backWalls(X0, Y0, lenX, lenY, deco, segs, left = [WOODS.brown], leftDeco = "") {
+  const t = 0.45, L = iso(X0, Y0 + lenY), C = iso(X0, Y0), R = iso(X0 + lenX, Y0);
+  const Lb = iso(X0 - t, Y0 + lenY), Cb = iso(X0 - t, Y0 - t), Rb = iso(X0 + lenX, Y0 - t);
+  return plane(L, -0.5, planks(lenY * 16, WALL, left[0], left[1]) + leftDeco) + poly([L, C, up(C, WALL), up(L, WALL)], "none") +
+    segs.map(([u, len, wood, wains]) => plane(C, 0.5, `<g transform="translate(${u} 0)">${planks(len, WALL, wood, wains)}</g>`)).join("") +
+    poly([C, R, up(R, WALL), up(C, WALL)], "none") +
+    poly([up(L, WALL), up(C, WALL), up(Cb, WALL), up(Lb, WALL)], CAP) + poly([up(C, WALL), up(R, WALL), up(Rb, WALL), up(Cb, WALL)], CAP) +
+    `<polyline points="${[up(L, WALL), up(C, WALL), up(R, WALL)].join(" ")}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="0.5"/>` +
+    deco.map(([u, c]) => plane(C, 0.5, `<g transform="translate(${u} 0)">${c}</g>`)).join("");
+}
+const wallSegs = (rooms, X0) => rooms.map((r) => [(r.rect[0] - X0) * 16, r.rect[2] * 16, r.wall || WOODS.brown, r.wains]);
+// The left wall of a floor takes its colours and deco from the room against it (the one touching x = 0 at the back).
+const leftOf = (rooms) => { const r = rooms.find((q) => q.rect[0] === 0 && q.wall) || {}; return [[r.wall || WOODS.brown, r.wains], r.left || ""]; };
+// The ground under everything: its two visible sides show earth with stones in it, darker soil under the floor.
+const earth = (len) => {
+  let s = rect(0, 0, len, 10, "#5e3e24") + rect(0, 7.6, len, 2.4, "#7a5230") + rect(0, 7.3, len, 0.4, "#3a2616");
+  for (let u = 2, k = 0; u < len - 2; u += 4 + hsh(k, len) * 6, k++) {
+    const v = 1.6 + hsh(k, 1) * 4.2, r = 0.9 + hsh(k, 2) * 1.3;
+    s += `<ellipse cx="${u}" cy="${v}" rx="${r}" ry="${r * 0.7}" fill="${hsh(k, 3) < 0.5 ? "#8a7a6a" : "#9a8c7c"}" stroke="#3a2a1a" stroke-width="0.3"/>` + rect(u - r * 0.5, v + r * 0.2, r * 0.8, 0.4, "#c0b2a2");
+  }
+  return s;
+};
+const slab = (X0, Y0, lenX, lenY) => {
+  const L = iso(X0 - 0.25, Y0 + lenY), F = iso(X0 + lenX, Y0 + lenY), R = iso(X0 + lenX, Y0 - 0.25);
+  const faceL = [L, F, up(F, -10), up(L, -10)], faceR = [F, R, up(R, -10), up(F, -10)];
+  return poly(faceL, "#6e4a2a") + poly(faceR, "#553820") + plane(up(L, -10), 0.5, earth(F[0] - L[0])) + plane(up(F, -10), -0.5, earth(R[0] - F[0]) + rect(0, 0, R[0] - F[0], 10, "rgba(0,0,0,.18)")) +
+    poly(faceL, "none") + poly(faceR, "none");
+};
+const leafy = (len, h) => { let s = ""; for (let k = 0; k < len * h / 5; k++) s += rect(rnd() * len, rnd() * h, 1, 1, pickSeeded(["rgba(150,230,110,.45)", "rgba(20,60,15,.35)"])); return s; };
+const hedgeTop = (x0, y0, w, d, h) => raised(h, Array.from({ length: Math.round(w * d * 40) }, () => rect(x0 + rnd() * w, y0 + rnd() * d, 0.05, 0.05, pickSeeded(["rgba(170,240,120,.6)", "rgba(20,60,15,.3)"]))).join(""));
+// Turned wooden balusters every 4 units on a plane (under a railing's top rail).
+const balusters = (len) => { let s = ""; for (let u = 1.5; u < len; u += 4) s += rect(u, 1.5, 1.5, 8.5, "#b07a45") + rect(u, 1.5, 0.5, 8.5, "#d49e62") + rect(u + 1.5, 1.5, 0.5, 8.5, INK) +
+  rect(u - 0.35, 4.6, 2.2, 1.6, "#8a5a36") + rect(u - 0.35, 4.6, 0.6, 1.6, "#b07a45") + rect(u - 0.35, 2, 2.2, 0.8, "#8a5a36") + rect(u - 0.35, 8.2, 2.2, 0.8, "#8a5a36"); return s; };
+// One tile-long piece of edge on plane x=i (segV) or plane y=j (segH): a low panelled partition with a cap, a cut-away
+// ledge, a balcony rail or a hedge.
+const PART = ["#8a5a3a", "#6e4630", "#5a3826"], PCAP = ["#6e4630", "#5a3826", "#4a2e1c"];
+[PART, PCAP].forEach((p) => MATERIAL.set(p, "wood"));
+const lowFace = (len) => rect(0, 0, len, LOW, "#b58c5a") + rect(2.5, 4, len - 5, LOW - 7, "#c49b68") + panelF(1.5, 3, len - 3, LOW - 5) + rect(4, 5.5, len * 0.4, 0.35, "#9a7446") + rect(len * 0.55, 7.5, len * 0.3, 0.35, "#9a7446") + rect(0, 0, len, 2, "#4a2e1c");
+const segV = (i, j, kind) => kind === "wall" ? box(i - 0.1, j, 0.2, 1, LOW, PART) + rightFace(i - 0.1, j, 0.2, 1, 0, lowFace(16)) + box(i - 0.13, j, 0.26, 1, 1.5, PCAP, LOW)
+  : kind === "ledge" ? box(i - 0.12, j, 0.12, 1, 4, PART)
+  : kind === "rail" ? box(i - 0.08, j, 0.08, 0.08, 12, RAIL) + rightFace(i - 0.04, j, 0, 1, 0, balusters(16)) + box(i - 0.08, j, 0.08, 1, 1.5, RAIL) + box(i - 0.1, j, 0.12, 1, 2, RAIL, 10)
+  : box(i - 0.2, j, 0.4, 1, 9, HEDGE) + rightFace(i - 0.2, j, 0.4, 1, 0, leafy(16, 9)) + hedgeTop(i - 0.2, j, 0.4, 1, 9);
+const segH = (i, j, kind) => kind === "wall" ? box(i, j - 0.1, 1, 0.2, LOW, PART) + leftFace(i, j - 0.1, 0.2, 0, lowFace(16)) + box(i, j - 0.13, 1, 0.26, 1.5, PCAP, LOW)
+  : kind === "ledge" ? box(i, j - 0.12, 1, 0.12, 4, PART)
+  : kind === "rail" ? box(i, j - 0.08, 0.08, 0.08, 12, RAIL) + leftFace(i, j - 0.04, 0, 0, balusters(16)) + box(i, j - 0.08, 1, 0.08, 1.5, RAIL) + box(i, j - 0.1, 1, 0.12, 2, RAIL, 10)
+  : box(i, j - 0.2, 1, 0.4, 9, HEDGE) + leftFace(i, j - 0.2, 0.4, 0, leafy(16, 9)) + hedgeTop(i, j - 0.2, 1, 0.4, 9);
+// Walls, rails and hedges of one floor: indoor pieces go to `add`, hedges (outdoors) to `addOut`.
+function edges(level, add, addOut) {
+  const kind = (a, b, key) => {
+    if (!a && !b) return null;
+    const green = (r) => r.outdoor && r.key !== "street";
+    if (!a) return green(b) ? "hedge" : null;              // back boundary: the building's back walls are drawn separately
+    if (!b) return DOORS.has(`${level}:${key}`) ? null : a.outdoor ? (green(a) ? "hedge" : null) : level ? "rail" : "ledge";
+    return a !== b && !(a.outdoor && b.outdoor) && !DOORS.has(`${level}:${key}`) ? "wall" : null;
+  };
+  const put = (k, depth, svg) => k && (k === "hedge" ? addOut : add)(depth, svg);
+  for (let i = 0; i <= NX; i++) for (let j = 0; j < NY; j++) {
+    const k = kind(i > 0 && roomAt(level, i - 1, j), i < NX && roomAt(level, i, j), `v:${i},${j}`);
+    if (k) put(k, i + j + 0.5, segV(i, j, k));
+  }
+  for (let j = 0; j <= NY; j++) for (let i = 0; i < NX; i++) {
+    const k = kind(j > 0 && roomAt(level, i, j - 1), j < NY && roomAt(level, i, j), `h:${i},${j}`);
+    if (k) put(k, i + 0.5 + j, segH(i, j, k));
+  }
+}
+const sorted = (list) => list.sort((a, b) => a.depth - b.depth).map((t) => `<g data-depth="${t.depth}">${t.svg}</g>`).join("");
+const decoFor = (rooms, X0, withLive = false) => rooms.filter((r) => r.right || (withLive && r.live)).map((r) => [(r.rect[0] - X0) * 16, (r.right || "") + (withLive ? r.live || "" : "")]);
+// Animated wall pieces (flames, blinking lights) are drawn with the room's things, flat on its back wall.
+const liveWall = (r) => plane(iso(r.rect[0], r.rect[1]), 0.5, r.live);
+// Static layers (floors, walls, scenery) become pictures: an SVG image the browser lays out and paints once, instead
+// of thousands of live nodes. Pictures placed with <use> are copied in, since an image can't see the page's <defs>.
+const staticURLs = [], imageMarkup = new Map();
+function asImage(inner, [vx, vy, vw, vh]) {
+  const defs = [...document.querySelectorAll("#img-defs > :not(image)")].map((e) => e.outerHTML).join("");
+  const markup = (id) => imageMarkup.get(id) || (imageMarkup.set(id, document.getElementById(id).outerHTML), imageMarkup.get(id));
+  const body = inner.replace(/<use href="#(img\d+)" x="([^"]*)" y="([^"]*)"\/>/g, (_, id, x, y) => markup(id).replace("<image ", `<image x="${x}" y="${y}" `));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw * 2}" height="${vh * 2}" shape-rendering="crispEdges"><defs>${defs}</defs>${body}</svg>`;
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  staticURLs.push(url);
+  return url;
+}
+const VIEW = [0, 0, VW, VH];
+// (a picture never takes clicks: its see-through parts would otherwise block the people on the floor below)
+const picture = (inner) => `<image href="${asImage(inner, VIEW)}" x="0" y="0" width="${VW}" height="${VH}" pointer-events="none"/>`;
+
+// The building's right side under the loft (x = NX, y = 0..5): boards on a stone base, a window with a flower box.
+function sideWalls() {
+  const d = FLOORS[1].depth, o = iso(NX, d);
+  return plane(o, -0.5, planks(d * 16, H, WOODS.brown, null) + windowW(d * 8 - 9, 28, 18, 16, { curtain: null, wall: "left" }) + flowerBox(d * 8 - 11, 22, 22, "left")) +
+    poly([iso(NX, d), iso(NX, 0), up(iso(NX, 0), H), up(iso(NX, d), H)], "none");
+}
+// Things on top of the top floor's back wall: a stone chimney with smoke, a satellite dish and an antenna with a blinking light.
+const smoke = (x, y) => [0, 1, 2].map((i) => `<circle cx="${x}" cy="${y}" r="${2.5 + i * 0.6}" fill="#eef1f4" stroke="${INK}" stroke-width="0.5" class="smoke" style="animation-delay:-${i}s"/>`).join("");
+function rooftop(add) {
+  const [cx, cy] = up(iso(2.6, -0.1), WALL + 30);
+  add(99, box(2.2, -0.4, 0.8, 0.6, 32, STONE, WALL - 4) + leftFace(2.2, -0.4, 0.6, WALL - 4, stones(12.8, 32, ["#b3aea5", "#a19c93", "#bdb8af"])) +
+    rightFace(2.2, -0.4, 0.8, 0.6, WALL - 4, stones(9.6, 32, ["#8a857c", "#7d786f", "#948f86"])) + box(2.1, -0.5, 1, 0.8, 3, STONE, WALL + 28) + smoke(cx, cy));
+  const [dx, dy] = up(iso(18.9, 0.2), WALL + 16);
+  add(99, box(18.85, 0.15, 0.1, 0.1, 12, CASE, WALL) + `<ellipse cx="${dx}" cy="${dy}" rx="9" ry="6" fill="#dfe4e9" stroke="${INK}" stroke-width="0.5"/>` +
+    `<ellipse cx="${dx + 1}" cy="${dy + 0.5}" rx="6" ry="3.8" fill="#c9cdd3"/><line x1="${dx}" y1="${dy}" x2="${dx - 5}" y2="${dy - 7}" stroke="${CASE[1]}" stroke-width="0.8"/>` +
+    rect(dx - 6, dy - 8, 2, 2, "#ff3b3b", ' class="blink"'));
+  add(99, box(9.45, 0.15, 0.08, 0.08, 30, CASE, WALL) + rect(...up(iso(9.5, 0.2), WALL + 32), 1.5, 1.5, "#ff3b3b", ' class="blink"'));
+}
+
+// Scenery behind the building, painted on two panels along its back edges (x = -0.25 and y = -0.25), like a Habbo
+// room's backdrop: a far and a near mountain range, then pines along the building's stepped outline.
+const MTN = [["#8aa6c6", "#7089ad", "#a9c0da"], ["#4f729f", "#38567f", "#6c8fb8"]], SNOW = ["#f6fafd", "#cddcea"];
+// One mountain on a panel (u along, v up): lit left flank with a light ridge, shaded right flank, jagged snow cap.
+const mountain = ([u, v, hw], [lit, shade, ridge]) => {
+  const f = 0.26, cap = v - f * (v + 12), P = (a, b) => [u + hw * a, v + (v + 12) * b];
+  return poly([[u - hw, -12], [u, v], [u + hw * 0.15, -12]], lit, "none") + poly([[u, v], [u + hw, -12], [u + hw * 0.15, -12]], shade, "none") +
+    poly([[u, v], P(-0.35, -0.55), P(-0.3, -0.62), P(-0.05, -0.2)], ridge, "none") + poly([[u, v], P(0.45, -0.7), P(0.35, -0.75), P(0.12, -0.3)], lit, "none") +
+    poly([[u, v], [u + hw * f, cap], [u + hw * f * 0.5, cap + 4], [u + hw * f * 0.1, cap - 3], [u - hw * f * 0.4, cap + 5], [u - hw * f, cap]], SNOW[0], "none") +
+    poly([[u, v], [u + hw * f, cap], [u + hw * f * 0.5, cap + 4], [u + hw * 0.04, cap + 2]], SNOW[1], "none");
+};
+function backdrop() {
+  const L = iso(-0.25, NY), C = iso(-0.25, -0.25);
+  const panel = (id, origin, dir, len, far, near) => `<clipPath id="${id}"><rect x="0" y="-12" width="${len}" height="400"/></clipPath>` +
+    plane(origin, dir, `<g clip-path="url(#${id})">${far.map((m) => mountain(m, MTN[0])).join("")}${near.map((m) => mountain(m, MTN[1])).join("")}</g>`);
+  // Pines on the panels in two rows along the building's outline (the left panel's outline steps down floor by floor).
+  const pines = [], at = ([ox, oy], dir, u, v, small) => pines.push([ox + u, oy + dir * u - v, small]);
+  const top = (y) => (y > 13 ? 0 : y > 5 ? WALL + 2 : H + WALL + 2), outlineL = (u) => top(NY + 0.25 - u / 16);
+  for (let u = 3; u < (NY + 0.25) * 16 - 4; u += 8) at(L, -0.5, u, (outlineL(u) ? outlineL(u) + 2 : 14) + ((u * 5) % 7), true);          // back row, small
+  for (let u = 6; u < (NY + 0.25) * 16 - 4; u += 9) at(L, -0.5, u, outlineL(u) ? outlineL(u) - 16 + ((u * 7) % 9) : (u * 3) % 5, false); // front row
+  for (let u = 4; u < (NX + 0.25) * 16; u += 8) at(C, 0.5, u, H + WALL + 6 + ((u * 5) % 9), true);
+  for (let u = 8; u < (NX + 0.25) * 16; u += 10) at(C, 0.5, u, H + WALL - 16 + ((u * 7) % 11), false);
+  return panel("bd-l", L, -0.5, (NY + 0.25) * 16, [[20, 150, 110], [110, 200, 120], [200, 185, 100]], [[60, 110, 80], [150, 150, 90], [230, 160, 70]]) +
+    panel("bd-r", C, 0.5, (NX + 0.25) * 16, [[25, 180, 110], [120, 230, 130], [230, 270, 120], [310, 280, 100]], [[70, 200, 80], [175, 225, 95], [280, 250, 80]]) +
+    pines.map(([x, y, small]) => { const name = small ? "pineSmall" : "pine", { w, h } = propImage(name); return propImg(name, Math.round(x - w / 2), Math.round(y - h)); }).join("");
+}
+
+// ---------- the overview: the scenery and the building's side, then each floor from the ground up, then everything outdoors
+// Stone posts at the front ends of partitions and at corners, per floor.
+const POSTS = { 0: [[5, 13], [7, 13], [15, 9], [15, 13], [20, 9]], 1: [[5, 5], [7, 5], [7, 4], [11, 4], [14, 4], [17, 5], [20, 5]] };
+function cabinSVG() {
+  const outdoor = [], addOut = (depth, svg) => outdoor.push({ depth, svg });
+  let s = picture(backdrop() + slab(0, 0, NX, NY) + sideWalls());
+  for (const { level, y0, depth } of FLOORS) {
+    const rooms = roomsAt(level), back = rooms.filter((r) => !r.outdoor && r.rect[1] === y0), list = [], add = (d, svg) => list.push({ depth: d, svg });
+    shadows = [];
+    edges(level, add, addOut);
+    for (const r of rooms) drawRoom(r, r.outdoor ? addOut : add);
+    for (const r of rooms) if (r.live) add(r.rect[0] + r.rect[1] - 0.2, liveWall(r));
+    curLevel = level;
+    if (level === 0) {
+      add(12.5 + 11.5, person("coffee", ["stand", "stand", "drink", "stand"], 12.5, 11.5, { cls: "walker", walker: true }));
+      addOut(3.5 + 14.5, critter("dog", ["dog", "dogB"], 3.5, 14.5, { cls: "walker" }));
+    } else {
+      add(6.5 + 2.5, critter("cat", ["cat", "catB"], 6.5, 2.5, { cls: "walker" }));
+      rooftop(add);
+      for (const x of [1.2, 3.1, 8.3, 11.8, 15.3, 18.3]) add(x + y0 + depth + 0.3, railPlanter(x, y0 + depth + 0.02));
+    }
+    // stone posts: at the front ends of partitions, at the front of the tall left wall, and where rooms meet on the back wall
+    for (const [x, y] of POSTS[level]) add(x + y + 0.2, pillar(x - 0.15, y - 0.15, LOW + 7, { s: 0.3 }));
+    add(y0 + depth, pillar(-0.3, y0 + depth - 0.3, WALL, { s: 0.34 }));
+    const posts = [...new Set(back.filter((r) => r.rect[0] > 0).map((r) => r.rect[0]))].map((xb) => pillar(xb - 0.15, y0 - 0.12, WALL, { s: 0.3 })).join("") +
+      pillar(-0.3, y0 - 0.3, WALL, { s: 0.4 }) + pillar(NX - 0.1, y0 - 0.3, WALL, { s: 0.34 });
+    const floor = tiles(rooms.map(floorTiles).join("") + wallShade(0, y0, NX, depth));
+    const [left, leftDeco] = leftOf(back);
+    const still = (level ? box(0, y0, NX, depth, SLAB, BEAM, -SLAB) + leftFace(0, y0, depth, -SLAB, beamFace(NX * 16)) : "") + floor +
+      backWalls(0, y0, NX, depth, decoFor(back, 0), wallSegs(back, 0), left, leftDeco) + posts + shadows.join("");
+    s += lift(level, picture(still) + `<g id="things-${level}">${sorted(list)}</g>`);
+  }
+  shadows = null;
+  return s + `<g id="things-out">${sorted(outdoor)}</g>`;
+}
+
+// ---------- a project's room(s) on their own, walls at full height (shown next to each project)
+function closeupSVG(slug) {
+  const rooms = ROOMS.filter((r) => r.slug === slug), level = rooms[0].level;
+  const X = Math.min(...rooms.map((r) => r.rect[0])), Y = Math.min(...rooms.map((r) => r.rect[1]));
+  const w = Math.max(...rooms.map((r) => r.rect[0] + r.rect[2])) - X, h = Math.max(...rooms.map((r) => r.rect[1] + r.rect[3])) - Y;
+  const list = [], add = (depth, svg) => list.push({ depth, svg });
+  shadows = [];
+  // cut-away edges wherever the next tile isn't one of these rooms, and the walls between them
+  const inside = (i, j) => rooms.some(({ rect: [x, y, rw, rh] }) => i >= x && i < x + rw && j >= y && j < y + rh);
+  const front = rooms[0].outdoor ? "hedge" : "ledge";
+  for (let i = X; i < X + w; i++) for (let j = Y; j < Y + h; j++) {
+    if (!inside(i, j)) continue;
+    if (!inside(i, j + 1)) add(i + 0.5 + j + 1, segH(i, j + 1, front));
+    if (!inside(i + 1, j)) add(i + 1 + j + 0.5, segV(i + 1, j, front));
+    if (i > X && inside(i - 1, j) && isWall(level, [i - 1, j], [i, j])) add(i + j + 0.5, segV(i, j, "wall"));
+  }
+  for (const r of rooms) drawRoom(r, add);
+  const ground = shadows.join("");
+  shadows = null;
+  const [left] = iso(X, Y + h), [right] = iso(X + w, Y), top = iso(X, Y)[1] - WALL, bottom = iso(X + w, Y + h)[1] + 6;
+  const vb = [left - 6, top - 4, right - left + 12, bottom - top + 8];
+  const back = rooms.filter((r) => r.rect[1] === Y), first = rooms.find((r) => r.rect[0] === X) || rooms[0];
+  const inner = slab(X, Y, w, h) + tiles(rooms.map(floorTiles).join("") + wallShade(X, Y, w, h)) +
+    backWalls(X, Y, w, h, decoFor(back, X, true), wallSegs(back, X), [first.wall || WOODS.brown, first.wains], X === 0 ? first.left || "" : "") +
+    pillar(X - 0.3, Y - 0.3, WALL, { s: 0.4 }) + pillar(X + w - 0.1, Y - 0.3, WALL, { s: 0.34 }) + ground + sorted(list);
+  return `<img src="${asImage(inner, vb)}" width="${vb[2] * 2}" height="${vb[3] * 2}" alt="">`;
+}
+
+// ---------- hero: draw, bubbles, people
+const scene = document.getElementById("scene");
+const room = document.getElementById("room");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+placed = [];
+scene.innerHTML = cabinSVG();
+const guestSpots = placed.filter((g) => !g.walker);
+// a few pixel clouds drifting behind the building
+room.closest(".hero-body").insertAdjacentHTML("afterbegin", [[6, 70], [18, 95], [34, 120], [52, 85]].map(([top, dur], i) =>
+  `<img class="sky-cloud px" src="${propImage("cloud").url}" alt="" style="top:${top}%;animation-duration:${dur}s;animation-delay:-${i * 23}s">`).join(""));
+
+// ---------- the animator, with Habbo's timing (from its open-source client): frames change on an 80 ms tick (Habbo
+// advances avatar frames about every 82 ms); a step between tiles takes 500 ms; people blink every 4.5–5.5 s for
+// 50–250 ms, move their mouth while they talk (about a second a word, with short pauses), and gestures last 3 s. The
+// head turns on its own, to look at whoever talks nearby or just to glance around.
+const STATES = new Map(), DECODED = new Set();
+const decodeURL = (url) => Object.assign(new Image(), { src: url }).decode().catch(() => {});
+const decodeStrip = (strip) => (DECODED.has(strip.id) ? Promise.resolve() : decodeURL(strip.url).then(() => DECODED.add(strip.id)));
+const win = (svg) => svg && { svg, keys: new Map(), i: 0, W: +svg.getAttribute("width"), H: +svg.getAttribute("height") };
+const setWin = (w, i) => { if (w.i !== i) { w.svg.setAttribute("viewBox", `${i * w.W} 0 ${w.W} ${w.H}`); w.i = i; } };
+const bodyRight = (st) => (st.view === "front") === !st.mirror;
+for (const el of scene.querySelectorAll(".who")) {
+  const look = el.dataset.look, human = !el.classList.contains("critter"), cfg = PEOPLE.get(look), now = performance.now();
+  const st = { el, look, human, cfg, level: cfg.level, pos: [cfg.x, cfg.y], walking: false, walkT0: 0, face: el.querySelector(".face"), body: win(el.querySelector(".bv")) };
+  if (human) {
+    const idle = cfg.idle.map(parsePose), view = faceBack(cfg.face) ? "back" : "front";
+    Object.assign(st, { idle, idleI: reduceMotion ? 0 : Math.floor(Math.random() * idle.length), idleNext: 0, view, mirror: faceMirror(cfg.face),
+      head: win(el.querySelector(".hv")), over: win(el.querySelector(".ov")), bob: el.querySelector(".bob"), hl: el.querySelector(".hl"), ol: el.querySelector(".ol"),
+      extraG: el.querySelector(".extra"), blinkAt: now + Math.random() * 4500, blinkEnd: 0, talkUntil: 0, mouthOpen: false, mouthNext: 0, lookUntil: 0, lookRight: true,
+      gesture: null, pose: idle[0].pose, headMirror: false });
+    st.blinkEnd = st.blinkAt + 150;
+    st.body.keys.set(`${idle[0].pose}|${view}`, 0);
+    st.head.keys.set(`${view}|open|closed`, 0);
+    if (st.over) st.over.keys.set(`${idle[0].pose}|${view}`, 0);
+  }
+  STATES.set(el, st);
+}
+const stateOf = (el) => STATES.get(el);
+// Show the building once its pictures (the static layers and everyone's first frames) have decoded.
+scene.style.visibility = "hidden";
+const firstIds = [...new Set([...scene.querySelectorAll("use")].map((u) => u.getAttribute("href").slice(1)))];
+Promise.all([...staticURLs.map(decodeURL), ...firstIds.map((id) => { const im = document.getElementById(id); return im && decodeURL(im.getAttribute("href")).then(() => DECODED.add(id)); })])
+  .then(() => (scene.style.visibility = ""));
+
+// Gestures: clicked people wave (sitting ones raise a hand); people talk with their hands while they speak.
+const STANDING = ["stand", "shift", "phone", "think", "reach", "typeA", "typeB", "drink"], SITTING = ["sit", "sitDrink"];
+const GESTURES = { wave: { stand: ["wave1", "wave2"], sit: ["sitWave", "sit"] }, talk: { stand: ["talk1", "stand", "talk2", "stand"], sit: ["sit", "sitWave"] } };
+const bodyKind = (st) => (STANDING.includes(st.idle[0].pose) ? "stand" : SITTING.includes(st.idle[0].pose) ? "sit" : null);
+function act(el, kind = "wave", ms = 3000) {
+  const st = STATES.get(el);
+  if (!st?.human || st.cfg.walker || !bodyKind(st)) return;
+  const now = performance.now();
+  st.gesture = { kind, poses: GESTURES[kind][bodyKind(st)], ms: kind === "wave" ? 260 : 380, t0: now, until: now + ms };
+  el.classList.add("acting");
+}
+// Every frame a person may need, drawn once into strips after the page is showing (walkers first), and swapped in only
+// once decoded, so nobody ever blinks out.
+function framesNeeded(st) {
+  const views = st.cfg.walker ? ["front", "back"] : [st.view], poses = new Set(st.idle.map((p) => p.pose));
+  if (st.cfg.walker) { [...WALK, "stand"].forEach((p) => poses.add(p)); (ROUTES[st.look]?.stops || []).forEach((s) => s.poses.forEach((p) => poses.add(parsePose(p).pose))); }
+  else if (bodyKind(st)) Object.values(GESTURES).forEach((g) => g[bodyKind(st)].forEach((p) => poses.add(p)));
+  const bodyKeys = views.flatMap((v) => [...poses].map((pose) => ({ pose, back: v === "back", key: `${pose}|${v}` })));
+  const headKeys = views.flatMap((v) => (v === "back" ? [{ back: true, key: "back|open|closed" }]
+    : ["open|closed", "closed|closed", "open|open", "closed|open"].map((e) => { const [eyes, mouth] = e.split("|"); return { back: false, eyes, mouth, key: `front|${e}` }; })));
+  return { bodyKeys, headKeys, overKeys: bodyKeys.filter((k) => hasOver(k.pose)) };
+}
+function swapStrip(w, strip, keys) { w.svg.querySelector("use").setAttribute("href", `#${strip.id}`); w.keys = new Map(keys.map((k, i) => [k.key, i])); w.i = -1; }
+async function upgrade(st) {
+  const { bodyKeys, headKeys, overKeys } = framesNeeded(st), look = st.look;
+  const body = avatarStrip(look, bodyKeys.map(({ pose, back }) => ({ pose, back, layer: "body" })));
+  const head = avatarStrip(look, headKeys.map(({ back, eyes, mouth }) => ({ back, eyes, mouth, layer: "head" })));
+  const over = overKeys.length ? avatarStrip(look, overKeys.map(({ pose, back }) => ({ pose, back, layer: "over" }))) : null;
+  await Promise.all([body, head, over].filter(Boolean).map(decodeStrip));
+  swapStrip(st.body, body, bodyKeys);
+  swapStrip(st.head, head, headKeys);
+  if (over) {
+    if (!st.over) { st.ol.innerHTML = frameWin(over, 0, AW / 2, AH / 2, "ov"); st.over = win(st.ol.firstChild); }
+    swapStrip(st.over, over, overKeys);
+  }
+  st.pose = null;
+  draw(st, performance.now());
+}
+// Pick and show one person's (or animal's) frame for this moment.
+function draw(st, now) {
+  if (!st.human) return setWin(st.body, st.walking ? Math.floor((now - st.walkT0) / 250) % 2 : 0);
+  let pose;
+  if (st.walking) pose = WALK[Math.floor((now - st.walkT0) / 125) % 4];
+  else if (st.gesture && now < st.gesture.until) pose = st.gesture.poses[Math.floor((now - st.gesture.t0) / st.gesture.ms) % st.gesture.poses.length];
+  else {
+    if (st.gesture) { st.gesture = null; st.el.classList.remove("acting"); }
+    if (!reduceMotion && now >= st.idleNext) { st.idleI = (st.idleI + 1) % st.idle.length; st.idleNext = now + st.idle[st.idleI].ms * (0.85 + Math.random() * 0.3); }
+    pose = st.idle[st.idleI].pose;
+  }
+  if (now > st.blinkEnd) { st.blinkAt = now + 4500 + Math.random() * 1000; st.blinkEnd = st.blinkAt + 50 + Math.random() * 200; }
+  const eyes = now >= st.blinkAt && now < st.blinkEnd ? "closed" : "open";
+  if (now < st.talkUntil && now >= st.mouthNext) { st.mouthOpen = !st.mouthOpen; st.mouthNext = now + (st.mouthOpen ? 110 + Math.random() * 150 : 75 + Math.random() * 110); }
+  const mouth = now < st.talkUntil && st.mouthOpen ? "open" : "closed", v = st.view, bi = st.body.keys.get(`${pose}|${v}`);
+  if (bi === undefined) return; // not drawn yet (before its strips are ready): stay as we are
+  setWin(st.body, bi);
+  const oi = st.over?.keys.get(`${pose}|${v}`);
+  if (st.over) { st.over.svg.style.display = oi === undefined ? "none" : ""; if (oi !== undefined) setWin(st.over, oi); }
+  const hi = st.head.keys.get(v === "back" ? "back|open|closed" : `front|${eyes}|${mouth}`);
+  if (hi !== undefined) setWin(st.head, hi);
+  const hm = now < st.lookUntil && st.lookRight !== bodyRight(st);
+  if (hm !== st.headMirror) { st.headMirror = hm; st.hl.setAttribute("transform", hm ? HEAD_MIRROR : ""); }
+  if (pose !== st.pose) {
+    st.bob.setAttribute("transform", POSES[pose].bob ? "translate(0 -0.5)" : "");
+    if (EXTRA[st.look]) st.extraG.innerHTML = EXTRA[st.look](pose);
+    if (st.look === "pitcher" && pose === "pRelease") { const ball = scene.querySelector(".ball"); ball.classList.remove("fly"); void ball.getBBox(); ball.classList.add("fly"); }
+    st.pose = pose;
+  }
+}
+
+function say(el, text) {
+  room.querySelector(`.bubble[data-for="${el.dataset.look}"]`)?.remove();
+  const r = el.querySelector(".hit").getBoundingClientRect(), R = room.getBoundingClientRect(); // the person's own box (their layers hold whole strips)
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.dataset.for = el.dataset.look;
+  b.innerHTML = `<b>${CONTENT.npcs[el.dataset.look].name}:</b> `;
+  b.append(text);
+  b.style.left = `${((r.left + r.width / 2 - R.left) / R.width) * 100}%`;
+  b.style.top = `${((r.top - R.top - 4) / R.height) * 100}%`;
+  room.append(b);
+  setTimeout(() => b.remove(), 4000);
+  // the speaker's mouth moves (about a second a word) and they talk with their hands; everyone near turns their head to them
+  const st = STATES.get(el), now = performance.now(), dur = Math.min(3600, Math.max(1200, String(text).trim().split(/\s+/).length * 900));
+  if (!st) return;
+  if (st.human) { st.talkUntil = now + dur; if (!st.gesture && !st.walking && st.view === "front") act(el, "talk", dur); }
+  const [sx, sy] = posOf(st);
+  STATES.forEach((o) => {
+    if (o === st || !o.human || o.level !== st.level) return;
+    const [ox, oy] = posOf(o);
+    if (Math.max(Math.abs(ox - sx), Math.abs(oy - sy)) > 5) return;
+    o.lookUntil = now + dur + 900;
+    o.lookRight = sx - sy > ox - oy; // screen x runs along x − y
+  });
+}
+const people = [...scene.querySelectorAll(".who")];
+const npcOf = (el) => CONTENT.npcs[el.dataset.look];
+const chatty = people.filter((el) => npcOf(el).lines.length);
+const randomChat = () => { const el = pick(chatty); say(el, pick(npcOf(el).lines)); };
+scene.addEventListener("click", (e) => { const el = e.target.closest(".who"); if (el) { act(el); say(el, pick(npcOf(el).click)); } });
+scene.addEventListener("keydown", (e) => {
+  const el = e.target.closest(".who");
+  if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); act(el); say(el, pick(npcOf(el).click)); }
+});
+
+// People and animals who move walk tile to tile on their own floor, through doors only, never onto furniture or each
+// other, one tile per 500 ms without stopping until they get where they are going. Wanderers pick a spot a few tiles
+// away, walk there and stand a while (the coffee drinker inside on the ground floor, the cat in the loft, the dog
+// outdoors). The others have a route: stations to walk between, and at each one a way to face and a task to do for a
+// while. `also` lets them onto tiles kept free of wanderers (behind the counter, their spot in line).
+const BLOCKED = new Set(ROOMS.flatMap((r) => r.blocked.map(([u, v]) => `${r.level}:${r.rect[0] + u},${r.rect[1] + v}`)));
+const T = (n) => Array.from({ length: n }, (_, i) => (i % 2 ? "typeB" : "typeA"));
+const ROUTES = {
+  barista: { level: 0, also: ["7,6", "8,6", "9,6", "10,6"], stops: [
+    { tile: [8, 6], face: "backR", poses: [...T(12), "reach:1000", "reach:800"], wait: 5200 }, // pulling shots at the machine
+    { tile: [9, 6], face: "frontL", poses: ["reach:1000", "stand:900", "talk1", "stand:700", "talk2"], wait: 4400 }, // serving at the counter
+  ] },
+  q1: { level: 0, also: ["10,13"], stops: [
+    { tile: [10, 13], face: "backR", poses: ["phone", "shift"], wait: 4000 },                     // first in line
+    { tile: [9, 8], face: "backR", poses: ["stand:900", "talk1", "talk2", "stand:1200"], wait: 4800 }, // ordering at the counter
+  ] },
+  labB: { level: 1, stops: [
+    { tile: [1, 3], face: "back", poses: ["reach:1100", "stand:900", "reach:1100", "think:1500"], wait: 5200 }, // checking on the mice
+    { tile: [2, 4], face: "backR", poses: T(20), wait: 4800 },                                                  // reading the scan at the console
+  ] },
+};
+// the stations are kept for their people: wanderers never stop (or get stuck) on them
+const STATIONS = new Set(Object.values(ROUTES).flatMap((r) => r.stops.map((s) => `${r.level}:${s.tile}`)));
+const onFloorOK = (wk, [x, y]) => !!roomAt(wk.level, x, y) && (!BLOCKED.has(`${wk.level}:${x},${y}`) || wk.also.has(`${x},${y}`)) && wk.allowed([x, y]) &&
+  (!!wk.route || !STATIONS.has(`${wk.level}:${x},${y}`));
+const walkable = (wk, from, to) => onFloorOK(wk, to) && !isWall(wk.level, from, to);
+const WALKERS = [
+  { look: "coffee", level: 0, tile: [12, 11], allowed: ([x, y]) => !roomAt(0, x, y).outdoor },
+  { look: "cat", level: 1, tile: [6, 2], allowed: () => true },
+  { look: "dog", level: 0, tile: [3, 14], allowed: ([x, y]) => roomAt(0, x, y).outdoor },
+  ...Object.entries(ROUTES).map(([look, r]) => ({ look, level: r.level, tile: r.stops[0].tile, route: r, stopAt: 0, allowed: () => true })),
+].map((w) => ({ ...w, also: new Set(w.route?.also || []), el: scene.querySelector(`.walker[data-look="${w.look}"]`), heading: [1, 0] }));
+WALKERS.forEach((wk) => (STATES.get(wk.el).wk = wk));
+const posOf = (st) => (st.wk ? [st.wk.tile[0] + 0.5, st.wk.tile[1] + 0.5] : st.pos);
+const takenBy = (wk, [x, y]) => WALKERS.some((o) => o !== wk && o.level === wk.level && o.tile[0] === x && o.tile[1] === y);
+// Head count per room for the sidebar, like the old "Habbos currently visiting" list (the gallery counts as the landing).
+function guestCounts() {
+  const spots = [...guestSpots, ...WALKERS.map((w) => ({ x: w.tile[0] + 0.5, y: w.tile[1] + 0.5, level: w.level }))];
+  const home = (r) => (r && r.countAs ? ROOM[r.countAs] : r);
+  return ROOMS.filter((r) => !r.hidden && !r.countAs).map((r) => ({ label: roomLabel(r), href: r.href, n: spots.filter((g) => home(roomAt(g.level, Math.floor(g.x), Math.floor(g.y))) === r).length }));
+}
+function setDepth(el, d) {
+  const holder = el.parentElement, things = holder.parentElement;
+  holder.dataset.depth = d;
+  const next = [...things.children].find((c) => c !== holder && +c.dataset.depth > d);
+  if (holder.nextElementSibling !== next) things.insertBefore(holder, next || null);
+}
+// Face a way ("front", "frontL", "back", "backR"; see person()); animals only mirror.
+function faceTo(wk, face) {
+  const st = STATES.get(wk.el);
+  if (st.human) { st.view = faceBack(face) ? "back" : "front"; st.mirror = faceMirror(face); }
+  st.face.setAttribute("transform", faceMirror(face) ? `translate(${+wk.el.dataset.w} 0) scale(-1 1)` : "");
+}
+const headingFace = ([hx, hy], human) => (human ? (hx > 0 ? "front" : hy > 0 ? "frontL" : hx < 0 ? "back" : "backR") : hx - hy < 0 ? "frontL" : "front");
+// One step to a neighbouring tile (moving between the indoor and outdoor layers at a doorway), then done().
+function stepTo(wk, [nx, ny], done) {
+  const st = STATES.get(wk.el), [x, y] = wk.tile;
+  wk.heading = [nx - x, ny - y];
+  wk.tile = [nx, ny]; // claim the tile now so nobody else steps onto it
+  const d = nx + ny + 1, forward = d > x + y + 1, group = scene.querySelector(roomAt(wk.level, nx, ny).outdoor ? "#things-out" : `#things-${wk.level}`);
+  if (wk.el.parentElement.parentElement !== group) { group.appendChild(wk.el.parentElement); setDepth(wk.el, d); }
+  else if (forward) setDepth(wk.el, d); // stepping toward the viewer: draw in front before moving
+  const [px, py] = at(nx + 0.5, ny + 0.5, +wk.el.dataset.w, +wk.el.dataset.h);
+  faceTo(wk, headingFace(wk.heading, st.human));
+  if (!st.walking) { st.walking = true; st.walkT0 = performance.now(); }
+  wk.stepping = true;
+  requestAnimationFrame(() => (wk.el.style.transform = `translate(${px}px,${py}px)`));
+  setTimeout(() => {
+    if (!forward) setDepth(wk.el, d);
+    document.dispatchEvent(new Event("guests"));
+    wk.stepping = false;
+    done();
+    if (!wk.stepping) st.walking = false; // stopped here (not straight on to the next tile)
+  }, 500);
+}
+// Shortest path over free tiles (ignoring the other walkers, who are waited for), as a list of tiles after the start.
+function pathTo(wk, goal) {
+  const key = ([x, y]) => `${x},${y}`, prev = new Map([[key(wk.tile), null]]), queue = [wk.tile];
+  while (queue.length) {
+    const t = queue.shift();
+    if (key(t) === key(goal)) break;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = [t[0] + dx, t[1] + dy]; if (!prev.has(key(n)) && walkable(wk, t, n)) { prev.set(key(n), t); queue.push(n); } }
+  }
+  if (!prev.has(key(goal))) return null;
+  const path = [];
+  for (let t = goal; key(t) !== key(wk.tile); t = prev.get(key(t))) path.unshift(t);
+  return path;
+}
+function walkPath(wk, goal, done) {
+  let waits = 0; // someone in the way: wait for them a little, then give up on this trip
+  (function next() {
+    if (wk.tile[0] === goal[0] && wk.tile[1] === goal[1]) return done();
+    const path = pathTo(wk, goal);
+    if (!path) return done();
+    if (takenBy(wk, path[0])) return ++waits > 6 ? done() : setTimeout(next, 600);
+    stepTo(wk, path[0], next);
+  })();
+}
+// Wanderers: a free spot two to six steps away, walked to without stopping; then a pause.
+function wander(wk) {
+  const key = ([x, y]) => `${x},${y}`, dist = new Map([[key(wk.tile), 0]]), queue = [wk.tile], spots = [];
+  while (queue.length) {
+    const t = queue.shift(), dd = dist.get(key(t));
+    if (dd >= 2) spots.push(t);
+    if (dd === 6) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = [t[0] + dx, t[1] + dy]; if (!dist.has(key(n)) && walkable(wk, t, n) && !takenBy(wk, n)) { dist.set(key(n), dd + 1); queue.push(n); } }
+  }
+  if (!spots.length) return setTimeout(() => wander(wk), 1500);
+  walkPath(wk, pick(spots), () => {
+    if (Math.random() < 0.2) say(wk.el, pick(npcOf(wk.el).lines));
+    setTimeout(() => wander(wk), 1500 + Math.random() * 3500);
+  });
+}
+// Route walkers: at a station, face it and do the task; after a while, walk to the next one.
+function arrive(wk) {
+  const st = STATES.get(wk.el), stop = wk.route.stops[wk.stopAt];
+  faceTo(wk, stop.face);
+  st.idle = stop.poses.map(parsePose);
+  st.idleI = 0;
+  st.idleNext = performance.now() + st.idle[0].ms;
+}
+function route(wk) {
+  arrive(wk);
+  setTimeout(() => {
+    wk.stopAt = (wk.stopAt + 1) % wk.route.stops.length;
+    walkPath(wk, wk.route.stops[wk.stopAt].tile, () => route(wk));
+  }, wk.route.stops[wk.stopAt].wait * (0.8 + Math.random() * 0.4));
+}
+// Now and then someone standing or sitting still turns their head to look the other way for a moment.
+const glancers = [...STATES.values()].filter((st) => st.human && st.cfg.glance);
+function glance() {
+  const st = pick(glancers), now = performance.now();
+  if (now > st.lookUntil && now > st.talkUntil) { st.lookUntil = now + 1400 + Math.random() * 2200; st.lookRight = !bodyRight(st); }
+  setTimeout(glance, 700 + Math.random() * 1500);
+}
+
+WALKERS.filter((wk) => wk.route).forEach(arrive);
+// draw everyone's frames, walkers first, one person at a time so the page stays responsive
+(async () => {
+  for (const st of [...STATES.values()].filter((s) => s.human).sort((a, b) => !!b.cfg.walker - !!a.cfg.walker)) { await upgrade(st); await new Promise((r) => setTimeout(r, 0)); }
+})();
+if (!reduceMotion) {
+  setInterval(() => { const now = performance.now(); STATES.forEach((st) => draw(st, now)); }, 80);
+  WALKERS.forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
+  setTimeout(glance, 2000);
+  (function chatter() { setTimeout(() => { randomChat(); chatter(); }, 2500 + Math.random() * 2500); })();
+}
+// On phones the building scrolls sideways; start in the middle.
+room.parentElement.scrollLeft = (room.parentElement.scrollWidth - room.parentElement.clientWidth) / 2;
+setTimeout(() => { const jen = people.find((el) => el.dataset.look === "jen"); act(jen); say(jen, CONTENT.npcs.jen.click[0]); }, 700);
