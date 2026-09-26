@@ -37,7 +37,7 @@ const BODY = {
     </div>
     <figure class="portrait">
       <svg class="id-avatar" viewBox="0 0 ${AW / 2} ${AH / 2}" shape-rendering="crispEdges" aria-hidden="true">${imageTag(avatarImage("jen", "stand"), 0, 0)}</svg>
-      <figcaption>Jen, in pixels</figcaption>
+      <figcaption>Jen</figcaption>
     </figure>
   </div>`,
   projects: CONTENT.projectGroups.map((g) => `<h3 class="group">${g}</h3>` + CONTENT.projects.filter((p) => p.cat === g).map(project).join("")).join(""),
