@@ -270,9 +270,28 @@ const PROPS = {
     c.part(ellipse(4, 3.5, 3.5, 3.2), sphere(ramp(col), 4, 3.5, 3.5, 3.2));
     c.set(4, 3, "#f6c945"); c.set(3, 3, "#f6c945");
   } }])),
-  beanbag: { w: 24, h: 14, draw(c) {
-    c.part(union(ellipse(12, 9, 11.5, 5), ellipse(9, 5, 6.5, 4.5)), sphere(ramp("#e0584f"), 11, 7, 11, 6));
-    for (let x = 6; x < 13; x++) c.set(x, 8 - Math.round((x - 9) ** 2 / 12), "#9e342d");
+  // A beanbag seen from the front-right: a big soft sack with a dent where you sit, seams and a highlight.
+  beanbag: { w: 26, h: 18, draw(c) {
+    const r = ramp("#e0584f");
+    c.part(union(ellipse(13, 12, 12.5, 6), ellipse(10, 7.5, 8, 6.5)), (x, y) => { const d = ((x + 0.5 - 9) / 9) ** 2 + ((y + 0.5 - 6) / 6) ** 2; return y > 14.5 ? r[3] : x > 17 || y > 12 ? r[2] : d < 0.25 ? r[0] : r[1]; });
+    c.part(ellipse(14, 10.5, 5.5, 2.4), (x, y) => (y < 10 ? r[2] : r[1]), null);            // the dent
+    for (let x = 4; x < 23; x += 1) c.set(x, Math.round(12.5 + Math.sin(x / 3) * 0.6), x % 3 ? r[2] : r[3]); // a seam
+    [[6, 5], [7, 4], [8, 4]].forEach(([x, y]) => c.set(x, y, "#f7b0a8"));
+  } },
+  // Coats hanging from a hook: collar, sleeve, folds; and a straw hat.
+  ...Object.fromEntries([["coatBlue", "#34507f"], ["coatRust", "#b5533a"]].map(([name, col]) => [name, { w: 12, h: 30, draw(c) {
+    const r = ramp(col);
+    c.part(polyS([[5, 1], [7, 1], [10, 5], [11.5, 29], [0.5, 29], [2, 5]]), (x, y) => (x < 4 ? r[2] : x > 8 ? r[2] : r[1]));
+    c.part(polyS([[3, 3], [6, 6], [9, 3], [8.5, 8], [6, 9], [3.5, 8]]), () => r[0]);           // the collar
+    c.part(limb([[9.5, 7], [10.5, 24]], 2.4), (x, y) => r[2]);                                  // a sleeve
+    for (let y = 11; y < 28; y++) { c.set(6, y, r[3]); if (y % 5 === 0) c.set(5, y, r[3]); }  // front edge, buttons
+    c.set(5, 0, "#2b1a10"); c.set(6, 0, "#2b1a10");
+  } }])),
+  hatStraw: { w: 14, h: 8, draw(c) {
+    const r = ramp("#d9b25a");
+    c.part(ellipse(7, 6, 6.8, 1.8), (x, y) => (y > 6 ? r[2] : r[1]));
+    c.part(union(ellipse(7, 3.5, 4, 3), rectS(3, 3.5, 11, 5.5)), (x, y) => (x < 5 ? r[0] : r[1]));
+    for (let x = 3; x < 11; x++) c.set(x, 4, "#8a4a2a");
   } },
   robot: { w: 26, h: 40, draw(c) {
     c.part(limb([[21, 22], [24, 30]], 3), () => "#8d96a0");

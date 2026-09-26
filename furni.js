@@ -98,6 +98,14 @@ function officeChair(x, y, face = "down", col = FC.charcoal) {
 
 // ---------- sofas, armchairs, beds
 // Sofa `len` tiles long, 0.9 deep. face "down": seat looks +y, back along the far side; "right": looks +x; "up"/"left": we see its back.
+// Upholstery details drawn on top of a box's parts. puffTop: a cushion's top swelling up in the middle (a lighter
+// rounded pad, a highlight, a seam round the edge). rollTop: an arm or back rounded along its length (a light ridge,
+// a darker far edge). piping: a light line just under the top of a front face, a crease near the bottom.
+const puffTop = (x0, y0, w, d, z, p) => raised(z, `<rect x="${x0 + w * 0.08}" y="${y0 + d * 0.1}" width="${w * 0.84}" height="${d * 0.8}" rx="${Math.min(w, d) * 0.25}" fill="${p[0]}" opacity=".7"/>` +
+  `<rect x="${x0 + w * 0.22}" y="${y0 + d * 0.25}" width="${w * 0.3}" height="${d * 0.22}" rx="${Math.min(w, d) * 0.1}" fill="#ffffff" opacity=".25"/>` +
+  `<rect x="${x0 + 0.02}" y="${y0 + 0.02}" width="${w - 0.04}" height="${d - 0.04}" rx="${Math.min(w, d) * 0.2}" fill="none" stroke="${p[2]}" stroke-width="0.025"/>`);
+const rollTop = (x0, y0, w, d, z, p) => raised(z, w >= d ? rect(x0, y0 + d * 0.3, w, d * 0.3, p[0]) + rect(x0, y0, w, d * 0.14, p[2]) : rect(x0 + w * 0.3, y0, w * 0.3, d, p[0]) + rect(x0, y0, w * 0.14, d, p[2]));
+const piping = (L, h, p) => rect(0, h - 1.2, L, 0.6, p[0]) + rect(0, 0.6, L, 0.5, "rgba(0,0,0,.18)");
 function sofa(x, y, len, face = "down", { col = FC.cream, cushion = null, pillows = [] } = {}) {
   const c = pal(col, "fabric"), cc = pal(cushion || col, "fabric"), D = 0.9, along = face === "down" || face === "up";
   const n = Math.max(1, Math.round((len - 0.36) / 0.62)), cw = (len - 0.36) / n;
@@ -105,10 +113,18 @@ function sofa(x, y, len, face = "down", { col = FC.cream, cushion = null, pillow
   const backAt = face === "down" || face === "right" ? 0 : D - 0.28, seatAt = face === "down" || face === "right" ? 0.28 : 0.02;
   const feet = [0.05, len - 0.13].flatMap((a) => [0.05, D - 0.13].map((b) => B(a, b, 0.08, 0.08, 1.5, pal(FC.walnut)))).join("");
   const base = B(0, 0.02, len, D - 0.04, 4.5, c, 1.5);
-  const back = B(0, backAt, len, 0.28, 15, c, 1.5);
-  const seats = Array.from({ length: n }, (_, i) => B(0.18 + i * cw + 0.01, seatAt, cw - 0.02, 0.6, 3, cc, 6)).join("");
-  const backCush = Array.from({ length: n }, (_, i) => B(0.18 + i * cw + 0.01, face === "down" || face === "right" ? 0.28 : D - 0.46, cw - 0.02, 0.18, 8, cc, 9)).join("");
-  const armA = B(0, 0.02, 0.18, D - 0.04, 11, c, 1.5), armB = B(len - 0.18, 0.02, 0.18, D - 0.04, 11, c, 1.5);
+  const back = B(0, backAt, len, 0.28, 15, c, 1.5) + rollTop(...(along ? [x, y + backAt, len, 0.28] : [x + backAt, y, 0.28, len]), 16.5, c);
+  // F: a part's footprint in world terms, for the tops and fronts drawn over it
+  const F = (a, b, l, dd) => (along ? [x + a, y + b, l, dd] : [x + b, y + a, dd, l]);
+  const front = (a, b, l, dd, z, fn) => { const [fx, fy, fw, fd] = F(a, b, l, dd); return along ? leftFace(fx, fy, fd, z, fn(fw * 16)) : rightFace(fx, fy, fw, fd, z, fn(fd * 16)); };
+  const seats = Array.from({ length: n }, (_, i) => { const a = 0.18 + i * cw + 0.01;
+    return B(a, seatAt, cw - 0.02, 0.6, 3, cc, 6) + puffTop(...F(a, seatAt, cw - 0.02, 0.6), 9, cc) + front(a, seatAt, cw - 0.02, 0.6, 6, (L) => piping(L, 3, cc)); }).join("");
+  const bAt = face === "down" || face === "right" ? 0.28 : D - 0.46;
+  const backCush = Array.from({ length: n }, (_, i) => { const a = 0.18 + i * cw + 0.01;
+    return B(a, bAt, cw - 0.02, 0.18, 8, cc, 9) + puffTop(...F(a, bAt, cw - 0.02, 0.18), 17, cc) +
+      front(a, bAt, cw - 0.02, 0.18, 9, (L) => piping(L, 8, cc) + `<circle cx="${L / 2}" cy="4.5" r="0.7" fill="${cc[2]}"/>`); }).join("");
+  const arm = (a) => B(a, 0.02, 0.18, D - 0.04, 11, c, 1.5) + rollTop(...F(a, 0.02, 0.18, D - 0.04), 12.5, c) + front(a, 0.02, 0.18, D - 0.04, 1.5, (L) => piping(L, 11, c));
+  const armA = arm(0), armB = arm(len - 0.18);
   const pil = pillows.map(([a, name]) => { const [px, py] = along ? [x + a, y + seatAt + 0.12] : [x + seatAt + 0.12, y + a]; return onFloor(px, py, 9, name || "pillow"); }).join("");
   return face === "down" || face === "right" ? feet + base + back + armA + backCush + seats + pil + armB : feet + base + armA + seats + backCush + back + armB;
 }
@@ -249,10 +265,13 @@ function rugF(x, y, w, d, { edge = "#e8d6a8", field = "#9c3b2e", inner = "#6e2a2
     `<polygon points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}" fill="${inner}" stroke="${accent}" stroke-width="0.04"/>` + rect(cx - r * 0.25, cy - r * 0.25, r * 0.5, r * 0.5, accent);
   for (const [a, c] of [[x + b * 0.25, y + b * 0.25], [x + w - b * 0.75, y + b * 0.25], [x + b * 0.25, y + d - b * 0.75], [x + w - b * 0.75, y + d - b * 0.75]]) s += rect(a, c, b * 0.5, b * 0.5, field);
   if (fringe) for (let k = 0; k <= w / 0.08; k++) s += rect(x + k * 0.08, y - 0.06, 0.03, 0.06, edge) + rect(x + k * 0.08, y + d, 0.03, 0.06, edge);
-  return s;
+  // the pile, and the rug's thickness showing along its two front edges
+  for (let k = 0; k < w * d * 60; k++) s += rect(x + b + hsh(k, w) * (w - 2 * b), y + b + hsh(w, k) * (d - 2 * b), 0.03, 0.03, k % 2 ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)");
+  return s + rect(x, y + d - 0.035, w, 0.035, "rgba(0,0,0,.28)") + rect(x + w - 0.035, y, 0.035, d, "rgba(0,0,0,.35)");
 }
 // Fluffy round rug (floor space).
-const furRug = (x, y, rx, ry, col = "#efe6d4") => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${col}" stroke="rgba(0,0,0,.15)" stroke-width="0.04"/>` +
+const furRug = (x, y, rx, ry, col = "#efe6d4") => Array.from({ length: 28 }, (_, k) => { const a = (k / 28) * 6.283; return `<ellipse cx="${x + Math.cos(a) * rx * 0.93}" cy="${y + Math.sin(a) * ry * 0.93}" rx="${rx * 0.14}" ry="${ry * 0.16}" fill="${mixHex(col, "#000000", 0.12)}"/>`; }).join("") +
+  `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${col}"/><ellipse cx="${x - rx * 0.12}" cy="${y - ry * 0.15}" rx="${rx * 0.6}" ry="${ry * 0.55}" fill="#ffffff" opacity=".35"/>` +
   Array.from({ length: Math.round(rx * ry * 30) }, () => { const a = rnd() * 6.28, k = Math.sqrt(rnd()); return rect(x + Math.cos(a) * rx * k, y + Math.sin(a) * ry * k, 0.04, 0.04, pickSeeded(["rgba(255,255,255,.7)", "rgba(0,0,0,.08)"])); }).join("");
 // ---------- wall pieces with depth. Drawn in a wall's own coordinates (u along it, v up): a piece standing d units out
 // shows its top and one side as strips and its front moved off the wall. wall = "back" (a back wall: the front moves
@@ -310,8 +329,8 @@ const crate = (x, y, s = 0.4, h = 7, z = 0) => box(x, y, s, s, h, pal("#b98a55",
   onL(x, y, s, s, z, (L) => rect(0, h / 2 - 0.25, L, 0.5, SHADE) + rect(1, 0, 0.5, h, SHADE) + rect(L - 1.5, 0, 0.5, h, SHADE)) +
   onR(x, y, s, s, z, (L) => rect(0, h / 2 - 0.25, L, 0.5, SHADE));
 // Coat rack with a couple of coats and a hat.
-const coatRack = (x, y) => disc(x, y, 0.12, 0, 1, FC.walnut) + box(x - 0.03, y - 0.03, 0.06, 0.06, 30, pal(FC.walnut)) +
-  box(x - 0.14, y - 0.02, 0.1, 0.12, 13, pal(FC.navy, "fabric"), 15) + box(x + 0.02, y - 0.12, 0.12, 0.1, 11, pal(FC.rust, "fabric"), 17) + disc(x, y, 0.1, 30, 2, FC.mustard);
+const coatRack = (x, y) => disc(x, y, 0.13, 0, 1, FC.walnut) + [[-0.13, 0.02], [0.1, 0.05], [0.02, -0.13]].map(([a, b]) => box(x + a - 0.02, y + b - 0.02, 0.04, 0.04, 1.2, pal(FC.walnut), 0.2)).join("") +
+  box(x - 0.03, y - 0.03, 0.06, 0.06, 31, pal(FC.walnut)) + onFloor(x + 0.02, y - 0.08, 13, "coatRust") + onFloor(x - 0.06, y + 0.08, 12, "coatBlue") + onFloor(x, y, 29, "hatStraw");
 // Record player on a low cabinet (front on +x), a spinning-looking record on top.
 const recordPlayer = (x, y) => cabinets(x, y, 0.45, 0.8, { h: 10, body: FC.walnut, top: FC.walnut, front: "R", doors: 2 }) + box(x + 0.05, y + 0.12, 0.35, 0.45, 1.5, pal("#2b2e35"), 10) +
   disc(x + 0.22, y + 0.34, 0.13, 11.5, 0.3, "#15171c") + disc(x + 0.22, y + 0.34, 0.04, 11.8, 0.2, FC.red);

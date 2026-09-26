@@ -211,7 +211,14 @@ const beamFace = (len) => rect(0, SLAB - 1.2, len, 0.7, "rgba(255,255,255,.22)")
 function railPlanter(x, y) {
   const [sx, sy] = up(iso(x + 0.35, y + 0.12), 4);
   let ivy = "";
-  for (const [dx, n] of [[-5, 9], [0, 13], [5, 7]]) for (let t = 0; t < n; t++) ivy += rect(Math.round(sx + dx + Math.sin(t * 1.3) * 1.5), Math.round(sy + t * 2.2), 2, 2, t % 3 ? "#3f8a3a" : "#5fb04a") + (t % 4 === 1 ? rect(Math.round(sx + dx + Math.sin(t * 1.3) * 1.5) + 1, Math.round(sy + t * 2.2) + 1, 1, 1, "#23602c") : "");
+  // vines: a thin stem swaying down, small leaves on alternate sides, each lit on top and outlined
+  for (const [dx, n] of [[-5, 9], [0, 13], [5, 7]]) {
+    const pts = Array.from({ length: n + 1 }, (_, t) => [sx + dx + Math.sin(t * 1.1) * 1.4, sy + t * 2.2]);
+    ivy += `<polyline points="${pts.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#2d5a26" stroke-width="0.5"/>`;
+    pts.slice(1).forEach(([lx, ly], t) => { const s = t % 2 ? 1 : -1, cx = lx + s * 1.3;
+      ivy += `<path d="M${lx},${ly} q${s * 1.6},-1.6 ${s * 2.6},0.2 q${-s * 1},1.4 ${-s * 2.6},-0.2z" fill="${t % 3 ? "#3f8a3a" : "#5fb04a"}" stroke="#1f4a1b" stroke-width="0.35"/>` +
+        `<line x1="${lx}" y1="${ly}" x2="${cx + s * 0.6}" y2="${ly - 0.3}" stroke="#8fd66a" stroke-width="0.3"/>`; });
+  }
   return ivy + box(x, y, 0.7, 0.22, 4, pal(FC.oak, "wood"), 2) + onFloor(x + 0.15, y + 0.1, 6, "flowerP") + onFloor(x + 0.35, y + 0.12, 6, "flowerR") + onFloor(x + 0.55, y + 0.1, 6, "flowerP");
 }
 // Flower box under an outside window (wall units).
@@ -410,8 +417,9 @@ const ROOMS = [
       add(X + Y + 9.3, lamp(X + 4.6, Y + 4.7));
       // the pitcher throws across the field toward the net; the ball flies during the wind-up frame
       // wind-up in four frames (set, leg lift, arm cocked, release); the ball leaves the hand on the release frame
-      const [px, py] = at(X + 0.9, Y + 2.8, AW / 2, AH / 2), [nx, ny] = up(iso(X + 4.5, Y + 3.1), 10), [bx, by] = POSES.pRelease.armR[2].map((v) => (v * K) / 2);
-      add(X + Y + 3.7, person("pitcher", ["pSet", "pLift", "pCock", "pRelease"], X + 0.9, Y + 2.8, { extra: skeleton }) +
+      const MOUND = 1.5, [px, py0] = at(X + 0.9, Y + 2.8, AW / 2, AH / 2), py = py0 - MOUND, [nx, ny] = up(iso(X + 4.5, Y + 3.1), 10), [bx, by] = POSES.pRelease.armR[2].map((v) => (v * K) / 2);
+      add(X + Y + 3.4, disc(X + 0.9, Y + 2.8, 0.62, 0, MOUND, "#b9834a") + raised(MOUND, `<ellipse cx="${X + 0.95}" cy="${Y + 2.75}" rx="0.35" ry="0.3" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.62, 0.08, 0.3, "#ffffff")));
+      add(X + Y + 3.7, person("pitcher", ["pSet", "pLift", "pCock", "pRelease"], X + 0.9, Y + 2.8, { extra: skeleton, dy: -MOUND }) +
         `<g class="ball" style="--dx:${nx - px - bx}px;--dy:${ny - py - by}px">${rect(px + bx - 1, py + by - 1, 2, 2, "#fff", ` stroke="${INK}" stroke-width="0.5"`)}</g>`);
       let mesh = "";
       for (let u = 0; u <= 22; u += 2) mesh += rect(u, 0, 0.5, 18, "#dfe4e9");
@@ -631,7 +639,18 @@ const slab = (X0, Y0, lenX, lenY) => {
     poly(faceL, "none") + poly(faceR, "none");
 };
 const leafy = (len, h) => { let s = ""; for (let k = 0; k < len * h / 5; k++) s += rect(rnd() * len, rnd() * h, 1, 1, pickSeeded(["rgba(150,230,110,.45)", "rgba(20,60,15,.35)"])); return s; };
-const hedgeTop = (x0, y0, w, d, h) => raised(h, Array.from({ length: Math.round(w * d * 40) }, () => rect(x0 + rnd() * w, y0 + rnd() * d, 0.05, 0.05, pickSeeded(["rgba(170,240,120,.6)", "rgba(20,60,15,.3)"]))).join(""));
+// Leafy clumps along a hedge's top: each a dark outline, the leaf mass and a lit crown (light from the up-left).
+const hedgeClumps = (x0, y0, w, d, h) => {
+  let s = "";
+  const n = Math.max(2, Math.round(Math.max(w, d) * 3));
+  for (let k = 0; k < n; k++) {
+    const t = (k + 0.5) / n, [cx, cy] = up(iso(x0 + (w >= d ? w * t : w / 2), y0 + (w >= d ? d / 2 : d * t)), h + 0.5), r = 3.1 + hsh(k, x0 + y0) * 0.8;
+    s += circle(cx, cy, r + 0.5, "#1f4a1b") + circle(cx, cy, r, "#3f8a3a") + circle(cx - r * 0.25, cy - r * 0.3, r * 0.6, "#5cb346") +
+      rect(Math.round(cx - r * 0.5), Math.round(cy - r * 0.55), 1, 1, "#8fd66a") + rect(Math.round(cx + r * 0.2), Math.round(cy - r * 0.2), 1, 1, "#8fd66a") + rect(Math.round(cx + r * 0.3), Math.round(cy + r * 0.3), 1, 1, "#2d6a2a");
+  }
+  return s;
+};
+const hedgeTop = hedgeClumps;
 // Turned wooden balusters every 4 units on a plane (under a railing's top rail).
 const balusters = (len) => { let s = ""; for (let u = 1.5; u < len; u += 4) s += rect(u, 1.5, 1.5, 8.5, "#b07a45") + rect(u, 1.5, 0.5, 8.5, "#d49e62") + rect(u + 1.5, 1.5, 0.5, 8.5, INK) +
   rect(u - 0.35, 4.6, 2.2, 1.6, "#8a5a36") + rect(u - 0.35, 4.6, 0.6, 1.6, "#b07a45") + rect(u - 0.35, 2, 2.2, 0.8, "#8a5a36") + rect(u - 0.35, 8.2, 2.2, 0.8, "#8a5a36"); return s; };
@@ -643,11 +662,11 @@ const lowFace = (len) => rect(0, 0, len, LOW, "#b58c5a") + rect(2.5, 4, len - 5,
 const segV = (i, j, kind) => kind === "wall" ? box(i - 0.1, j, 0.2, 1, LOW, PART) + rightFace(i - 0.1, j, 0.2, 1, 0, lowFace(16)) + box(i - 0.13, j, 0.26, 1, 1.5, PCAP, LOW)
   : kind === "ledge" ? box(i - 0.12, j, 0.12, 1, 4, PART)
   : kind === "rail" ? box(i - 0.08, j, 0.08, 0.08, 12, RAIL) + rightFace(i - 0.04, j, 0, 1, 0, balusters(16)) + box(i - 0.08, j, 0.08, 1, 1.5, RAIL) + box(i - 0.1, j, 0.12, 1, 2, RAIL, 10)
-  : box(i - 0.2, j, 0.4, 1, 9, HEDGE) + rightFace(i - 0.2, j, 0.4, 1, 0, leafy(16, 9)) + hedgeTop(i - 0.2, j, 0.4, 1, 9);
+  : box(i - 0.2, j, 0.4, 1, 8, HEDGE) + rightFace(i - 0.2, j, 0.4, 1, 0, leafy(16, 8)) + hedgeTop(i - 0.2, j, 0.4, 1, 8);
 const segH = (i, j, kind) => kind === "wall" ? box(i, j - 0.1, 1, 0.2, LOW, PART) + leftFace(i, j - 0.1, 0.2, 0, lowFace(16)) + box(i, j - 0.13, 1, 0.26, 1.5, PCAP, LOW)
   : kind === "ledge" ? box(i, j - 0.12, 1, 0.12, 4, PART)
   : kind === "rail" ? box(i, j - 0.08, 0.08, 0.08, 12, RAIL) + leftFace(i, j - 0.04, 0, 0, balusters(16)) + box(i, j - 0.08, 1, 0.08, 1.5, RAIL) + box(i, j - 0.1, 1, 0.12, 2, RAIL, 10)
-  : box(i, j - 0.2, 1, 0.4, 9, HEDGE) + leftFace(i, j - 0.2, 0.4, 0, leafy(16, 9)) + hedgeTop(i, j - 0.2, 1, 0.4, 9);
+  : box(i, j - 0.2, 1, 0.4, 8, HEDGE) + leftFace(i, j - 0.2, 0.4, 0, leafy(16, 8)) + hedgeTop(i, j - 0.2, 1, 0.4, 8);
 // Walls, rails and hedges of one floor: indoor pieces go to `add`, hedges (outdoors) to `addOut`.
 function edges(level, add, addOut) {
   const kind = (a, b, key) => {
