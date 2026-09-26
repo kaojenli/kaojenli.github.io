@@ -4,7 +4,6 @@ const CONTENT = {
     name: "Jen Li Kao",
     tagline: "Computer Vision & 3D Reconstruction · Signal Processing & Sensing · Machine Learning & Evaluation",
     now: "AI Engineer @ We Share Baseball",
-    based: "Taipei, Taiwan",
     email: "kaojenli@gmail.com",
     intro:
       "I build vision and sensing pipelines: multi-view 3D pose for baseball pitchers, multi-camera tracking, " +

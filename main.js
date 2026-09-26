@@ -27,7 +27,7 @@ const BODY = {
   about: `<div class="about-grid">
     <div>
       <p class="lead">${P.intro}</p>
-      <dl class="facts"><dt>Now</dt><dd>${P.now}</dd><dt>Based</dt><dd>${P.based}</dd><dt>Focus</dt><dd>${P.tagline}</dd></dl>
+      <dl class="facts"><dt>Now</dt><dd>${P.now}</dd><dt>Focus</dt><dd>${P.tagline}</dd></dl>
       <p class="links">${P.links.map(link).join("")}</p>
     </div>
     <div class="id-card">
@@ -49,7 +49,7 @@ const BODY = {
       <p class="kind">${p.kind}${p.badge ? `<span class="badge">★ ${p.badge}</span>` : ""}</p><p>${p.cite}</p>${p.link ? `<p>${link(p.link)}</p>` : ""}
     </div>`).join(""),
   skills: `<dl class="skills">${CONTENT.skills.map((s) => `<div><dt>${s.name}</dt><dd>${s.items}</dd></div>`).join("")}</dl><h3>Stack</h3>${tags(CONTENT.stack)}`,
-  contact: `<p class="lead">(^_^)/ Knock knock! The fastest way to reach me is email.</p><p class="links">${P.links.map(link).join("")}</p><p class="note">${P.based}</p>`,
+  contact: `<p class="lead">(^_^)/ Knock knock! The fastest way to reach me is email.</p><p class="links">${P.links.map(link).join("")}</p>`,
 };
 $("#panels").innerHTML = CONTENT.sections.filter((s) => BODY[s.id]).map((s) => panel(s.id, BODY[s.id])).join("");
 // Close-ups (pictures, drawn at 2x so pixels stay even); long rooms (the backyard) get their own row.
