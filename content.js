@@ -180,7 +180,7 @@ const CONTENT = {
       org: "Medical Imaging Processing & Computer Vision Lab, Chang Gung University",
       place: "Taoyuan, Taiwan",
       date: "Sept 2020 – May 2022",
-      bullets: ["Advisor: Prof. Yi-Ping Chao.", "Breast tumor detection using multi-channel millimeter-wave 3D imaging."],
+      bullets: ["Breast tumor detection using multi-channel millimeter-wave 3D imaging."],
       project: "mmwave",
     },
     {
@@ -188,7 +188,7 @@ const CONTENT = {
       org: "Data Structure and Algorithm, Dept. CSIE, Chang Gung University",
       place: "Taoyuan, Taiwan",
       date: "Fall 2021 – Spring 2022",
-      bullets: ["Instructor: Prof. Yi-Ping Chao.", "Assisted in preparing lecture materials, grading, and counseling students on programming issues."],
+      bullets: ["Assisted in preparing lecture materials, grading, and counseling students on programming issues."],
     },
     {
       role: "Research Assistant",
