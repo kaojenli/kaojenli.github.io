@@ -18,28 +18,22 @@ ok(await p.ev(`document.querySelectorAll('#scene .who').length === Object.keys(C
 ok(await p.ev(`[...document.querySelectorAll('.scene-box img')].filter((i) => i.naturalWidth > 0).length`) === 7 && await p.ev(`document.querySelectorAll('.scene-box [tabindex], .scene-box .who').length`) === 0, "7 room close-ups (pictures that load), none focusable or clickable");
 console.log("  DOM elements:", await p.ev(`document.getElementsByTagName('*').length`));
 ok(await p.ev(`document.querySelectorAll('.room-tag').length`) === 0, "no room names drawn on the picture");
-ok(await p.ev(`document.querySelectorAll('#panels .panel').length`) === 7 && await p.ev(`document.querySelectorAll('.proj').length`) === 7, "7 panels and 7 projects rendered");
-ok(await p.ev(`(() => { const s = document.querySelector('.sign'), b = s.querySelector('b'); return b.scrollWidth <= s.clientWidth; })()`), "sign text fits inside the sign");
+ok(await p.ev(`document.querySelectorAll('#panels .section').length`) === 7 && await p.ev(`document.querySelectorAll('.proj').length`) === 7, "7 sections and 7 projects rendered");
+ok(await p.ev(`(() => { const h = document.querySelector('.hero h1').getBoundingClientRect(), l = document.getElementById('hero-lede'); return h.bottom < innerHeight && l.textContent.length > 50; })()`), "the name and the intro are the first thing on the page");
 for (const id of ["about", "projects", "experience", "education", "papers", "skills", "contact"]) {
   await p.ev("scrollTo(0, 0)"); await p.sleep(300);
-  await p.ev(`document.getElementById('nav').scrollIntoView({ block: "center", behavior: "instant" })`); await p.sleep(200);
   await p.click(...(await p.ev(center(`#nav a[href="#${id}"]`))));
   await p.sleep(1200);
-  ok(await p.ev(inView(id)), `sidebar link → #${id} scrolls into view`);
-  ok(await p.ev(`(() => { const r = document.getElementById('nav').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`), `  sidebar links stay on screen (sticky) at #${id}`);
+  ok(await p.ev(inView(id)), `navigation link → #${id} scrolls into view`);
+  ok(await p.ev(`(() => { const r = document.getElementById('nav').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`), `  the navigation stays on screen (sticky) at #${id}`);
 }
-await p.ev("scrollTo(0, 0)"); await p.sleep(300);
-ok(await p.ev(`(() => { const r = document.getElementById('go').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`), "Let's GO is visible without scrolling (1440×900)");
-await p.click(...(await p.ev(center("#go"))));
-await p.sleep(1200);
-ok(await p.ev(inView("projects")), "Let's GO → projects");
 await p.ev(reveal("#project-mammo summary")); await p.sleep(200);
 await p.click(...(await p.ev(center("#project-mammo summary"))));
 await p.sleep(600);
-ok(await p.ev(`document.querySelector('#project-mammo details').open && document.querySelector('#project-mammo img').naturalWidth > 0`), "More >> opens and the workflow image loads");
+ok(await p.ev(`document.querySelector('#project-mammo details').open && document.querySelector('#project-mammo figure img').naturalWidth > 0`), "Details opens and the workflow image loads");
 await p.ev(reveal("#experience summary")); await p.sleep(200);
 await p.click(...(await p.ev(center("#experience summary"))));
-ok(await p.ev(`document.querySelector('#experience details').open && !getComputedStyle(document.querySelector('#experience details[open] > summary'), '::after').content.includes('<<')`), "experience row opens without a stray <<");
+ok(await p.ev(`document.querySelector('#experience details').open`), "an experience row opens");
 // people move like Habbo avatars: frames change, and nothing shown is ever a picture that hasn't decoded (no flicker)
 const frames = [], undecoded = [];
 for (let i = 0; i < 25; i++) {
@@ -65,16 +59,12 @@ const unclickable = await p.ev(`[...document.querySelectorAll('#scene .who:not(.
   return ![[0.5, 0.3], [0.5, 0.45], [0.5, 0.6], [0.35, 0.5], [0.65, 0.5]].some(([fx, fy]) => { const hit = document.elementFromPoint(r.x + r.width * fx, r.y + r.height * fy); return hit && hit.closest('.who') === el; });
 }).map((el) => el.dataset.look).join(",")`);
 ok(unclickable === "", "every person and animal takes clicks" + (unclickable ? ": not " + unclickable : ""));
-await p.ev("scrollTo(0, 0)"); await p.sleep(300);
+await p.ev(reveal('.who[data-look="q2"] .hit')); await p.sleep(300);
 await p.click(...(await p.ev(center('.who[data-look="q2"] .hit'))));
 ok(await p.ev(`document.querySelector('.who[data-look="q2"]').classList.contains('acting') && stateOf(document.querySelector('.who[data-look="q2"]')).gesture.kind === "wave"`), "a clicked person waves");
 await p.ev(`document.querySelector('.who[data-look="dancer"]').focus()`);
 await p.key("Enter");
 ok(await p.ev(`!!document.querySelector('.bubble[data-for="dancer"]')`), "Enter on a focused NPC makes it talk");
-await p.ev(reveal("#refresh")); await p.sleep(200);
-await p.click(...(await p.ev(center("#refresh"))));
-ok(await p.ev(`document.querySelectorAll('.bubble').length`) >= 1, "Refresh makes someone talk");
-ok(await p.ev(`(() => { const n = [...document.querySelectorAll('#guests li span')].map((s) => +s.textContent); return n.reduce((a, b) => a + b, 0) === Object.keys(CONTENT.npcs).length; })()`), "sidebar head count adds up to every guest");
 // walkers: wanderers roam, people with a route walk between their stations; never onto furniture or each other,
 // only through doors; the cat stays indoors, the dog outdoors
 const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.map((w) => [w.look, w.route ? "route" : "wander"])))`));
@@ -107,7 +97,7 @@ p.close();
 // ---- phone
 p = await open(SITE, { width: 390, height: 844, mobile: true });
 ok(await p.ev(`document.documentElement.scrollWidth <= 390`), "phone: no horizontal scroll");
-ok(await p.ev(`(() => { const h = document.getElementById('top').getBoundingClientRect().top, s = document.querySelector('.sidebar').getBoundingClientRect().top, a = document.getElementById('about').getBoundingClientRect().top; return h < s && s < a; })()`), "phone: hero → sidebar → panels");
+ok(await p.ev(`(() => { const n = document.getElementById('nav').getBoundingClientRect().top, h = document.getElementById('top').getBoundingClientRect().top, a = document.getElementById('about').getBoundingClientRect().top; return n < h && h < a; })()`), "phone: navigation → intro and cabin → sections");
 ok(p.logs.length === 0, "phone: no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
 p.close();
 

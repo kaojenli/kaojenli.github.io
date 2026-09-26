@@ -8,9 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23f7a21b' d='M1 1h2v1h2V1h2v1h1v2H7v1H6v1H5v1H3V6H2V5H1V4H0V2h1z'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap">
-  <!-- Silkscreen's "&" looks like "€" and its "4" like "ч", so "&" and digits come from Pixelify Sans -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&text=%260123456789&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,37 +25,35 @@
     </defs>
   </svg>
 
-  <div class="top">
-    <section class="panel hero" id="top" aria-labelledby="h-top">
-      <h2 class="side" id="h-top"><span>Welcome to Jen's Building</span></h2>
-      <div class="panel-body hero-body">
-        <h1 class="logo" aria-label="Jen Li Kao"><span class="logo-row">JEN LI</span><span class="logo-row">KAO</span></h1>
-        <p class="sign" id="sign"></p>
-        <div class="room-scroll">
-        <div class="room" id="room">
-          <svg id="scene" viewBox="0 0 576 480" shape-rendering="crispEdges" role="group" aria-label="Pixel art: Jen's two-storey cabin, one room per project. Downstairs a living room with a fireplace, stairs up from the entrance hall, and a café where cameras track the customers while a queue waits outside and a hacker next door watches the foot traffic on screens; a pitcher throws on the practice field. Upstairs in the loft are an mmWave lab where a mouse's tumour is being scanned, an MRI lab, a mammogram reading room, a server room and a security room. A cat, a dog and a parrot live there too."></svg>
-        </div>
-        </div>
-        <a class="go" id="go" href="#projects"><small>Let's</small>GO</a>
+  <header class="masthead">
+    <a class="wordmark" href="#top">Jen Li Kao</a>
+    <nav id="nav" aria-label="Sections"></nav>
+  </header>
+
+  <main>
+    <section class="hero" id="top" aria-labelledby="h-top">
+      <div class="intro">
+        <p class="eyebrow" id="hero-eyebrow"></p>
+        <h1 id="h-top">Jen Li Kao</h1>
+        <p class="lede" id="hero-lede"></p>
+        <p class="now" id="hero-now"></p>
+        <p class="links" id="hero-links"></p>
       </div>
+      <figure class="stage">
+        <div class="room-scroll">
+          <div class="room" id="room">
+            <svg id="scene" viewBox="0 0 576 480" shape-rendering="crispEdges" role="group" aria-label="Pixel art: Jen's two-storey cabin, one room per project. Downstairs a living room with a fireplace, stairs up from the entrance hall, and a café where cameras track the customers while a queue waits outside and a hacker next door watches the foot traffic on screens; a pitcher throws on the practice field. Upstairs in the loft are an mmWave lab where a mouse's tumour is being scanned, an MRI lab, a mammogram reading room, a server room and a security room. A cat, a dog and a parrot live there too."></svg>
+          </div>
+        </div>
+        <figcaption id="hero-caption"></figcaption>
+      </figure>
     </section>
-  </div>
 
-  <div class="site">
-
-    <aside class="sidebar" aria-label="Sidebar">
-      <div class="sidebar-head"><span class="mini-logo">JEN</span></div>
-      <nav class="sidebar-block" id="nav" aria-label="Sections"></nav>
-      <div class="sidebar-block" id="guests"></div>
-      <div class="sidebar-block" id="news"></div>
-      <div class="sidebar-block" id="side-contact"></div>
-    </aside>
-
-    <div class="panels" id="panels"></div>
-  </div>
+    <div class="sections" id="panels"></div>
+  </main>
 
   <footer class="footer">
-    <p>© <span id="year">2026</span> Jen Li Kao. All pixels drawn in code. Page style inspired by the 2001 Habbo Hotel website; not affiliated with Habbo or Sulake.</p>
+    <p>© <span id="year">2026</span> Jen Li Kao · The cabin is pixel art drawn in code, inspired by Habbo Hotel (not affiliated with Habbo or Sulake).</p>
   </footer>
 
   <noscript>

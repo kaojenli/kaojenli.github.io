@@ -52,6 +52,14 @@
 | `skills` | Skills | 6 項核心能力 + tech stack |
 | `contact` | Contact | Email、GitHub、LinkedIn |
 
+## 成熟的網站外框（2026-09-27：使用者「不喜歡那個 GO，整體風格有點幼稚」）
+
+- 像素風只留在小木屋插圖裡；網站外框改成沉穩的個人網站：淡米色背景、Inter 內文、JetBrains Mono 小標籤、單一強調色（木頭的紅棕色）。
+- 拿掉：Let's GO 按鈕、橘色 3D 像素字標誌、傾斜的 INTRODUCING 看板、飄動的雲、2001 Habbo 網站的灰色斜角面板與直式標籤、側欄（含人數統計）、HELLO 名牌與顏文字。
+- 新版面：頂端固定導覽列（名字＋區段連結）→ 大標題名字、一段自我介紹、「Now」近況、連結 → 小木屋（圓角外框、說明文字）→ 各區段（左邊編號與標題，右邊內容）。
+- About 不重複自我介紹，改成 Now / Focus / Studied 三行重點＋像素頭像。
+- 不寫居住地（使用者要求）。
+
 ## 人物照 Habbo 的方式動（2026-09-25：使用者回饋「人物會莫名閃爍、動作生硬」，要求上網查 Habbo 人物）
 
 查到的 Habbo 做法（開源客戶端 Nitro 的原始碼，`AvatarVisualization.ts`、`AvatarLogic.ts`、`MovingObjectLogic.ts`）：

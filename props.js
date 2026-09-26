@@ -1,5 +1,5 @@
 // Props drawn pixel by pixel at native resolution with the avatar rasteriser (avatar.js): plants, trees, cameras,
-// lab gear, animals, signs, posters, clouds. Black 1px outlines, colour ramps lit from the top left, and bushy things
+// lab gear, animals, signs, posters. Black 1px outlines, colour ramps lit from the top left, and bushy things
 // built from clumps painted back to front so each clump keeps its own outline.
 // Each prop: w×h in pixels (the scene shows 2 px per unit) and draw(c) on a makeCanvas(w, h, 1).
 const O = OUTLINE;
@@ -295,10 +295,6 @@ const PROPS = {
   iconShield: { w: 24, h: 24, draw(c) {
     c.part(polyS([[2, 1], [22, 1], [22, 12], [12, 23], [2, 12]]), bands(ramp("#3b82c4"), 2, 22));
     c.part(polyS([[7, 5], [17, 5], [17, 7], [11, 7], [14, 11], [11, 15], [17, 15], [17, 17], [7, 17], [7, 15.5], [10.5, 11], [7, 6.5]]), () => "#ffffff", null);
-  } },
-  cloud: { w: 48, h: 16, draw(c) {
-    const shade = (x, y) => (y > 11 ? "#cfe8f6" : "#ffffff");
-    c.part(union(ellipse(12, 10, 10, 5), ellipse(22, 7, 11, 6.5), ellipse(34, 9, 10, 5.5), ellipse(40, 11, 7, 4)), shade, "#d9eef9");
   } },
 };
 

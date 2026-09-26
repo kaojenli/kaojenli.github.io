@@ -17,26 +17,24 @@ const CONTENT = {
   },
 
   hero: {
-    sign: "INTRODUCING!",
-    signSub: "yes, a whole building of vision projects on the net.",
-    go: "#projects",
+    eyebrow: "AI Engineer · Computer Vision & Sensing",
+    caption: "A cabin with a room for each project. Everyone inside is busy with one of them; click anyone to say hi.",
   },
   news: {
     headline: "Now: AI Engineer at We Share Baseball",
-    text: "Building multi-view 3D pose and multi-camera tracking pipelines for pro baseball.",
+    text: "building multi-view 3D pose and multi-camera tracking pipelines for pro baseball.",
     link: { label: "See the project", href: "#project-pitching" },
   },
 
-  // Page panels, top to bottom. `side` is the vertical label; `label` is the sidebar link.
+  // Page sections, top to bottom; `label` is the navigation link.
   sections: [
-    { id: "top", side: "Welcome to Jen's Building" },
-    { id: "about", side: "About Jen", label: "About me" },
-    { id: "projects", side: "Projects", label: "Projects" },
-    { id: "experience", side: "Experience", label: "Experience" },
-    { id: "education", side: "Education", label: "Education" },
-    { id: "papers", side: "Papers & Talks", label: "Papers & Talks" },
-    { id: "skills", side: "Skills", label: "Skills" },
-    { id: "contact", side: "Contact", label: "Contact" },
+    { id: "about", title: "About", label: "About" },
+    { id: "projects", title: "Projects", label: "Projects" },
+    { id: "experience", title: "Experience", label: "Experience" },
+    { id: "education", title: "Education", label: "Education" },
+    { id: "papers", title: "Papers & Talks", label: "Papers" },
+    { id: "skills", title: "Skills", label: "Skills" },
+    { id: "contact", title: "Contact", label: "Contact" },
   ],
 
   projectGroups: ["Work", "Research", "Academic"],
@@ -214,7 +212,7 @@ const CONTENT = {
       ],
     },
   ],
-  experienceTotal: "TOTAL: 6 ROLES · 4 ORGS · 2 COUNTRIES",
+  experienceTotal: "6 roles · 4 organisations · 2 countries",
 
   education: [
     {

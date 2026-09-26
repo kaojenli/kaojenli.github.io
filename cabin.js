@@ -158,10 +158,9 @@ const skeleton = (poseName) => {
 // Tracking box drawn around a person, like a detector's output (sized from the avatar canvas, in units).
 const bbox = (color) => `<g class="bbox"><rect x="1.5" y="1.5" width="${AW / 2 - 3}" height="${AH / 2 - 1.5}" fill="none" stroke="${color}" stroke-width="0.5" stroke-dasharray="2 1"/>` + rect(1, -1.5, 6, 2.5, color) + `</g>`;
 
-// Everyone drawn in the overview, with where they stand (for the sidebar's head count).
-let placed = [], curLevel = 0;
+// The floor being drawn (people remember it, for who looks at whom).
+let curLevel = 0;
 const who = (look, w, h, x, y, z, cls, inner) => {
-  placed.push({ look, x, y, level: curLevel, walker: cls.includes("walker") });
   const [px, py] = at(x, y, w, h);
   return `<g class="person who ${cls}" data-look="${look}" data-w="${w}" data-h="${h}" role="button" tabindex="0" aria-label="${CONTENT.npcs[look].name}" style="transform:translate(${px}px,${py - z}px)">` +
     (z > 0 ? "" : `<ellipse cx="${w / 2}" cy="${h - 1}" rx="${Math.ceil(w / 3)}" ry="2.5" fill="rgba(0,0,0,.2)"/>`) + `${inner}<rect class="hit" width="${w}" height="${h}" fill="transparent"/></g>`;
@@ -548,7 +547,6 @@ const ROOMS = [
 ];
 const ROOM = Object.fromEntries(ROOMS.map((r) => [r.key, r]));
 const roomsAt = (level) => ROOMS.filter((r) => r.level === level);
-const roomLabel = (r) => r.label || CONTENT.projects.find((p) => p.slug === r.slug).room;
 const roomAt = (level, i, j) => ROOMS.find(({ level: l, rect: [x, y, w, h] }) => l === level && i >= x && i < x + w && j >= y && j < y + h);
 // Same seed per room, so its overview and its close-up get the same colours.
 const drawRoom = (r, add) => { seed = 101 + ROOMS.indexOf(r) * 7919; curLevel = r.level; r.draw(add, r.rect[0], r.rect[1]); };
@@ -804,12 +802,7 @@ const scene = document.getElementById("scene");
 const room = document.getElementById("room");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-placed = [];
 scene.innerHTML = cabinSVG();
-const guestSpots = placed.filter((g) => !g.walker);
-// a few pixel clouds drifting behind the building
-room.closest(".hero-body").insertAdjacentHTML("afterbegin", [[6, 70], [18, 95], [34, 120], [52, 85]].map(([top, dur], i) =>
-  `<img class="sky-cloud px" src="${propImage("cloud").url}" alt="" style="top:${top}%;animation-duration:${dur}s;animation-delay:-${i * 23}s">`).join(""));
 
 // ---------- the animator, with Habbo's timing (from its open-source client): frames change on an 80 ms tick (Habbo
 // advances avatar frames about every 82 ms); a step between tiles takes 500 ms; people blink every 4.5–5.5 s for
@@ -983,12 +976,6 @@ const WALKERS = [
 WALKERS.forEach((wk) => (STATES.get(wk.el).wk = wk));
 const posOf = (st) => (st.wk ? [st.wk.tile[0] + 0.5, st.wk.tile[1] + 0.5] : st.pos);
 const takenBy = (wk, [x, y]) => WALKERS.some((o) => o !== wk && o.level === wk.level && o.tile[0] === x && o.tile[1] === y);
-// Head count per room for the sidebar, like the old "Habbos currently visiting" list (the gallery counts as the landing).
-function guestCounts() {
-  const spots = [...guestSpots, ...WALKERS.map((w) => ({ x: w.tile[0] + 0.5, y: w.tile[1] + 0.5, level: w.level }))];
-  const home = (r) => (r && r.countAs ? ROOM[r.countAs] : r);
-  return ROOMS.filter((r) => !r.hidden && !r.countAs).map((r) => ({ label: roomLabel(r), href: r.href, n: spots.filter((g) => home(roomAt(g.level, Math.floor(g.x), Math.floor(g.y))) === r).length }));
-}
 function setDepth(el, d) {
   const holder = el.parentElement, things = holder.parentElement;
   holder.dataset.depth = d;
@@ -1017,7 +1004,6 @@ function stepTo(wk, [nx, ny], done) {
   requestAnimationFrame(() => (wk.el.style.transform = `translate(${px}px,${py}px)`));
   setTimeout(() => {
     if (!forward) setDepth(wk.el, d);
-    document.dispatchEvent(new Event("guests"));
     wk.stepping = false;
     done();
     if (!wk.stepping) st.walking = false; // stopped here (not straight on to the next tile)
