@@ -36,7 +36,7 @@ const BODY = {
       <p class="links">${P.links.map(link).join("")}</p>
     </div>
     <figure class="portrait">
-      <svg class="id-avatar" viewBox="0 0 17 32" shape-rendering="crispEdges" aria-hidden="true">${imageTag(avatarImage("jen", "stand"), 0, 0)}</svg>
+      <svg class="id-avatar" viewBox="0 0 ${AW / 2} ${AH / 2}" shape-rendering="crispEdges" aria-hidden="true">${imageTag(avatarImage("jen", "stand"), 0, 0)}</svg>
       <figcaption>Jen, in pixels</figcaption>
     </figure>
   </div>`,

@@ -148,7 +148,7 @@ figure { margin: 12px 0; }
 .facts dt { color: var(--muted); font: 500 12px/2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
 .facts dd { margin: 0; }
 .portrait { margin: 0; padding: 14px 0 10px; background: var(--sky); border: 1px solid var(--line); border-radius: 12px; text-align: center; }
-.id-avatar { display: block; width: 102px; height: 192px; margin: 0 auto; }
+.id-avatar { display: block; width: 80px; height: 210px; margin: 0 auto; }
 .portrait figcaption { margin-top: 6px; color: var(--muted); font: 12px var(--mono); }
 
 .proj { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }

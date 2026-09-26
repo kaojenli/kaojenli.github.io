@@ -1,8 +1,10 @@
-// Habbo-style avatars drawn pixel by pixel at Habbo's in-room size: 34×64 px (about one floor tile tall),
-// three-quarter view facing down-right, 1px black outline on every part, colour ramps lit from the top left.
-// Body shapes are laid out on a 44×86 design grid and sampled at K = 64/86; the face is placed pixel by pixel.
+// Habbo-style avatars drawn pixel by pixel at Habbo's in-room size, from measurements of a real Habbo figure (its
+// standard pose, direction 2): the figure is about 30×81 px on a 64×32 floor tile, tall and slim; the head is 26×31, a
+// plain skin shape with the face on its front (small eyes, a nose line, a short mouth) and the ear on the back; arms
+// hang thin and straight; every part has a 1px black outline and just two or three tones, the back of the body in
+// shade and the side it faces lit. Everything is drawn straight in canvas pixels (K = 1), facing down-right.
 // A look is { skin, hair: [style, colour], top: [style, colour], bottom: [style, colour], shoes, extras: [...] }.
-const AW = 34, AH = 64, K = 64 / 86, OUTLINE = "#111111";
+const AW = 32, AH = 84, K = 1, OUTLINE = "#111111";
 
 // ---------- colour ramps: [highlight, base, shadow, deep] from one base colour
 function hexToHsl(hex) {
@@ -90,40 +92,44 @@ function makeCanvas(W = AW, Ht = AH, k = K) {
   };
 }
 
-// ---------- body geometry for each pose (three-quarter view facing down-right), on the 44×86 design grid.
-// Arms run shoulder → elbow → hand and legs hip → knee → ankle; feet are [x0, y0, x1, y1] boxes; `seat` is for sitting;
-// `bob` lifts the whole figure a pixel (walking); `phone` / `cupNear` put a phone or the cup in the near hand.
-const posed = (o) => ({ armL: [[14, 42], [13, 52], [12, 62]], armR: [[30, 41], [32, 50], [33, 60]], legL: [[18, 62], [18, 70], [18, 78]], legR: [[26, 62], [26.5, 70], [27, 77]], footL: [16, 78, 25, 84], footR: [25, 76, 33, 82], ...o });
-const SIT = { seat: true, armL: [[14, 42], [16, 51], [17, 60]], armR: [[30, 41], [32, 50], [33, 58]], legL: [[18, 62], [33, 64], [34, 76]], legR: [[25, 61], [38, 62], [39, 73]], footL: [31, 76, 40, 81], footR: [36, 72, 44, 77] };
+// ---------- body geometry for each pose, in canvas pixels (three-quarter view facing down-right).
+// Arms run shoulder → elbow → hand and legs hip → knee → ankle; armL / legL are the near side (screen left), armR /
+// legR the far side; feet are [x0, y0, x1, y1] boxes with the toe to the right; `seat` is for sitting; `bob` lifts
+// the figure a pixel (walking); `phone` / `cupNear` put a phone or the cup in the near hand.
+const posed = (o) => ({ armL: [[6, 33], [5, 45], [6, 57.5]], armR: [[26, 33], [27, 45], [27, 56]], legL: [[12, 54], [12, 65], [12, 75]], legR: [[20, 54], [20.5, 65], [21, 74]],
+  footL: [6, 74, 18, 81], footR: [15, 72, 27, 79], ...o });
+const SIT = { seat: true, armL: [[6, 33], [8, 45], [12, 54]], armR: [[26, 33], [27, 45], [27, 52]], legL: [[12, 60], [22, 63], [22, 73]], legR: [[19, 59], [27, 61], [27, 70]],
+  footL: [18, 72, 28, 79], footR: [22, 69, 31, 76] };
 const POSES = {
   stand: posed({}),
-  shift: posed({ armL: [[14, 42], [14, 52], [15, 61]], armR: [[30, 41], [31, 51], [31, 59]], legL: [[18, 62], [17, 70], [16, 78]], footL: [14, 78, 23, 84], legR: [[26, 62], [27, 70], [28, 77]], footR: [26, 76, 34, 82] }),
-  phone: posed({ armL: [[14, 42], [15, 52], [21, 48]], phone: true }),
-  reach: posed({ armL: [[14, 42], [19, 50], [26, 53]] }),
-  think: posed({ armL: [[14, 42], [17, 51], [21, 41]] }),
-  wave1: posed({ armL: [[14, 42], [5, 35], [2, 24]] }),
-  wave2: posed({ armL: [[14, 42], [5, 34], [6, 22]] }),
-  walkA: posed({ armL: [[14, 42], [11, 51], [9, 58]], armR: [[30, 41], [33, 49], [36, 56]], legL: [[18, 62], [20, 70], [22, 78]], legR: [[26, 62], [25, 69], [23, 76]], footL: [20, 78, 29, 84], footR: [19, 74, 27, 80] }),
-  passA: posed({ armL: [[14, 42], [13, 52], [13, 61]], armR: [[30, 41], [31, 50], [32, 59]], legR: [[26, 62], [28, 68], [26, 74]], footR: [23, 72, 31, 78], bob: 1 }),
-  walkB: posed({ armL: [[14, 42], [16, 51], [19, 58]], armR: [[30, 41], [29, 50], [27, 57]], legL: [[18, 62], [16, 70], [14, 77]], legR: [[26, 62], [29, 70], [31, 77]], footL: [11, 76, 20, 82], footR: [28, 76, 37, 82] }),
-  passB: posed({ armL: [[14, 42], [13, 52], [13, 61]], armR: [[30, 41], [31, 50], [32, 59]], legL: [[18, 62], [21, 68], [19, 74]], footL: [17, 73, 26, 79], bob: 1 }),
-  armsUp: posed({ armL: [[14, 42], [9, 22], [10, 8]], armR: [[30, 41], [35, 22], [34, 8]] }),
+  shift: posed({ armL: [[6, 33], [6, 45], [8, 56]], armR: [[26, 33], [26, 45], [26, 55]], legL: [[12, 54], [11, 65], [10, 75]], footL: [4, 74, 16, 81], legR: [[20, 54], [21, 65], [22, 74]], footR: [17, 72, 29, 79] }),
+  phone: posed({ armL: [[6, 33], [8, 45], [14, 41]], phone: true }),
+  reach: posed({ armL: [[6, 33], [11, 42], [18, 45]] }),
+  think: posed({ armL: [[6, 33], [10, 44], [16, 33]] }),
+  wave1: posed({ armL: [[6, 33], [1, 25], [2, 14]] }),
+  wave2: posed({ armL: [[6, 33], [1, 24], [5, 13]] }),
+  walkA: posed({ armL: [[6, 33], [3, 44], [2, 54]], armR: [[26, 33], [29, 44], [30, 53]], legL: [[12, 54], [14, 65], [16, 75]], footL: [11, 74, 23, 81], legR: [[20, 54], [19, 64], [17, 72.5]], footR: [11, 71, 22, 78] }),
+  passA: posed({ legR: [[20, 54], [22, 62.5], [20, 70]], footR: [15, 70, 26, 76], bob: 1 }),
+  walkB: posed({ armL: [[6, 33], [9, 44], [11, 54]], armR: [[26, 33], [24, 44], [23, 53]], legL: [[12, 54], [10, 65], [8, 75]], footL: [2, 74, 14, 81], legR: [[20, 54], [23, 64], [25, 74]], footR: [20, 73, 31, 80] }),
+  passB: posed({ legL: [[12, 54], [15, 62.5], [13, 70]], footL: [8, 70, 20, 77], bob: 1 }),
+  armsUp: posed({ armL: [[6, 33], [3, 21], [4, 9]], armR: [[26, 33], [29, 21], [28, 9]] }),
   // at a keyboard (two frames, hands taking turns), talking with the hands, sipping from the cup
-  typeA: posed({ armL: [[14, 42], [17, 50], [23, 51]], armR: [[30, 41], [33, 49], [37, 50]] }),
-  typeB: posed({ armL: [[14, 42], [17, 49], [22, 48.5]], armR: [[30, 41], [33, 50], [36, 52.5]] }),
-  talk1: posed({ armL: [[14, 42], [18, 50], [25, 47]] }),
-  talk2: posed({ armL: [[14, 42], [17, 48], [22, 42]], armR: [[30, 41], [34, 48], [38, 46]] }),
-  drink: posed({ armL: [[14, 42], [17, 50], [21, 39]], cupNear: true }),
-  danceL: posed({ armL: [[14, 42], [6, 34], [2, 26]], armR: [[30, 41], [24, 30], [17, 22]], legL: [[18, 62], [15, 70], [13, 78]], footL: [10, 78, 19, 84], legR: [[26, 62], [28, 70], [30, 77]], footR: [28, 76, 36, 82] }),
-  danceMix: posed({ armL: [[14, 42], [8, 32], [6, 20]], armR: [[30, 41], [36, 47], [40, 53]], legL: [[18, 62], [21, 69], [19, 77]], footL: [17, 77, 26, 83] }),
-  danceR: posed({ armL: [[14, 42], [19, 47], [27, 44]], armR: [[30, 41], [38, 32], [41, 21]], legL: [[18, 62], [21, 70], [23, 78]], footL: [21, 78, 30, 84], legR: [[26, 62], [26, 70], [25, 77]], footR: [23, 76, 31, 82] }),
-  pSet: posed({ armL: [[14, 42], [15, 51], [21, 48]], armR: [[30, 41], [30, 50], [24, 48]] }),
-  pLift: posed({ armL: [[14, 42], [16, 49], [22, 45]], armR: [[30, 41], [29, 48], [24, 45]], legL: [[18, 62], [26, 66], [22, 74]], footL: [18, 72, 27, 77] }),
-  pCock: posed({ armL: [[14, 42], [20, 44], [27, 46]], armR: [[30, 41], [36, 35], [38, 26]], legL: [[18, 62], [23, 69], [27, 77]], footL: [25, 76, 34, 82], legR: [[26, 62], [22, 70], [17, 77]], footR: [13, 76, 21, 82] }),
-  pRelease: posed({ armL: [[14, 42], [12, 50], [14, 56]], armR: [[30, 41], [27, 50], [20, 58]], legL: [[18, 62], [23, 69], [27, 77]], footL: [25, 76, 34, 82], legR: [[26, 62], [23, 69], [20, 75]], footR: [16, 73, 24, 79] }),
+  typeA: posed({ armL: [[6, 33], [9, 43], [15, 45]], armR: [[26, 33], [28, 42], [30, 44]] }),
+  typeB: posed({ armL: [[6, 33], [9, 42], [14, 43]], armR: [[26, 33], [28, 43], [30, 46]] }),
+  talk1: posed({ armL: [[6, 33], [10, 44], [16, 41]] }),
+  talk2: posed({ armL: [[6, 33], [9, 42], [13, 36]], armR: [[26, 33], [29, 41], [31, 38]] }),
+  drink: posed({ armL: [[6, 33], [10, 43], [16, 31]], cupNear: true }),
+  danceL: posed({ armL: [[6, 33], [1, 26], [1, 16]], armR: [[26, 33], [21, 25], [17, 17]], legL: [[12, 54], [9, 65], [7, 75]], footL: [1, 74, 13, 81], legR: [[20, 54], [22, 65], [24, 74]], footR: [20, 72, 31, 79] }),
+  danceMix: posed({ armL: [[6, 33], [2, 24], [2, 13]], armR: [[26, 33], [30, 40], [31, 47]], legL: [[12, 54], [15, 64], [13, 74]], footL: [8, 73, 20, 80] }),
+  danceR: posed({ armL: [[6, 33], [11, 40], [18, 38]], armR: [[26, 33], [30, 23], [29, 13]], legL: [[12, 54], [14, 65], [17, 75]], footL: [12, 74, 24, 81], legR: [[20, 54], [20, 65], [19, 74]], footR: [13, 72, 25, 79] }),
+  // the pitcher's wind-up: set, leg lift, arm cocked, release
+  pSet: posed({ armL: [[6, 33], [9, 44], [15, 41]], armR: [[26, 33], [25, 43], [18, 41]] }),
+  pLift: posed({ armL: [[6, 33], [10, 42], [16, 38]], armR: [[26, 33], [25, 41], [19, 38]], legL: [[12, 54], [20, 57.5], [16, 69]], footL: [10, 68, 22, 74] }),
+  pCock: posed({ armL: [[6, 33], [12, 37], [19, 38]], armR: [[26, 33], [31, 26], [30, 15]], legL: [[12, 54], [17, 64], [21, 75]], footL: [16, 74, 28, 81], legR: [[20, 54], [16, 65], [12, 74]], footR: [6, 72, 18, 79] }),
+  pRelease: posed({ armL: [[6, 33], [5, 43], [7, 50]], armR: [[26, 33], [23, 42], [16, 50]], legL: [[12, 54], [17, 64], [21, 75]], footL: [16, 74, 28, 81], legR: [[20, 54], [17, 62.5], [14, 70]], footR: [8, 69, 20, 76] }),
   sit: { ...SIT },
-  sitDrink: { ...SIT, armL: [[14, 42], [17, 50], [21, 38]], cupNear: true },
-  sitWave: { ...SIT, armL: [[14, 42], [5, 35], [3, 24]] },
+  sitDrink: { ...SIT, armL: [[6, 33], [10, 43], [16, 31]], cupNear: true },
+  sitWave: { ...SIT, armL: [[6, 33], [1, 25], [2, 14]] },
 };
 
 // A limb as a thick polyline (pixel test).
@@ -140,158 +146,156 @@ function limb(points, w) {
   }, [Math.min(...xs) - r - 1, Math.min(...ys) - r - 1, Math.max(...xs) + r, Math.max(...ys) + r]);
 }
 
-// ---------- hair styles (drawn over the head; the face window stays clear)
-const HEAD = { cx: 22, cy: 22, rx: 12.5, ry: 13.5 };
-const faceWindow = ellipse(25.5, 26.5, 9.5, 10.5);
+// ---------- the head: a skull with a flat front and a jaw, 26×31; the face shows through a window in the hair
+const HEAD = { cx: 15, cy: 15, rx: 12.5, ry: 13 };
+const headShape = union(ellipse(15, 15, 12.5, 13), polyS([[6, 20], [27.5, 14], [27.8, 24], [25.8, 29], [21.5, 32.6], [15, 34], [10, 31.5], [6.5, 26]]));
+const faceWindow = polyS([[10.5, 14], [19, 12], [29.5, 10.5], [29.5, 36], [8, 36], [8, 22]]);
+const hairCut = (shape, top) => minus(shape, minus(faceWindow, rectS(0, 0, AW, top))); // the hair stays off the face below `top`
 const HAIR = {
   long: () => ({
-    back: polyS([[8, 18], [21, 12], [34, 17], [37, 34], [36, 48], [32, 55], [29, 51], [26, 56], [22, 50], [17, 55], [13, 49], [9, 52], [7, 40]]),
-    front: minus(union(ellipse(21, 16, 14, 10.5), polyS([[7, 16], [16, 16], [15, 44], [11, 50], [7, 44]]), polyS([[31, 22], [36, 20], [37, 40], [34, 46], [32, 38]])), minus(faceWindow, rectS(0, 0, AW, 20.5))),
+    back: polyS([[3, 14], [14, 3], [26, 8], [28, 20], [26, 46], [21, 49], [17, 46], [13, 50], [8, 46], [4, 49], [2, 38]]),
+    front: hairCut(union(ellipse(15, 12, 13.8, 10.5), polyS([[1.5, 12], [9, 12], [9.5, 38], [6, 44], [1.5, 38]])), 15),
   }),
-  bob: () => ({ front: minus(union(ellipse(21.5, 17, 14.5, 11), polyS([[7, 17], [36, 17], [37, 36], [33, 38], [31, 30], [12, 30], [9, 38], [6, 34]])), minus(faceWindow, rectS(0, 0, AW, 20))) }),
-  spiky: () => ({ front: minus(union(ellipse(21.5, 16, 13.5, 9.5), polyS([[10, 12], [12, 3], [16, 9], [19, 1], [23, 8], [27, 2], [29, 9], [34, 5], [34, 14]]), polyS([[8, 16], [13, 16], [12, 28], [9, 27]])), minus(faceWindow, rectS(0, 0, AW, 19))) }),
-  bun: () => ({ front: minus(union(ellipse(21.5, 16.5, 13.5, 10), ellipse(17, 6, 6, 5), polyS([[8, 16], [13, 16], [12, 29], [9, 28]])), minus(faceWindow, rectS(0, 0, AW, 20))) }),
-  curly: () => {
-    const bumps = [[12, 9], [18, 5], [25, 5], [31, 9], [35, 15], [9, 16], [8, 24], [36, 22], [34, 29], [10, 30]].map(([x, y]) => ellipse(x, y, 5.5, 5.5));
-    return { front: minus(union(ellipse(22, 17, 14, 11), ...bumps), minus(faceWindow, rectS(0, 0, AW, 19))) };
-  },
-  cap: () => ({ front: minus(union(ellipse(21.5, 17, 13, 8), polyS([[8, 17], [12, 17], [12, 28], [9, 27]])), minus(faceWindow, rectS(0, 0, AW, 18))), cap: true }),
-  hood: () => ({ front: minus(ellipse(22.5, 24, 16, 17.5), minus(faceWindow, rectS(0, 0, AW, 15))), hood: true }),
+  bob: () => ({ front: hairCut(union(ellipse(15, 12.5, 14, 11), polyS([[1.2, 13], [10, 13], [10, 30], [6, 33], [1.2, 30]])), 15) }),
+  spiky: () => ({ front: hairCut(union(ellipse(15, 12, 13.2, 9.8), polyS([[3, 11], [4, 2], [8, 6], [10, 0], [14, 5], [17, 0], [19, 5], [23, 0.5], [24, 7], [28.5, 4], [28, 13]]),
+    polyS([[5, 13], [10, 13], [9, 22], [6.5, 22]])), 15) }),
+  bun: () => ({ front: hairCut(union(ellipse(15, 12.5, 13.5, 10.2), ellipse(10, 4.5, 5, 4), polyS([[4, 13], [10, 13], [9, 23], [6, 23]])), 15) }),
+  curly: () => ({ front: hairCut(union(ellipse(15, 12.5, 13.5, 10.5), ...[[5, 6], [10, 2.5], [16, 2], [22, 3], [26.5, 7], [3, 13], [3.5, 20], [27.5, 12]].map(([x, y]) => ellipse(x, y, 4.2, 4.2))), 14) }),
+  cap: () => ({ front: hairCut(union(ellipse(15, 13, 13, 9.5), polyS([[4, 13], [10, 13], [9, 24], [6, 24]])), 17), cap: true }),
+  hood: () => ({ front: hairCut(ellipse(15.5, 18, 15.5, 17.5), 12), hood: true }),
 };
 
 // ---------- draw one avatar. opts: eyes "open"/"closed", mouth "closed"/"open", back (seen from behind: no face).
-// Parts are outlined in a dark shade of their own colour; only the silhouette gets the black outline, as in Habbo.
-const mixHex = (a, b, t) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const [x, y] = [p(a), p(b)]; return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join(""); };
 // layer: "all", or one of the three layers a figure is built from, like Habbo's separate body parts: "body" (everything
 // under the head), "head" (head, face, hair, hat, glasses; the same in every pose, and free to turn on its own) and "over"
 // (a raised arm, or what the near hand holds, in front of the head).
+const mixHex = (a, b, t) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const [x, y] = [p(a), p(b)]; return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join(""); };
+// Habbo's body lighting: the back of the figure (screen left) in shade, the side it faces lit.
+const bodyShade = (r, x0, x1, frac = 0.36) => (x, y) => r[(x + 0.5 - x0) / (x1 - x0) < frac ? 2 : 1];
 function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = false, layer = "all" } = {}) {
   const base = makeCanvas(), pose = POSES[poseName];
   let cur = "body";
   const on = () => layer === "all" || layer === cur;
-  const c = { px: base.px, part: (...q) => on() && base.part(...q), set: (...q) => on() && base.set(...q), setD: (...q) => on() && base.setD(...q) };
+  const c = { px: base.px, part: (...q) => on() && base.part(...q), set: (...q) => on() && base.set(...q) };
   const skin = skinRamp(look.skin), hairC = ramp(look.hair[1]), top = ramp(look.top[1]), bottom = ramp(look.bottom[1]), shoe = ramp(look.shoes);
   const hair = HAIR[look.hair[0]](), extras = look.extras || [], kind = look.top[0];
   const longSleeve = ["sweater", "hoodie", "coat", "long"].includes(kind), coat = kind === "coat", hoodie = kind === "hoodie" || look.hair[0] === "hood";
   const hoodC = look.hair[0] === "hood" ? top : hairC;
-  const raised = (arm) => arm[2][1] < 40;
+  const raised = (arm) => arm[2][1] < 36;
 
-  // an arm: sleeve down to its hem (a darker band), then skin, then a hand with a finger line
+  // an arm: the sleeve (short ones end above the elbow, long ones at the wrist with a darker cuff), skin, then the hand
   const arm = ([s, e, h], near) => {
-    const cut = longSleeve ? 1.8 : 0.55, xs = [s[0], e[0], h[0]], x0 = Math.min(...xs) - 4, x1 = Math.max(...xs) + 4;
+    const w = near ? 5.5 : 4.6, cut = longSleeve ? 1.85 : 0.5, x0 = Math.min(s[0], e[0], h[0]) - 3, x1 = Math.max(s[0], e[0], h[0]) + 3;
     const along = (x, y) => {
-      const seg = (a, b, off) => { const dx = b[0] - a[0], dy = b[1] - a[1], t = Math.max(0, Math.min(1, ((x + 0.5 - a[0]) * dx + (y + 0.5 - a[1]) * dy) / (dx * dx + dy * dy || 1))); return [Math.hypot(x + 0.5 - a[0] - t * dx, y + 0.5 - a[1] - t * dy), off + t]; };
+      const seg = (p, q, off) => { const dx = q[0] - p[0], dy = q[1] - p[1], t = Math.max(0, Math.min(1, ((x + 0.5 - p[0]) * dx + (y + 0.5 - p[1]) * dy) / (dx * dx + dy * dy || 1))); return [Math.hypot(x + 0.5 - p[0] - t * dx, y + 0.5 - p[1] - t * dy), off + t]; };
       const p = seg(s, e, 0), q = seg(e, h, 1);
       return p[0] <= q[0] ? p[1] : q[1];
     };
-    const cloth = (x, y) => along(x, y) < cut;
-    c.part(union(limb([s, e], near ? 7 : 6.6), limb([e, h], near ? 6.2 : 5.8)), (x, y) => {
+    c.part(union(limb([s, e], w), limb([e, h], w - 0.6)), (x, y) => {
       const t = along(x, y);
-      if (t < cut) return t > cut - 0.12 || (Math.abs(t - 1) < 0.06 && longSleeve) ? top[2] : bands(top, x0, x1)(x, y);
-      return bands(skin, x0, x1)(x, y);
-    }, (x, y) => (cloth(x, y) ? top[3] : skin[3]));
-    const L = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1, hx = h[0] + ((h[0] - e[0]) / L) * 1.2, hy = h[1] + ((h[1] - e[1]) / L) * 1.2;
-    c.part(ellipse(hx, hy, 2.8, 3), bands(skin, hx - 3, hx + 3), skin[3]);
-    c.setD(Math.round(hx + 0.5), Math.round(hy + 0.5), skin[2]);
+      if (t < cut) return t > cut - 0.12 ? top[2] : bodyShade(top, x0, x1, 0.4)(x, y);
+      return bodyShade(skin, x0, x1, 0.4)(x, y);
+    });
+    const L = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1, hx = h[0] + ((h[0] - e[0]) / L) * 1.4, hy = h[1] + ((h[1] - e[1]) / L) * 1.4;
+    c.part(ellipse(hx, hy, 2.3, 2.7), bodyShade(skin, hx - 2.3, hx + 2.3, 0.4));
     return [hx, hy];
   };
-  const cupAt = ([hx, hy]) => { c.part(rectS(hx - 3, hy - 7, hx + 3, hy + 1), (x, y) => (y < hy - 5 ? "#6f4a2f" : "#fbfbf6"), "#8a8f98"); c.part(rectS(hx - 3, hy - 3, hx + 3, hy - 1), () => "#c8453c", null); };
+  const cupAt = ([hx, hy]) => { c.part(rectS(hx - 2, hy - 5, hx + 2.5, hy + 1), (x, y) => (y < hy - 3.5 ? "#6f4a2f" : y > hy - 2 && y < hy - 0.5 ? "#c8453c" : "#fbfbf6")); };
 
-  if (hair.back) c.part(hair.back, hairShade(hairC, 21, 20, 15, 20, true), hairC[3]);
-  if (hoodie) c.part(polyS([[15, 36], [30, 35], [32, 42], [13, 43]]), () => top[2], top[3]);      // the hood lying behind the neck
-  // far arm behind the body (a raised one goes behind the head too)
+  if (hair.back) c.part(hair.back, bodyShade(hairC, 2, 28, 0.4));
+  if (hoodie) c.part(polyS([[6, 29], [23, 28.5], [25, 34], [5, 35]]), bodyShade(top, 5, 25));   // the hood lying behind the neck
+  // the far arm, behind the body (a raised one behind the head too)
   const farHand = arm(pose.armR, false);
   if (extras.includes("cup") && !pose.cupNear) cupAt(farHand);
-  // legs, far one first, with a crease (or a jeans seam) and a knee fold; then shoes with laces and a sole
-  const shorts = look.bottom[0] === "shorts", jeans = look.bottom[0] === "jeans";
-  for (const leg of [pose.legR, pose.legL]) {
-    c.part(limb(leg, 8), (x, y) => (shorts && y > 68 ? bands(skin, 14, 40)(x, y) : bands(bottom, 14, 40, pose.seat ? 70 : 74)(x, y)), (x, y) => (shorts && y > 68 ? skin[3] : bottom[3]));
-    for (let t = 0.15; t < 0.95; t += 0.08) {
-      const [a, b] = t < 0.5 ? [leg[0], leg[1]] : [leg[1], leg[2]], u = t < 0.5 ? t * 2 : (t - 0.5) * 2;
-      c.setD(Math.round(a[0] + (b[0] - a[0]) * u + 1.5), Math.round(a[1] + (b[1] - a[1]) * u), jeans ? bottom[0] : bottom[2]);
+  // legs and shoes, the far side first; trousers shaded at the back, a front crease (a lighter seam on jeans), soles
+  const jeans = look.bottom[0] === "jeans", sole = look.shoes === "#f4f1ea" ? "#c9c3b8" : "#e8e2d6";
+  const shoeS = ([x0, y0, x1, y1]) => union(rectS(x0, y0 + 2, x1 - 3, y1), ellipse(x1 - 3.5, (y0 + y1) / 2 + 1, 3.5, (y1 - y0) / 2 - 0.5), ellipse(x0 + 3, y0 + 2.5, 3, 2));
+  for (const [leg, foot] of [[pose.legR, pose.footR], [pose.legL, pose.footL]]) {
+    const near = leg === pose.legL;
+    c.part(limb(leg, 8.5), (x, y) => (x + 0.5 < 10 || (near && x < leg[1][0] - 1) ? bottom[2] : bottom[1]));
+    for (let t = 0.1; t < 0.95; t += 0.05) {
+      const [p, q] = t < 0.5 ? [leg[0], leg[1]] : [leg[1], leg[2]], u = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+      c.set(Math.round(p[0] + (q[0] - p[0]) * u + 2), Math.round(p[1] + (q[1] - p[1]) * u), jeans ? bottom[0] : bottom[2]);
     }
-    c.setD(Math.round(leg[1][0] + 1), Math.round(leg[1][1]), bottom[2]);
+    c.part(shoeS(foot), (x, y) => (y >= foot[3] - 1.5 ? sole : bodyShade(shoe, foot[0], foot[2], 0.3)(x, y)));
   }
-  const sole = look.shoes === "#f4f1ea" ? "#b8b3a8" : "#e8e2d6";
-  for (const f of [pose.footR, pose.footL]) {
-    c.part(union(rectS(f[0], f[1], f[2] + 1, f[3] + 1), ellipse(f[2] - 1, f[1] + 3.5, 3.5, 3.5)), (x, y) => (y >= f[3] - 1 ? sole : y < f[1] + 1.5 ? shoe[0] : bands(shoe, f[0], f[2])(x, y)), shoe[3]);
-    c.setD(f[0] + 3, f[1] + 2, sole); c.setD(f[0] + 5, f[1] + 2, sole);
+  // the body: shaded at the back, lit in front, with each top's own details
+  // the torso is a box in three-quarter view: its back side (x < 10) in shade, the front lit, the hem a V like the box's
+  // bottom edges (lowest at the front corner, rising up-left and up-right)
+  const hem = coat ? 67 : 58, hemAt = (x) => (x < 10 ? hem - (10 - x) / 2 : hem - (x - 10) / 2), side = (r) => (x) => (x + 0.5 < 10 ? r[2] : r[1]);
+  c.part(polyS([[9.5, 30.5], [20.5, 29.5], [26.5, 32.5], [27.6, 45], [27.6, hemAt(27.6) + 0.5], [10, hem + 0.5], [4, hemAt(4) + 0.5], [4, 45], [4.5, 33]]), side(top));
+  if (kind === "sweater") { for (let x = 5; x < 27; x += 2) for (let d = 1; d < 3.5; d++) c.set(x, Math.round(hemAt(x) - d), top[2]); for (let x = 11; x < 20; x++) c.set(x, 31, top[2]); }
+  const front = !back; // pockets, buttons, lapels, logos and things held in front only show from the front
+  if (hoodie && front) { c.part(polyS([[11, 48], [22, 45.5], [22, 51], [11, 54]]), () => top[1]); c.set(13, 33, top[0]); c.set(13, 34, top[0]); c.set(13, 36, top[0]); c.set(18, 33, top[0]); c.set(18, 34, top[0]); c.set(18, 36, top[0]); }
+  if (coat && front) {
+    c.part(polyS([[11, 30.5], [15, 30.5], [15, 42]]), () => top[1]); c.part(polyS([[15.5, 30.5], [20, 30.5], [15.5, 42]]), () => top[1]);
+    for (let y = 42; y < hemAt(15); y++) c.set(15, y, top[2]);
+    c.part(rectS(18, 52, 24, 58), () => top[1]); c.set(13, 46, top[2]); c.set(13, 53, top[2]); c.set(13, 60, top[2]);
   }
-  // body: folds, then the top's own details
-  const torso = polyS([[13, 41], [17, 38], [28, 37], [32, 40], [33, 50], [32, coat ? 72 : 63], [13, coat ? 73 : 64], [12, 50]]);
-  c.part(torso, bands(top, 12, 34, coat ? 70 : 61), top[3]);
-  [[16, 49], [16, 50], [17, 57], [29, 54], [30, 55], [22, 60]].forEach(([x, y]) => c.setD(x, y, top[2]));
-  if (!coat && !hoodie && kind !== "sweater") { c.part(rectS(13, 61.5, 33, 64.5), () => "#3a2a20", "#241810"); c.part(rectS(21, 61.5, 24, 64.5), () => "#d9a441", "#8a6420"); }
-  if (kind === "sweater") { for (let y = 44; y < 60; y += 4) for (let x = 15 + (y % 8 ? 2 : 0); x < 31; x += 4) c.setD(x, y, top[2]); for (let x = 13; x < 32; x += 2) for (let y = 60; y < 63; y++) c.setD(x, y, top[2]); }
-  if (hoodie) { c.part(rectS(19, 52, 29, 58), () => top[2], top[3]); [[21, 40], [21, 41], [21, 43], [25, 40], [25, 41], [25, 43]].forEach(([x, y]) => c.setD(x, y, top[0])); }
-  if (coat) {
-    c.part(polyS([[19, 38], [23, 38], [23, 50]]), () => top[0], top[3]); c.part(polyS([[24, 38], [28, 38], [24, 50]]), () => top[1], top[3]);
-    for (let y = 50; y < 72; y++) c.setD(24, y, top[3]);
-    c.part(rectS(15, 58, 21, 63), () => top[1], top[3]); c.setD(26, 55, top[3]); c.setD(26, 62, top[3]); c.setD(26, 68, top[3]);
-  }
-  if (kind === "tee") c.part(rectS(26, 45, 30, 49), () => top[1], top[2]);
-  if (kind === "jersey") { for (let x = 13; x < 32; x++) c.setD(x, 62, "#c8102e"); for (let y = 41; y < 62; y++) c.setD(24, y, "#b9bec6"); [[27, 46], [28, 46], [28, 47], [27, 48], [28, 49], [27, 50]].forEach(([x, y]) => c.setD(x, y, "#c8102e")); }
-  if (extras.includes("apron")) { const ap = ramp("#f4f1ea"); c.part(polyS([[16, 46], [30, 45], [30, 64], [16, 65]]), bands(ap, 16, 30), ap[3]); c.part(limb([[20, 38], [18, 46]], 1.5), () => ap[1], null); c.part(limb([[26, 37], [28, 45]], 1.5), () => ap[1], null); c.part(rectS(19, 54, 27, 59), () => ap[1], ap[3]); }
-  if (!coat && !hoodie) { c.part(polyS([[19, 38], [26, 37], [23, 42]]), () => skin[1], skin[2]); if (kind === "long" || kind === "jersey") [[19, 38], [20, 39], [21, 40], [26, 37], [25, 38], [24, 39]].forEach(([x, y]) => c.setD(x, y, top[3])); }
-  // near arm in front of the body (a raised one waits until after the head)
+  if (kind === "jersey") { if (front) for (let y = 32; y < hemAt(15); y++) c.set(15, y, "#c8453c"); for (let x = 5; x < 27; x++) c.set(x, Math.round(hemAt(x) - 1), "#c8453c"); if (front) [[20, 38], [21, 38], [21, 39], [20, 40], [21, 41], [20, 42]].forEach(([x, y]) => c.set(x, y, "#c8453c")); }
+  if (extras.includes("apron") && front) { const ap = ramp("#f4f1ea"); c.part(polyS([[11, 38], [24, 36], [24, 56], [11, 62]]), () => ap[1]); c.part(polyS([[13, 49], [21, 47.5], [21, 52.5], [13, 54]]), () => ap[1]); }
+  if (!coat && !hoodie && front) c.part(polyS([[11.5, 30.5], [19, 30.5], [15.5, 34.5]]), () => skin[1]);   // the neckline
+  // the near arm in front of the body (a raised one waits until after the head)
   let nearHand = null;
   if (!raised(pose.armL)) nearHand = arm(pose.armL, true);
-  if (extras.includes("bag")) { c.part(limb([[15, 41], [29, 55]], 2), () => "#4e5a29", null); c.part(polyS([[22, 53], [32, 52], [33, 59], [23, 60]]), bands(ramp("#6b7a3a"), 22, 33), "#3c4520"); for (let x = 24; x < 32; x++) c.setD(x, 55, "#3c4520"); }
-  if (extras.includes("paper")) { c.part(polyS([[18, 46], [31, 45], [31, 58], [18, 59]]), () => "#fbfbf6", "#9aa4b1"); for (const y of [49, 52, 55]) for (let x = 20; x < 29; x++) c.setD(x, y, "#9aa4b1"); }
+  if (extras.includes("bag") && front) { c.part(limb([[7, 32], [23, 50]], 1.6), () => "#4e5a29", null); c.part(polyS([[18, 48], [27, 47], [27.5, 55], [18.5, 56]]), bodyShade(ramp("#6b7a3a"), 18, 28, 0.25)); }
+  if (extras.includes("paper") && front) { c.part(polyS([[10, 40], [22, 39], [22, 51], [10, 52]]), () => "#fbfbf6"); for (const y of [43, 46, 49]) for (let x = 12; x < 20; x++) c.set(x, y, "#9aa4b1"); }
 
-  // head: neck with the chin's shadow, head, ear
-  c.part(rectS(19, 34, 26, 40), (x, y) => (y < 36 || x > 23 ? skin[2] : skin[1]), skin[3]);
+  // head: neck, head, ear
+  c.part(rectS(12, 27, 19, 35), (x, y) => (x < 14 ? skin[2] : skin[1]));
   cur = "head";
-  c.part(ellipse(HEAD.cx, HEAD.cy, HEAD.rx, HEAD.ry), sphere(skin, HEAD.cx, HEAD.cy, HEAD.rx, HEAD.ry), skin[3]);
-  const ear = () => { c.part(ellipse(11, 24, 2.6, 3.6), (x, y) => (x < 11 ? skin[1] : skin[2]), skin[3]); c.setD(11, 24, skin[3]); };
+  c.part(headShape, (x, y) => (x < 4.5 || (y > 31.5 && x < 17) ? skin[2] : skin[1]));
+  const ear = () => { c.part(ellipse(5.5, 20.5, 2.3, 3.3), (x, y) => (x < 5 ? skin[2] : skin[1])); c.set(5, 20, skin[3]); c.set(5, 21, skin[3]); };
   ear();
   if (!back) {
-    // face at output resolution (34×64): brows, eyes with iris, pupil and catch-light, nose, mouth, blush
-    const brow = hairC[3], iris = look.eyes || "#5a3a24", blush = mixHex(look.skin, "#ff6f6f", 0.35);
-    [[13, 13], [14, 12], [15, 12], [16, 12], [14, 13], [20, 12], [21, 12], [22, 13], [20, 13]].forEach(([x, y]) => c.set(x, y, brow));
-    if (eyes === "closed") { for (let x = 13; x < 17; x++) c.set(x, 17, OUTLINE); for (let x = 19; x < 22; x++) c.set(x, 17, OUTLINE); c.set(13, 16, OUTLINE); c.set(19, 16, OUTLINE); }
-    else {
-      for (let y = 15; y < 19; y++) { for (let x = 14; x < 17; x++) c.set(x, y, "#ffffff"); for (let x = 20; x < 22; x++) c.set(x, y, "#ffffff"); }
-      for (let x = 13; x < 17; x++) c.set(x, 14, OUTLINE); for (let x = 19; x < 22; x++) c.set(x, 14, OUTLINE);
-      for (let y = 16; y < 19; y++) { c.set(15, y, iris); c.set(16, y, OUTLINE); c.set(21, y, OUTLINE); c.set(20, y, iris); }
-      c.set(15, 16, "#ffffff"); c.set(20, 16, "#ffffff");
-      c.set(14, 19, skin[2]); c.set(15, 19, skin[2]); c.set(20, 19, skin[2]);
-    }
-    c.set(20, 20, skin[3]); c.set(20, 21, skin[2]); c.set(19, 21, skin[0]);
-    if (mouth === "open") { [[16, 23], [17, 23], [18, 23]].forEach(([x, y]) => c.set(x, y, "#4a1f18")); [[16, 24], [17, 24], [18, 24]].forEach(([x, y]) => c.set(x, y, "#c0504a")); c.set(15, 22, "#8a3a2e"); c.set(19, 22, "#8a3a2e"); }
-    else [[15, 22], [16, 23], [17, 23], [18, 23], [19, 22]].forEach(([x, y]) => c.set(x, y, "#8a3a2e"));
-    [[13, 21], [14, 21], [21, 21], [22, 21]].forEach(([x, y]) => c.set(x, y, blush));
+    // the face, on the front of the head: small eyes looking the way they face (the far one a little higher), brows,
+    // a nose line, a short mouth
+    const iris = look.eyes || "#5a3a24", brow = hairC[3];
+    const eye = (x, y) => {
+      if (eyes === "closed") { for (let i = 0; i < 3; i++) c.set(x + i, y + 1, OUTLINE); return; }
+      for (let i = 0; i < 3; i++) c.set(x + i, y, OUTLINE);
+      c.set(x, y + 1, "#ffffff"); c.set(x + 1, y + 1, iris); c.set(x + 2, y + 1, OUTLINE);
+      c.set(x, y + 2, "#ffffff"); c.set(x + 1, y + 2, OUTLINE); c.set(x + 2, y + 2, OUTLINE);
+    };
+    eye(15, 18); eye(21, 16);
+    [[15, 16], [16, 16], [21, 14], [22, 14], [23, 14]].forEach(([x, y]) => c.set(x, y, brow));
+    [[20, 20], [21, 21], [21, 22], [22, 23], [21, 24], [20, 24]].forEach(([x, y]) => c.set(x, y, skin[3]));
+    if (mouth === "open") { [[17, 27], [18, 27], [19, 27], [20, 27]].forEach(([x, y]) => c.set(x, y, "#4a2a22")); c.set(18, 28, "#c0504a"); c.set(19, 28, "#c0504a"); }
+    else [[17, 28], [18, 28], [19, 27], [20, 27], [21, 26]].forEach(([x, y]) => c.set(x, y, "#4a2a22"));
   }
   // hair (and cap / hood); from behind the hair covers the whole head
-  if (hair.hood) c.part(back ? ellipse(22.5, 24, 16, 17.5) : hair.front, sphere(hoodC, 22, 22, 16, 17), hoodC[3]);
-  else c.part(back ? union(hair.front, ellipse(HEAD.cx, HEAD.cy - 0.5, HEAD.rx + 0.4, HEAD.ry)) : hair.front, hairShade(hairC, 21, 17, 14, 13, look.hair[0] === "long"), hairC[3]);
+  const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 26, AW, AH))) : hair.front;
+  if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
+  else {
+    c.part(hairShape, (x, y) => (x < 7 ? hairC[2] : y < 7 && x > 13 && x < 24 ? hairC[0] : hairC[1]));
+    if (look.hair[0] === "long") for (let x = 3; x < 9; x += 3) for (let y = 22; y < 42; y++) c.set(x, y, hairC[2]);
+  }
   if (back) ear();
   if (hair.cap) {
     const capC = ramp(look.capColor || "#c8102e");
-    c.part(ellipse(21.5, 13.5, 12.5, 8.5), sphere(capC, 21.5, 13, 12, 8), capC[3]);
-    if (!back) c.part(polyS([[24, 15], [40, 16], [39, 20], [24, 19]]), (x, y) => (y > 18 ? capC[3] : capC[2]), capC[3]);
-    else c.part(rectS(17, 19, 27, 21), () => capC[2], capC[3]);
-    c.setD(20, 9, "#ffffff"); c.setD(21, 10, "#ffffff");
+    c.part(ellipse(15, 10.5, 13, 8.5), (x, y) => (x < 8 ? capC[2] : y < 5 && x > 13 && x < 22 ? capC[0] : capC[1]));
+    if (!back) c.part(polyS([[18, 13], [31.5, 14.5], [31.5, 17.5], [18, 16.5]]), (x, y) => (y > 16 ? capC[3] : capC[2]));
+    else c.part(rectS(8, 16, 20, 18.5), () => capC[2]);
+    c.set(15, 2, capC[0]);
   }
   // raised arms over the head, and whatever the near hand holds
   cur = "over";
   if (raised(pose.armL)) nearHand = arm(pose.armL, true);
   if (pose.cupNear) cupAt(nearHand);
-  if (pose.phone) { const [hx, hy] = nearHand; c.part(rectS(hx - 2, hy - 5, hx + 2, hy + 1), () => "#2b2e35", OUTLINE); c.setD(Math.round(hx - 1), Math.round(hy - 4), "#8cc8f0"); c.setD(Math.round(hx), Math.round(hy - 4), "#8cc8f0"); }
-  // things worn on the face (output pixels)
+  if (pose.phone) { const [hx, hy] = nearHand; c.part(rectS(hx - 1.5, hy - 5, hx + 2, hy + 1), () => "#2b2e35"); c.set(Math.round(hx), Math.round(hy - 4), "#8cc8f0"); }
+  // things worn on the face
   cur = "head";
   if (!back) {
     if (extras.includes("sunglasses")) {
-      for (let y = 15; y < 18; y++) { for (let x = 14; x < 17; x++) c.set(x, y, "#15171c"); for (let x = 20; x < 22; x++) c.set(x, y, "#15171c"); }
-      for (let x = 17; x < 20; x++) c.set(x, 15, OUTLINE);
-      c.set(14, 15, "#8a93a3"); c.set(20, 15, "#8a93a3");
+      for (let y = 17; y < 21; y++) { for (let x = 14; x < 18; x++) c.set(x, y, "#15171c"); }
+      for (let y = 15; y < 19; y++) { for (let x = 20; x < 24; x++) c.set(x, y, "#15171c"); }
+      c.set(18, 17, OUTLINE); c.set(19, 16, OUTLINE); c.set(14, 17, "#8a93a3"); c.set(20, 15, "#8a93a3");
     }
     if (extras.includes("glasses")) {
       const fr = look.frames || "#c8102e";
-      for (const [x0, x1] of [[13, 17], [19, 23]]) { for (let x = x0; x < x1; x++) { c.set(x, 14, fr); c.set(x, 19, fr); } for (let y = 14; y < 20; y++) { c.set(x0, y, fr); c.set(x1 - 1, y, fr); } }
-      c.set(17, 15, fr); c.set(18, 15, fr);
+      for (const [x0, y0] of [[14, 17], [20, 15]]) { for (let x = x0; x < x0 + 5; x++) { c.set(x, y0, fr); c.set(x, y0 + 4, fr); } for (let y = y0; y < y0 + 5; y++) { c.set(x0, y, fr); c.set(x0 + 4, y, fr); } }
     }
-    if (extras.includes("visor")) for (let x = 12; x < 24; x++) for (let y = 15; y < 18; y++) c.set(x, y, y === 15 ? "#b9ffd6" : "#39ff88");
+    if (extras.includes("visor")) for (let x = 11; x < 26; x++) for (let y = 16; y < 20; y++) c.set(x, y, y === 16 ? "#b9ffd6" : "#39ff88");
   }
   // the silhouette: every pixel on the edge of the figure goes black
   const px = c.px, out = px.slice(), empty = (x, y) => x < 0 || y < 0 || x >= AW || y >= AH || !px[y * AW + x];
@@ -313,7 +317,7 @@ function toImage(px, W, Ht) {
 // A drawn picture placed at (x, y) in units.
 const imageTag = ({ id }, x, y) => `<use href="#${id}" x="${x}" y="${y}"/>`;
 // Whether a pose has anything in the "over" layer (a raised near arm, a cup at the mouth, a phone).
-const hasOver = (poseName) => { const p = POSES[poseName]; return p.armL[2][1] < 40 || !!p.cupNear || !!p.phone; };
+const hasOver = (poseName) => { const p = POSES[poseName]; return p.armL[2][1] < 36 || !!p.cupNear || !!p.phone; };
 // Frames side by side in one picture (a sprite strip): showing another frame only moves the window onto the strip, so
 // nothing new has to load and nothing can blink out. frames: [{ pose, back, eyes, mouth, layer }].
 function joinFrames(list, W, Ht) {

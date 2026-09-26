@@ -148,7 +148,7 @@ const leds = (len, h) => {
 // The pitcher's wind-up drawn as a pose-estimation skeleton, from the avatar's own joints in each frame (design grid → units).
 const skeleton = (poseName) => {
   const P = POSES[poseName], u = ([x, y]) => [(x * K) / 2, (y * K) / 2];
-  const k = { head: u([22, 22]), neck: u([22, 37]), ls: u(P.armL[0]), rs: u(P.armR[0]), le: u(P.armL[1]), re: u(P.armR[1]), lw: u(P.armL[2]), rw: u(P.armR[2]),
+  const k = { head: u([15, 17]), neck: u([15, 31]), ls: u(P.armL[0]), rs: u(P.armR[0]), le: u(P.armL[1]), re: u(P.armR[1]), lw: u(P.armL[2]), rw: u(P.armR[2]),
     lh: u(P.legL[0]), rh: u(P.legR[0]), lk: u(P.legL[1]), rk: u(P.legR[1]), la: u(P.legL[2]), ra: u(P.legR[2]) };
   const bones = ["head-neck", "neck-ls", "neck-rs", "ls-le", "le-lw", "rs-re", "re-rw", "ls-lh", "rs-rh", "lh-rh", "lh-lk", "lk-la", "rh-rk", "rk-ra"];
   return `<g class="skel">` +
@@ -174,7 +174,7 @@ const WALK = ["walkA", "passA", "walkB", "passB"], EXTRA = {}, PEOPLE = new Map(
 const POSE_MS = { stand: 1800, shift: 1500, phone: 2200, think: 1800, reach: 900, typeA: 150, typeB: 150, talk1: 380, talk2: 380, drink: 1300,
   sit: 2200, sitDrink: 1500, sitWave: 300, wave1: 260, wave2: 260, armsUp: 260, danceL: 260, danceMix: 260, danceR: 260, pSet: 700, pLift: 380, pCock: 320, pRelease: 480 };
 const parsePose = (s) => { const [pose, ms] = s.split(":"); return { pose, ms: +ms || POSE_MS[pose] || 1200 }; };
-const MIRROR = `translate(${AW / 2} 0) scale(-1 1)`, HEAD_MIRROR = "translate(16.5 0) scale(-1 1)"; // the head turns about its own middle
+const MIRROR = `translate(${AW / 2} 0) scale(-1 1)`, HEAD_MIRROR = "translate(15 0) scale(-1 1)"; // the head turns about its own middle (x = 15 px = 7.5 units)
 const faceBack = (face) => face.startsWith("back"), faceMirror = (face) => face === "frontL" || face === "backR";
 const frameWin = (strip, k, w, h, cls) => `<svg class="${cls}" x="0" y="0" width="${w}" height="${h}" viewBox="${k * w} 0 ${w} ${h}" overflow="hidden"><use href="#${strip.id}"/></svg>`;
 function person(look, idle, x, y, { cls = "", top = "", dy = 0, extra = null, walker = false, face = "front", glance = false } = {}) {
