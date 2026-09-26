@@ -42,7 +42,7 @@ const CONTENT = {
   projects: [
     {
       slug: "pitching",
-      room: "Backyard",
+      room: "Practice field",
       cat: "Work",
       title: "Vision-Based Player Motion & Injury-Risk Analysis",
       org: "We Share Baseball",

@@ -67,6 +67,19 @@ document.querySelectorAll(".scene-box").forEach((b) => {
 });
 $("#year").textContent = new Date().getFullYear();
 
+// ---------- the side cards (wide screens): a summary on the left; a guide to the cabin's rooms and highlights on the right
+const card = (title, body, cls = "") => `<section class="card ${cls}"><h2 class="card-title">${title}</h2>${body}</section>`;
+const years = (d) => d.match(/\d{4}/g)?.join("–").replace(/(\d{4})–\1/, "$1") + (/present/i.test(d) ? "–now" : "");
+$("#rail-left").innerHTML =
+  card("Focus", `<ul class="plain">${P.tagline.split(" · ").map((f) => `<li>${f}</li>`).join("")}</ul>`) +
+  card("Timeline", `<ol class="timeline">${CONTENT.experience.map((e) => `<li><span class="when">${years(e.date)}</span><b>${e.role}</b><span class="where">${e.org.split(",")[0]}</span></li>`).join("")}</ol>`) +
+  card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`);
+const mainPaper = CONTENT.papers.find((p) => p.link), talk = CONTENT.papers.find((p) => p.badge);
+$("#rail-right").innerHTML =
+  card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.title.split(" Using")[0].split(":")[0]}</span></a></li>`).join("")}</ul>`) +
+  card("Publication", `<p>${mainPaper.cite.split("“")[1]?.split("”")[0].replace(/,$/, "") || mainPaper.cite}</p><p class="where">IEEE ECBIOS 2022${talk ? ` · talk: ${talk.badge}` : ""}</p><p>${link({ label: "Read on IEEE Xplore", url: mainPaper.link.url })}</p>`) +
+  card("Stack", `<p class="tags">${CONTENT.stack.slice(0, 10).map((t) => `<span class="tag">${t}</span>`).join("")}</p>`);
+
 // Deep links (e.g. #project-mri): the sections are rendered by script, so jump once they exist, and again once the web
 // fonts have loaded (they change the height of the text above).
 const jump = () => document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ behavior: "instant" });

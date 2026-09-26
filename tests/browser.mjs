@@ -91,6 +91,14 @@ ok(through === 0, "every step goes to a neighbouring tile through a door, never 
 ok(p.logs.length === 0, "no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
 p.close();
 
+// ---- wide screens: the side cards fill the margins, fit on screen and link to the rooms
+p = await open(SITE, { width: 1440, height: 900 });
+await p.sleep(800);
+ok(await p.ev(`[...document.querySelectorAll('.rail')].every((r) => getComputedStyle(r).display !== 'none' && r.scrollHeight <= r.clientHeight + 1 && r.scrollHeight <= innerHeight - 80)`), "wide screen: both side columns show and fit on screen");
+ok(await p.ev(`document.querySelectorAll('#rail-right .rooms a').length === CONTENT.projects.length && [...document.querySelectorAll('#rail-right .rooms a')].every((a) => document.querySelector(a.getAttribute('href')))`), "wide screen: every room in the guide links to its project");
+ok(await p.ev(`[...document.querySelectorAll('.card')].every((c) => c.scrollWidth <= c.clientWidth + 1)`), "wide screen: nothing spills out of a card");
+p.close();
+
 // ---- deep link
 p = await open(SITE + "#project-mri");
 await p.sleep(500);
