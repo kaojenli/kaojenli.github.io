@@ -172,7 +172,7 @@ const CONTENT = {
       org: "Applied Machine Learning Research, Texas A&M",
       place: "College Station, TX",
       date: "May 2025 – May 2026",
-      bullets: ["With Soumyajyoti Dutta (PhD Candidate, TAMU CSE).", "Automatic Sigma rule generation using language and vision models."],
+      bullets: ["Automatic Sigma rule generation using language and vision models."],
       project: "sigma",
     },
     {
