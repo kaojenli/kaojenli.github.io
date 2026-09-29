@@ -40,7 +40,11 @@ h1, h2, h3, h4 { color: var(--ink); }
 
 /* ---------- intro and the cabin */
 .hero { max-width: var(--wide); margin: 0 auto; padding: 56px 24px 24px; }
-.intro { max-width: 720px; margin-bottom: 40px; }
+.hero-head { display: flex; align-items: center; justify-content: space-between; gap: 40px; margin-bottom: 40px; }
+.intro { max-width: 720px; }
+/* the portrait in its gilded frame (main.js), hung with a soft shadow */
+.framed { flex: none; width: 186px; margin: 0 24px 0 0; filter: drop-shadow(0 6px 10px rgba(40, 24, 8, .28)); }
+.framed svg { display: block; width: 100%; height: auto; }
 .hero h1 { margin: 10px 0 16px; font-size: clamp(40px, 6vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
 .lede { margin: 0 0 16px; color: var(--text); font-size: 19px; line-height: 1.6; }
 .now { margin: 0 0 20px; color: var(--muted); font-size: 15px; }
@@ -140,13 +144,9 @@ figure { margin: 12px 0; }
 .proj figure { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .proj figure img { display: block; width: 100%; height: auto; }
 
-.about-grid { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 32px; align-items: start; }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; font-size: 15px; }
 .facts dt { color: var(--muted); font: 500 12px/2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
 .facts dd { margin: 0; }
-.portrait { margin: 0; padding: 14px 0 10px; background: var(--sky); border: 1px solid var(--line); border-radius: 12px; text-align: center; }
-.id-avatar { display: block; width: 80px; height: 210px; margin: 0 auto; }
-.portrait figcaption { margin-top: 6px; color: var(--muted); font: 12px var(--mono); }
 
 .proj { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
 .proj:last-child { border-bottom: 0; }
@@ -230,8 +230,9 @@ figure { margin: 12px 0; }
   .hero { padding: 32px 16px 16px; }
   .lede { font-size: 17px; }
   .sections { padding: 0 16px; }
-  .about-grid, .skills { grid-template-columns: 1fr; }
-  .portrait { max-width: 180px; }
+  .skills { grid-template-columns: 1fr; }
+  .hero-head { flex-direction: column-reverse; align-items: flex-start; gap: 20px; }
+  .framed { width: 124px; margin: 0; }
   .rows summary { grid-template-columns: 1fr; gap: 2px; }
   /* the cabin is too detailed to shrink to phone width: show it larger and let it scroll sideways */
   .room-scroll { overflow-x: auto; overflow-y: hidden; }

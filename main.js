@@ -13,6 +13,54 @@ $("#hero-lede").textContent = P.intro;
 const news = CONTENT.news;
 $("#hero-now").innerHTML = `<span class="now-label">Now</span> ${news.headline.replace(/^Now:\s*/, "")}, ${news.text} <a href="${news.link.href}">${news.link.label}</a>`;
 $("#hero-links").innerHTML = P.links.map(link).join("");
+
+// ---------- Jen's portrait beside the intro: her head and shoulders (avatar.js) in an oval opening on velvet, in a
+// gilded frame with mitred corners, a bead moulding, rosettes on the corners and a shell on top, all one pixel picture.
+function framedPortrait() {
+  const W = 62, H = 82, fy = 6, FH = 74, B = 9, px = new Array(W * H).fill(null), set = (x, y, c) => { if (x >= 0 && x < W && y >= 0 && y < H) px[y * W + x] = c; };
+  const G = { o: "#3a2410", d: "#7a5218", m: "#b8862a", l: "#e0b64e", h: "#fbe9a0" }, darker = { h: "l", l: "m", m: "d", d: "d", o: "o" };
+  // frame bands, outside in; the bottom and right sides are in shadow
+  const BAND = ["o", "d", "l", "m", "bead", "m", "d", "l", "o"];
+  for (let y = fy; y < fy + FH; y++) for (let x = 0; x < W; x++) {
+    const dl = x, dr = W - 1 - x, dt = y - fy, db = fy + FH - 1 - y, k = Math.min(dl, dr, dt, db);
+    if (k >= B) continue;
+    let t = BAND[k] === "bead" ? ((dt === k || db === k ? x : y) % 3 === 0 ? "d" : "h") : BAND[k];
+    if (k === dr || k === db) t = darker[t];
+    else if (t === "l") t = "h";
+    set(x, y, G[t]);
+  }
+  // the spandrel around the oval opening, the opening's bevelled rim, and velvet inside
+  const cx = W / 2, cy = fy + FH / 2, rx = W / 2 - B - 3, ry = FH / 2 - B - 3;
+  const e = (x, y) => Math.hypot((x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry);
+  for (let y = fy + B; y < fy + FH - B; y++) for (let x = B; x < W - B; x++) {
+    const r = e(x, y), lit = x - cx + (y - cy) * 0.8 < 0;
+    set(x, y, r <= 1 ? (r < 0.5 ? "#6d8f87" : r < 0.72 && (x + y) % 2 ? "#6d8f87" : "#53736c")
+      : r < 1 + 1.2 / rx ? G.o : r < 1 + 2.4 / rx ? (lit ? G.h : G.d) : r < 1 + 3.4 / rx ? (lit ? G.l : G.m) : G.m);
+  }
+  // Jen, turned toward the text, head centred in the opening, cut off by its rim
+  const jen = drawAvatar(AVATAR_LOOKS.jen, "stand"), ax = Math.round(cx - 16.5), ay = fy + B + 6;
+  jen.forEach((col, k) => { const x = ax + AW - 1 - (k % AW), y = ay + Math.floor(k / AW); if (col && e(x, y) <= 1) set(x, y, col); });
+  // rosettes on the corners, shaded from the top left, petals marked out
+  for (const [rcx, rcy] of [[4.5, fy + 4.5], [W - 4.5, fy + 4.5], [4.5, fy + FH - 4.5], [W - 4.5, fy + FH - 4.5]])
+    for (let y = Math.floor(rcy - 5); y <= rcy + 5; y++) for (let x = Math.floor(rcx - 5); x <= rcx + 5; x++) {
+      const dx = x + 0.5 - rcx, dy = y + 0.5 - rcy, r = Math.hypot(dx, dy);
+      if (r > 5) continue;
+      set(x, y, G[r > 4.2 ? "o" : r < 1.2 ? "h" : r < 2 ? "d" : Math.abs(Math.abs(dx) - Math.abs(dy)) < 0.8 ? "d" : dx + dy < -1.5 ? "l" : dx + dy > 1.5 ? "d" : "m"]);
+    }
+  // a scallop shell at the top, and a small one at the bottom
+  const shell = (scx, base, R, dir) => {
+    for (let y = base - dir * (R + 1); dir > 0 ? y <= base : y >= base; y += dir) for (let x = Math.floor(scx - R - 1); x <= scx + R + 1; x++) {
+      const dx = x + 0.5 - scx, dy = (base - y) * dir + 0.5, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx), edge = R + 0.7 * Math.cos(a * 18);
+      if (r > edge) continue;
+      set(x, y, G[r > edge - 1 ? "o" : r < 2.2 ? "d" : Math.floor(a / (Math.PI / 9)) % 2 ? (a < Math.PI / 2 ? "m" : "l") : a < Math.PI / 2 ? "d" : "h"]);
+    }
+  };
+  shell(cx, fy + 3, 9, 1);
+  shell(cx, fy + FH - 3, 5, -1);
+  return toImage(px, W, H);
+}
+const portrait = framedPortrait();
+$("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${portrait.w} ${portrait.h}" shape-rendering="crispEdges">${imageTag(portrait, 0, 0)}</svg>`;
 $("#hero-caption").textContent = CONTENT.hero.caption;
 
 // ---------- sections
@@ -29,17 +77,9 @@ const project = (p) => `<article class="proj" id="project-${p.slug}">
 </article>`;
 
 const BODY = {
-  about: `<div class="about-grid">
-    <div>
-      <dl class="facts"><dt>Now</dt><dd>${P.now}</dd><dt>Focus</dt><dd>${P.tagline.split(" · ").join("<br>")}</dd>
-        <dt>Studied</dt><dd>${CONTENT.education.map((e) => `${e.degree}, ${e.school}`).join("<br>")}</dd></dl>
-      <p class="links">${P.links.map(link).join("")}</p>
-    </div>
-    <figure class="portrait">
-      <svg class="id-avatar" viewBox="0 0 ${AW / 2} ${AH / 2}" shape-rendering="crispEdges" aria-hidden="true">${imageTag(avatarImage("jen", "stand"), 0, 0)}</svg>
-      <figcaption>Jen</figcaption>
-    </figure>
-  </div>`,
+  about: `<dl class="facts"><dt>Now</dt><dd>${P.now}</dd><dt>Focus</dt><dd>${P.tagline.split(" · ").join("<br>")}</dd>
+      <dt>Studied</dt><dd>${CONTENT.education.map((e) => `${e.degree}, ${e.school}`).join("<br>")}</dd></dl>
+    <p class="links">${P.links.map(link).join("")}</p>`,
   projects: CONTENT.projectGroups.map((g) => `<h3 class="group">${g}</h3>` + CONTENT.projects.filter((p) => p.cat === g).map(project).join("")).join(""),
   experience: `<ol class="rows">${CONTENT.experience.map((e) => `<li><details>
       <summary><span><b>${e.role}</b> · ${e.org}</span><span class="when">${e.date}</span></summary>
