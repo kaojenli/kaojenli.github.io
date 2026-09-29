@@ -15,53 +15,67 @@ $("#hero-now").innerHTML = `<span class="now-label">Now</span> ${news.headline.r
 $("#hero-links").innerHTML = P.links.map(link).join("");
 
 // ---------- Jen's portrait beside the intro: her head and shoulders (avatar.js) in an oval opening on velvet, in a
-// gilded frame with mitred corners, a bead moulding, rosettes on the corners and a shell on top, all one pixel picture.
+// walnut frame with mitred corners and a thin antique-gilt slip, under a brass picture light; all one pixel picture.
+// In dark mode the lamp lights it like a painting in a dark gallery (style.css).
 function framedPortrait() {
-  const W = 62, H = 82, fy = 6, FH = 74, B = 9, px = new Array(W * H).fill(null), set = (x, y, c) => { if (x >= 0 && x < W && y >= 0 && y < H) px[y * W + x] = c; };
-  const G = { o: "#3a2410", d: "#7a5218", m: "#b8862a", l: "#e0b64e", h: "#fbe9a0" }, darker = { h: "l", l: "m", m: "d", d: "d", o: "o" };
-  // frame bands, outside in; the bottom and right sides are in shadow
-  const BAND = ["o", "d", "l", "m", "bead", "m", "d", "l", "o"];
+  const W = 62, fy = 12, FH = 74, H = fy + FH, B = 9, px = new Array(W * H).fill(null), set = (x, y, c) => { if (x >= 0 && x < W && y >= 0 && y < H) px[y * W + x] = c; };
+  const C = { o: "#1e130b", wd: "#3b2616", wm: "#5a3b22", wl: "#7a5332", wh: "#93683f", gd: "#6e5a34", gm: "#9c8452", gl: "#c2ab74", gh: "#dccb98" };
+  const darker = { wh: "wl", wl: "wm", wm: "wd", wd: "wd", gh: "gl", gl: "gm", gm: "gd", gd: "gd", o: "o" }, lighter = { wl: "wh", gl: "gh" };
+  // frame bands, outside in (walnut, then the gilt bead and lip); the bottom and right sides are in shadow
+  const BAND = ["o", "wl", "wm", "wm", "wd", "wm", "bead", "gl", "o"];
   for (let y = fy; y < fy + FH; y++) for (let x = 0; x < W; x++) {
     const dl = x, dr = W - 1 - x, dt = y - fy, db = fy + FH - 1 - y, k = Math.min(dl, dr, dt, db);
     if (k >= B) continue;
-    let t = BAND[k] === "bead" ? ((dt === k || db === k ? x : y) % 3 === 0 ? "d" : "h") : BAND[k];
-    if (k === dr || k === db) t = darker[t];
-    else if (t === "l") t = "h";
-    set(x, y, G[t]);
+    let t = BAND[k] === "bead" ? ((dt === k || db === k ? x : y) % 3 === 0 ? "gd" : "gl") : BAND[k];
+    t = k === dr || k === db ? darker[t] : lighter[t] || t;
+    set(x, y, C[t]);
   }
-  // the spandrel around the oval opening, the opening's bevelled rim, and velvet inside
+  // the walnut mat around the oval opening, the opening's gilt rim, and velvet inside
   const cx = W / 2, cy = fy + FH / 2, rx = W / 2 - B - 3, ry = FH / 2 - B - 3;
   const e = (x, y) => Math.hypot((x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry);
   for (let y = fy + B; y < fy + FH - B; y++) for (let x = B; x < W - B; x++) {
     const r = e(x, y), lit = x - cx + (y - cy) * 0.8 < 0;
     set(x, y, r <= 1 ? (r < 0.5 ? "#6d8f87" : r < 0.72 && (x + y) % 2 ? "#6d8f87" : "#53736c")
-      : r < 1 + 1.2 / rx ? G.o : r < 1 + 2.4 / rx ? (lit ? G.h : G.d) : r < 1 + 3.4 / rx ? (lit ? G.l : G.m) : G.m);
+      : r < 1 + 1.2 / rx ? C.o : r < 1 + 2.4 / rx ? C[lit ? "gh" : "gd"] : r < 1 + 3.4 / rx ? C[lit ? "wd" : "o"] : C[(x * 3 + y) % 7 ? "wm" : "wd"]);
   }
   // Jen, turned toward the text, head centred in the opening, cut off by its rim
-  const jen = drawAvatar(AVATAR_LOOKS.jen, "stand"), ax = Math.round(cx - 16.5), ay = fy + B + 6;
+  const jen = drawAvatar(AVATAR_LOOKS.jen, "stand"), ax = Math.round(cx - 16.5), ay = fy + B + 5;
   jen.forEach((col, k) => { const x = ax + AW - 1 - (k % AW), y = ay + Math.floor(k / AW); if (col && e(x, y) <= 1) set(x, y, col); });
-  // rosettes on the corners, shaded from the top left, petals marked out
+  // small gilt rosettes on the corners
   for (const [rcx, rcy] of [[4.5, fy + 4.5], [W - 4.5, fy + 4.5], [4.5, fy + FH - 4.5], [W - 4.5, fy + FH - 4.5]])
-    for (let y = Math.floor(rcy - 5); y <= rcy + 5; y++) for (let x = Math.floor(rcx - 5); x <= rcx + 5; x++) {
+    for (let y = Math.floor(rcy - 4); y <= rcy + 4; y++) for (let x = Math.floor(rcx - 4); x <= rcx + 4; x++) {
       const dx = x + 0.5 - rcx, dy = y + 0.5 - rcy, r = Math.hypot(dx, dy);
-      if (r > 5) continue;
-      set(x, y, G[r > 4.2 ? "o" : r < 1.2 ? "h" : r < 2 ? "d" : Math.abs(Math.abs(dx) - Math.abs(dy)) < 0.8 ? "d" : dx + dy < -1.5 ? "l" : dx + dy > 1.5 ? "d" : "m"]);
+      if (r <= 3.6) set(x, y, C[r > 2.8 ? "o" : r < 1 ? "gh" : dx + dy < -0.8 ? "gl" : dx + dy > 0.8 ? "gd" : "gm"]);
     }
-  // a scallop shell at the top, and a small one at the bottom
-  const shell = (scx, base, R, dir) => {
-    for (let y = base - dir * (R + 1); dir > 0 ? y <= base : y >= base; y += dir) for (let x = Math.floor(scx - R - 1); x <= scx + R + 1; x++) {
-      const dx = x + 0.5 - scx, dy = (base - y) * dir + 0.5, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx), edge = R + 0.7 * Math.cos(a * 18);
-      if (r > edge) continue;
-      set(x, y, G[r > edge - 1 ? "o" : r < 2.2 ? "d" : Math.floor(a / (Math.PI / 9)) % 2 ? (a < Math.PI / 2 ? "m" : "l") : a < Math.PI / 2 ? "d" : "h"]);
-    }
-  };
-  shell(cx, fy + 3, 9, 1);
-  shell(cx, fy + FH - 3, 5, -1);
-  return toImage(px, W, H);
+  // the picture light: a brass hood over the frame on an arm from its top, a warm slit of light along its underside
+  const hx0 = Math.round(cx - 14), hx1 = Math.round(cx + 14);
+  for (let x = hx0; x < hx1; x++) ["o", "gh", "gl", "gm", "gd", "o"].forEach((t, i) => set(x, 1 + i, C[x === hx0 || x === hx1 - 1 ? "o" : x < hx0 + 2 ? darker[t] : t]));
+  for (let x = hx0 + 2; x < hx1 - 2; x++) set(x, 7, "#ffe6a8");
+  for (let y = 7; y < fy + 1; y++) { set(cx - 1, y, C.o); set(cx, y, C.gm); set(cx + 1, y, C.o); }
+  for (let x = cx - 3; x <= cx + 2; x++) { set(x, fy, C.o); set(x, fy + 1, C.gd); }
+  return { img: toImage(px, W, H), lampY: 7.5 / H, frameY: fy / H };
 }
-const portrait = framedPortrait();
-$("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${portrait.w} ${portrait.h}" shape-rendering="crispEdges">${imageTag(portrait, 0, 0)}</svg>`;
+const portrait = framedPortrait(), { w: pw, h: ph } = portrait.img;
+$("#hero-portrait").style.setProperty("--lamp", `${portrait.lampY * 100}%`);
+$("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${pw} ${ph}" shape-rendering="crispEdges">
+  <defs><radialGradient id="spot" cx="50%" cy="0%" r="100%" fx="50%" fy="0%"><stop offset=".25" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></radialGradient></defs>
+  ${imageTag(portrait.img, 0, 0)}<rect class="spot" x="0" y="${ph * portrait.frameY}" width="${pw}" height="${ph * (1 - portrait.frameY)}" fill="url(#spot)"/></svg>`;
 $("#hero-caption").textContent = CONTENT.hero.caption;
+
+// ---------- light / dark: the button flips the theme and remembers it; until then the page follows the system
+const root = document.documentElement, darkMQ = matchMedia("(prefers-color-scheme: dark)"), toggle = $("#theme-toggle");
+const showTheme = () => toggle.setAttribute("aria-pressed", root.dataset.theme === "dark");
+toggle.addEventListener("click", () => {
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("theme", root.dataset.theme); } catch {}
+  showTheme();
+});
+darkMQ.addEventListener("change", (e) => {
+  let chosen = null;
+  try { chosen = localStorage.getItem("theme"); } catch {}
+  if (!chosen) { root.dataset.theme = e.matches ? "dark" : "light"; showTheme(); }
+});
+showTheme();
 
 // ---------- sections
 const project = (p) => `<article class="proj" id="project-${p.slug}">

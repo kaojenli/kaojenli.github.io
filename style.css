@@ -12,11 +12,26 @@
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --wide: 1120px;
   --read: 1040px;
+  --frame-shadow: rgba(40, 24, 8, .28);
+  color-scheme: light;
+}
+/* dark: a gallery at night (the theme is picked before the page draws, in index.html; the toggle is in main.js) */
+:root[data-theme="dark"] {
+  --bg: #121110;
+  --surface: #1b1a18;
+  --ink: #f1ece4;
+  --text: #c9c3b9;
+  --muted: #8f897f;
+  --line: #2d2a26;
+  --accent: #e0925f;
+  --sky: #2c3d4c;
+  --frame-shadow: rgba(0, 0, 0, .7);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 76px; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: var(--bg); transition: background-color .3s, color .3s; color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
 a { color: var(--ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent); text-underline-offset: 3px; }
 a:hover { color: var(--accent); text-decoration-color: currentColor; }
 a:focus-visible, summary:focus-visible, .who:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
@@ -34,17 +49,28 @@ h1, h2, h3, h4 { color: var(--ink); }
   border-bottom: 1px solid transparent;
 }
 .wordmark { flex: none; color: var(--ink); font-weight: 600; letter-spacing: -0.01em; text-decoration: none; white-space: nowrap; }
-#nav { display: flex; gap: 22px; font-size: 14px; }
+#nav { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
+.theme-toggle { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.theme-toggle:hover { color: var(--ink); border-color: var(--muted); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle svg { width: 16px; height: 16px; }
+.theme-toggle .sun, [data-theme="dark"] .theme-toggle .moon { display: none; }
+[data-theme="dark"] .theme-toggle .sun { display: block; }
 #nav a { color: var(--muted); text-decoration: none; }
 #nav a:hover { color: var(--ink); }
 
 /* ---------- intro and the cabin */
 .hero { max-width: var(--wide); margin: 0 auto; padding: 56px 24px 24px; }
-.hero-head { display: flex; align-items: center; justify-content: space-between; gap: 40px; margin-bottom: 40px; }
-.intro { max-width: 720px; }
-/* the portrait in its gilded frame (main.js), hung with a soft shadow */
-.framed { flex: none; width: 186px; margin: 0 24px 0 0; filter: drop-shadow(0 6px 10px rgba(40, 24, 8, .28)); }
-.framed svg { display: block; width: 100%; height: auto; }
+.hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(186px, 1fr); gap: 40px; align-items: center; margin-bottom: 40px; }
+/* the portrait in its frame under a picture light (main.js), centred in the space beside the intro. In the dark the
+   lamp throws a cone of warm light down the wall and the frame fades into shadow below it. */
+.framed { position: relative; isolation: isolate; justify-self: center; width: 186px; margin: 0; }
+.framed svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 6px 10px var(--frame-shadow)); }
+.framed .spot { opacity: 0; transition: opacity .4s; }
+.framed::before { content: ""; position: absolute; z-index: -1; left: -45%; right: -45%; top: var(--lamp); bottom: -16%; opacity: 0; transition: opacity .4s;
+  background: radial-gradient(ellipse 40% 100% at 50% 0, rgba(255, 216, 160, .42), rgba(255, 216, 160, .13) 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(transparent, #000 10%); mask-image: linear-gradient(transparent, #000 10%); }
+[data-theme="dark"] .framed .spot, [data-theme="dark"] .framed::before { opacity: 1; }
 .hero h1 { margin: 10px 0 16px; font-size: clamp(40px, 6vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
 .lede { margin: 0 0 16px; color: var(--text); font-size: 19px; line-height: 1.6; }
 .now { margin: 0 0 20px; color: var(--muted); font-size: 15px; }
@@ -101,8 +127,8 @@ h1, h2, h3, h4 { color: var(--ink); }
   position: absolute; z-index: 2;
   transform: translate(-50%, -100%);
   padding: 3px 9px;
-  background: #fff; color: var(--ink);
-  border: 1.5px solid var(--ink); border-radius: 9px;
+  background: #fff; color: #1d1f23;
+  border: 1.5px solid #1d1f23; border-radius: 9px;
   font: 12px/1.45 var(--font); white-space: nowrap;
   pointer-events: none;
   animation: bubble 4s forwards;
@@ -110,7 +136,7 @@ h1, h2, h3, h4 { color: var(--ink); }
 .bubble::after {
   content: ""; position: absolute; left: 50%; bottom: -7px;
   width: 8px; height: 8px; margin-left: -4px;
-  background: #fff; border: 1.5px solid var(--ink); border-top: 0; border-left: 0;
+  background: #fff; border: 1.5px solid #1d1f23; border-top: 0; border-left: 0;
   transform: rotate(45deg);
 }
 @keyframes bubble {
@@ -231,8 +257,8 @@ figure { margin: 12px 0; }
   .lede { font-size: 17px; }
   .sections { padding: 0 16px; }
   .skills { grid-template-columns: 1fr; }
-  .hero-head { flex-direction: column-reverse; align-items: flex-start; gap: 20px; }
-  .framed { width: 124px; margin: 0; }
+  .hero-head { grid-template-columns: 1fr; gap: 20px; }
+  .framed { order: -1; justify-self: start; width: 124px; }
   .rows summary { grid-template-columns: 1fr; gap: 2px; }
   /* the cabin is too detailed to shrink to phone width: show it larger and let it scroll sideways */
   .room-scroll { overflow-x: auto; overflow-y: hidden; }

@@ -97,6 +97,16 @@ await p.sleep(800);
 ok(await p.ev(`[...document.querySelectorAll('.rail')].every((r) => getComputedStyle(r).display !== 'none' && r.scrollHeight <= r.clientHeight + 1 && r.scrollHeight <= innerHeight - 80)`), "wide screen: both side columns show and fit on screen");
 ok(await p.ev(`document.querySelectorAll('#rail-right .rooms a').length === CONTENT.projects.length && [...document.querySelectorAll('#rail-right .rooms a')].every((a) => document.querySelector(a.getAttribute('href')))`), "wide screen: every room in the guide links to its project");
 ok(await p.ev(`[...document.querySelectorAll('.card')].every((c) => c.scrollWidth <= c.clientWidth + 1)`), "wide screen: nothing spills out of a card");
+// the light/dark button flips the page's colours, is remembered on the next visit, and lights the portrait in the dark
+await p.ev(`localStorage.removeItem("theme"); document.documentElement.dataset.theme = "light"`);
+const bg = () => p.ev(`getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()`), bgLight = await bg(); // (the colours themselves fade)
+await p.click(...(await p.ev(center("#theme-toggle")))); await p.sleep(500);
+ok(await p.ev(`document.documentElement.dataset.theme === "dark" && localStorage.getItem("theme") === "dark" && document.getElementById("theme-toggle").getAttribute("aria-pressed") === "true"`) && await bg() !== bgLight, "the dark-mode button switches to dark and remembers it");
+ok(await p.ev(`getComputedStyle(document.querySelector("#hero-portrait .spot")).opacity === "1" && getComputedStyle(document.getElementById("hero-portrait"), "::before").opacity === "1"`), "dark mode: the picture light shines on the portrait");
+await p.ev(`location.reload()`); await p.sleep(1500);
+ok(await p.ev(`document.documentElement.dataset.theme === "dark"`), "dark mode is still on after a reload");
+await p.click(...(await p.ev(center("#theme-toggle")))); await p.sleep(500);
+ok(await p.ev(`document.documentElement.dataset.theme === "light"`) && await bg() === bgLight, "the button switches back to light");
 p.close();
 
 // ---- deep link
@@ -108,6 +118,7 @@ p.close();
 // ---- phone
 p = await open(SITE, { width: 390, height: 844, mobile: true });
 ok(await p.ev(`document.documentElement.scrollWidth <= 390`), "phone: no horizontal scroll");
+ok(await p.ev(`(() => { const r = document.getElementById("theme-toggle").getBoundingClientRect(); return r.width > 0 && r.right <= 390; })()`), "phone: the dark-mode button is on screen");
 ok(await p.ev(`(() => { const n = document.getElementById('nav').getBoundingClientRect().top, h = document.getElementById('top').getBoundingClientRect().top, a = document.getElementById('about').getBoundingClientRect().top; return n < h && h < a; })()`), "phone: navigation → intro and cabin → sections");
 ok(p.logs.length === 0, "phone: no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
 p.close();

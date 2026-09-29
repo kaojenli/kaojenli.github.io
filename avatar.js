@@ -201,6 +201,19 @@ const HAIR = {
     back: union(polyS([[3, 14], [14, 3], [26, 8], [28, 20], [27, 40], [3, 40], [1.5, 30]]), tips([[4, 44], [9, 45], [14, 44], [19, 45], [24, 43]], 5)),
     front: union(hairCut(union(ellipse(15, 12, 14, 10.8), tips(FRINGE))), polyS([[1, 12], [9, 14], [9.5, 34], [7, 38], [1, 36]]), tips([[3, 40], [7.5, 41]], 4)),
   }),
+  // Jen's: parted just off the middle, falling past the shoulders on both sides in loose natural waves, fuller toward
+  // the ends, which turn in small curls; the forehead shows between the two sides
+  jen: () => {
+    const ends = (list) => union(...list.map(([x, y]) => ellipse(x, y, 2.3, 1.8)));
+    const bare = polyS([[9, 26], [9.5, 20], [12.5, 14.5], [15.5, 10.5], [18, 7.5], [19, 7.5], [22.5, 9.5], [26, 12], [28.8, 16], [29.5, 36], [9, 36]]);
+    return {
+      back: union(polyS([[3, 12], [14, 3], [26, 7], [29, 16], [30.5, 27], [30, 39], [2, 39], [0.5, 28], [1.5, 18]]), ends([[3, 40], [7, 41], [25, 41], [29, 40]])),
+      front: union(minus(ellipse(15, 12, 13.9, 10.6), bare), tips([[12, 18.5], [27, 14.5]], 3),
+        polyS([[1, 12], [9, 14], [10.5, 22], [9.5, 27], [11, 32], [10, 37], [11, 41], [7.5, 43], [4, 42], [1.5, 43], [0.5, 38], [1.5, 33], [0, 27]]), ends([[9, 42], [3.5, 43]]),
+        polyS([[26, 10], [29.8, 13], [31, 22], [30, 28], [31.5, 34], [29.5, 39], [27, 36], [28.2, 30], [27.6, 22]]), ends([[29.5, 39]])),
+      part: [[18, 2], [18, 3], [18, 4], [18, 5], [18, 6], [18, 7]], scalp: true, waves: [3, 6.5, 29],
+    };
+  },
   // short and tousled, tufts sticking out every way
   messy: () => ({ front: union(hairCut(union(ellipse(15, 12, 13.4, 10), tips([[6, 1.5], [12, 0.5], [18, 1], [24, 2.5], [28.5, 6.5], [2, 8]], -4), tips([[12, 21], [16.5, 17.5], [21, 14.5], [25.5, 12.5]]))),
     polyS([[4.5, 13], [9, 15], [9, 21], [6.5, 21]])) }),
@@ -383,7 +396,9 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
   else {
     c.part(hairShape, hairTone(hairC, hair.texture));
-    if (hair.part && !back) hair.part.forEach(([x, y]) => c.set(x, y, hairC[3]));
+    if (hair.part && !back) hair.part.forEach(([x, y]) => c.set(x, y, hair.scalp ? mixHex(look.skin, look.hair[1], 0.45) : hairC[3]));
+    // wavy locks: darker strands snaking down the lengths
+    if (hair.waves && !back) for (const x0 of hair.waves) for (let y = 18; y < 43; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2)); if (hair.front(x, y)) c.set(x, y, hairC[2]); }
     for (const t of [hair.tie, ...(hair.ties || [])].filter(Boolean)) c.part(rectS(t[0] - 1.5, t[1] - 1, t[0] + 1.5, t[1] + 1.5), () => look.tieColor || "#e0584f");
     if (look.hair[0] === "long") for (let x = 3; x < 9; x += 3) for (let y = 22; y < 42; y++) c.set(x, y, hairC[2]);
   }
@@ -493,7 +508,7 @@ function avatarImage(look, pose, opts = {}) {
 
 // Everyone's look.
 const AVATAR_LOOKS = {
-  jen: { skin: "#f1c29b", hair: ["long", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", face: { eyes: "lash", mouth: "small", brows: "arched" } },
+  jen: { skin: "#f1c29b", hair: ["jen", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", face: { eyes: "lash", mouth: "small", brows: "arched" } },
   dancer: { skin: "#e6b08a", hair: ["ponytail", "#e0569b"], top: ["tank", "#8e44ad"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#e0569b", face: { eyes: "lash", mouth: "grin", brows: "arched" }, tieColor: "#f6c945" },
   pitcher: { skin: "#d9a77c", hair: ["cap", "#3a2a24"], top: ["jersey", "#f2f2f2"], bottom: ["pants", "#c9cdd3"], shoes: "#2b2b2b", capColor: "#c8102e", face: { brows: "angled", mouth: "flat", beard: "stubble" } },
   radar: { skin: "#f1c29b", hair: ["sidepart", "#6b4426"], top: ["shirt", "#9fc4e8"], bottom: ["cargo", "#5a6048"], shoes: "#6f4a2f", extras: ["headphones"], face: { eyes: "narrow", nose: "button", mouth: "smirk" } },
