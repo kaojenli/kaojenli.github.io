@@ -48,7 +48,7 @@ h1, h2, h3, h4 { color: var(--ink); }
   background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px);
   border-bottom: 1px solid transparent;
 }
-.wordmark { flex: none; color: var(--ink); font-weight: 600; letter-spacing: -0.01em; text-decoration: none; white-space: nowrap; }
+.wordmark { flex: none; color: var(--ink); font-size: 19px; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; white-space: nowrap; }
 #nav { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
 .theme-toggle { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); color: var(--muted); cursor: pointer; }
 .theme-toggle:hover { color: var(--ink); border-color: var(--muted); }
@@ -62,6 +62,8 @@ h1, h2, h3, h4 { color: var(--ink); }
 /* ---------- intro and the cabin */
 .hero { max-width: var(--wide); margin: 0 auto; padding: 32px 24px 24px; }
 .hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(155px, 1fr); gap: 40px; align-items: center; margin-bottom: 24px; }
+.hero-head .intro { grid-area: 1 / 1; }
+.hero-head .framed { grid-area: 1 / 2; } /* (first in the page, so on phones the intro can wrap round it) */
 /* the portrait in its frame under a picture light (main.js), centred in the space beside the intro. In the dark the
    lamp comes on: its light fans down over the painting and onto the wall, and the frame falls into shadow below. */
 .framed { position: relative; justify-self: center; width: 155px; margin: 0; }
@@ -73,8 +75,9 @@ h1, h2, h3, h4 { color: var(--ink); }
 [data-theme="dark"] .framed .lit { opacity: 1; }
 /* switching between light and dark: a slow crossfade of the whole page */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .6s; animation-timing-function: ease-in-out; }
-.hero h1 { margin: 8px 0 12px; font-size: clamp(36px, 4.6vw, 52px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
-.lede { margin: 0; color: var(--text); font-size: 17px; line-height: 1.55; }
+/* the name is the wordmark in the top bar; the heading stays for search engines and screen readers, out of sight */
+.hero h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+.lede { margin: 14px 0 0; color: var(--text); font-size: 19px; line-height: 1.55; }
 .stage { margin: 0; }
 .room-scroll { overflow: hidden; } /* no box: the cabin stands on the page like a diorama */
 /* the whole cabin fits in the first screen: no taller than the window leaves below the intro (--fit, set by main.js) */
@@ -260,16 +263,12 @@ figure { margin: 12px 0; }
   .masthead { flex-wrap: wrap; padding: 10px 16px; gap: 6px 16px; }
   #nav { order: 3; flex-basis: 100%; flex-wrap: wrap; gap: 4px 13px; margin-left: 0; font-size: 14px; }
   .hero { padding: 32px 16px 16px; }
-  .lede { font-size: 17px; }
+  .lede { font-size: 18px; }
   .sections, .rail-left { padding-left: 16px; padding-right: 16px; }
   .skills { grid-template-columns: 1fr; }
-  /* the portrait small, beside the name; the intro below both */
-  .hero-head { grid-template-columns: minmax(0, 1fr) auto; gap: 0 16px; align-items: start; }
-  .intro { display: contents; }
-  .intro .eyebrow { grid-area: 1 / 1; }
-  .hero h1 { grid-area: 2 / 1; }
-  .lede { grid-area: 3 / 1 / 4 / -1; }
-  .framed { grid-area: 1 / 2 / 3 / 3; justify-self: end; width: 93px; }
+  /* the portrait small at the top right, the intro wrapping round it */
+  .hero-head { display: flow-root; }
+  .hero-head .framed { float: right; width: 93px; margin: 0 0 8px 16px; }
   .rows summary { grid-template-columns: 1fr; gap: 2px; }
   /* the whole cabin at phone width (smaller, so the sections come sooner) */
   .room { max-width: none; }
