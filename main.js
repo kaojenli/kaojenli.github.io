@@ -65,9 +65,9 @@ function framedPortrait() {
 // The light (dark mode only, style.css): a bright slit and its bloom under the hood, the hood itself unlit, a soft beam
 // fanning down over the painting and spilling onto the wall, and the painting falling into shadow away from the lamp.
 // The painting comes alive like Jen downstairs: the same little routine (ROUTINES.jen in cabin.js: blinks, winks,
-// glances, turning round, a coffee, a cookie; not the yawn, whose raised arm the oval cuts off), each way she looks one
-// frame of a strip, shown through a window.
-const acts = Object.values(ROUTINES.jen).filter(([, make]) => !make().some((st) => st.pose === "armsUp"));
+// glances, a coffee, a cookie; not the yawn, whose raised arm the oval cuts off, and she never turns her back on the
+// viewer), each way she looks one frame of a strip, shown through a window.
+const acts = Object.values(ROUTINES.jen).filter(([, make]) => !make().some((st) => st.pose === "armsUp" || /^back/.test(st.face)));
 const portrait = framedPortrait(), looks = new Map(), lookKey = (o) => ["pose", "face", "eyes", "mouth"].map((k) => (o[k] === "front" || o[k] === "stand" ? "" : o[k] || "")).join("|");
 const want = (o) => { if (!looks.has(lookKey(o))) looks.set(lookKey(o), o); };
 want({});

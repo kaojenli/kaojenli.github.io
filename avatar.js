@@ -217,7 +217,10 @@ const HAIR = {
       front: union(minus(ellipse(15, 12, 13.9, 10.6), bare), tips([[12, 18.5], [27, 14.5]], 3),
         polyS([[1, 12], [9, 14], [10.5, 22], [9.5, 27], [11, 32], [10, 37], [11, 41], [7.5, 43], [4, 42], [1.5, 43], [0.5, 38], [1.5, 33], [0, 27]]), ends([[9, 42], [3.5, 43]]),
         polyS([[26, 10], [29.8, 13], [31, 22], [30, 28], [31.5, 34], [29.5, 39], [27, 36], [28.2, 30], [27.6, 22]]), ends([[29.5, 39]])),
-      part: [[18, 2], [18, 3], [18, 4], [18, 5], [18, 6], [18, 7]], scalp: true, waves: [3, 6.5, 29],
+      // seen from behind it falls down her back to the shoulder blades, the sides rippling, the ends curling
+      backFall: union(polyS([...[20, 24, 28, 32, 36, 40].map((y) => [2.5 + Math.sin(y / 2.4), y]), [5, 43], [27, 43], ...[40, 36, 32, 28, 24, 20].map((y) => [29.5 - Math.sin(y / 2.4), y])]),
+        ends([[4.5, 43.5], [9, 44.5], [13.5, 44], [18, 44.5], [22.5, 44], [27, 43.5]])),
+      part: [[18, 2], [18, 3], [18, 4], [18, 5], [18, 6], [18, 7]], scalp: true, waves: [3, 6.5, 29], backWaves: [5.5, 10.5, 15.5, 20.5, 25.5],
     };
   },
   // short and tousled, tufts sticking out every way
@@ -398,13 +401,14 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   }
   if (face.earrings) { c.set(5, 24, face.earrings); c.set(5, 25, OUTLINE); }
   // hair (and cap / hood); from behind the hair covers the whole head
-  const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 29, AW, AH))) : hair.front;
+  const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 29, AW, AH)), ...(hair.backFall ? [hair.backFall] : [])) : hair.front;
   if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
   else {
     c.part(hairShape, hairTone(hairC, hair.texture));
     if (hair.part && !back) hair.part.forEach(([x, y]) => c.set(x, y, hair.scalp ? mixHex(look.skin, look.hair[1], 0.45) : hairC[3]));
     // wavy locks: darker strands snaking down the lengths
     if (hair.waves && !back) for (const x0 of hair.waves) for (let y = 18; y < 43; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2)); if (hair.front(x, y)) c.set(x, y, hairC[2]); }
+    if (hair.backWaves && back) for (const x0 of hair.backWaves) for (let y = 24; y < 45; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2 + x0)); if (hair.backFall(x, y)) c.set(x, y, hairC[2]); }
     for (const t of [hair.tie, ...(hair.ties || [])].filter(Boolean)) c.part(rectS(t[0] - 1.5, t[1] - 1, t[0] + 1.5, t[1] + 1.5), () => look.tieColor || "#e0584f");
     if (look.hair[0] === "long") for (let x = 3; x < 9; x += 3) for (let y = 22; y < 42; y++) c.set(x, y, hairC[2]);
   }
