@@ -61,10 +61,10 @@ h1, h2, h3, h4 { color: var(--ink); }
 
 /* ---------- intro and the cabin */
 .hero { max-width: var(--wide); margin: 0 auto; padding: 56px 24px 24px; }
-.hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(186px, 1fr); gap: 40px; align-items: center; margin-bottom: 40px; }
+.hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(155px, 1fr); gap: 40px; align-items: center; margin-bottom: 40px; }
 /* the portrait in its frame under a picture light (main.js), centred in the space beside the intro. In the dark the
    lamp comes on: its light fans down over the painting and onto the wall, and the frame falls into shadow below. */
-.framed { justify-self: center; width: 186px; margin: 0; }
+.framed { justify-self: center; width: 155px; margin: 0; }
 .framed > svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 6px 10px var(--frame-shadow)); }
 .framed .lit { opacity: 0; }
 [data-theme="dark"] .framed .lit { opacity: 1; }
