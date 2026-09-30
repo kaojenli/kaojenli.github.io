@@ -125,6 +125,7 @@ await p.sleep(800);
 ok(await p.ev(`[...document.querySelectorAll('.rail')].every((r) => getComputedStyle(r).display !== 'none' && r.scrollHeight <= r.clientHeight + 1 && r.scrollHeight <= innerHeight - 80)`), "wide screen: both side columns show and fit on screen");
 ok(await p.ev(`document.querySelectorAll('#rail-right .rooms a').length === CONTENT.projects.length && [...document.querySelectorAll('#rail-right .rooms a')].every((a) => document.querySelector(a.getAttribute('href')))`), "wide screen: every room in the guide links to its project");
 ok(await p.ev(`[...document.querySelectorAll('.card')].every((c) => c.scrollWidth <= c.clientWidth + 1)`), "wide screen: nothing spills out of a card");
+ok(await p.ev(`[...document.querySelectorAll(".rooms span, .timeline .where")].every((s) => { const t = s.querySelector("b") ? s.lastChild : s, r = document.createRange(); r.selectNodeContents(t); return r.getBoundingClientRect().width <= s.clientWidth + 1; })`), "wide screen: no project or organisation name in the side cards is cut short");
 // the light/dark button flips the page's colours, is remembered on the next visit, and lights the portrait in the dark
 await p.ev(`localStorage.removeItem("theme"); document.documentElement.dataset.theme = "light"`);
 const bg = () => p.ev(`getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()`), bgLight = await bg(); // (the page crossfades)

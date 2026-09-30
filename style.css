@@ -178,10 +178,9 @@ figure { margin: 12px 0; }
 .proj:last-child { border-bottom: 0; }
 .proj h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; line-height: 1.35; }
 .meta { color: var(--muted); font-size: 14px; }
-.scene-box { width: 272px; align-self: start; overflow: hidden; }
+/* every project the same: a small close-up of its room (vector, sharp at any size) beside the text */
+.scene-box { width: 240px; align-self: start; overflow: hidden; }
 .scene-box img { display: block; width: 100%; height: auto; }
-.proj:has(.scene-box.wide) { grid-template-columns: minmax(0, 1fr); }
-.scene-box.wide { max-width: 100%; }
 
 .rows { list-style: none; margin: 0; padding: 0; }
 .rows > li { border-bottom: 1px solid var(--line); }
@@ -246,29 +245,34 @@ figure { margin: 12px 0; }
   .rail-left .card:not(.contact) { display: block; }
   .rail-left { grid-area: left; }
   .rail-right { grid-area: right; }
-  /* the cabin no taller than the left card column (about 710px), floating in its sky on wider screens */
-  .room { max-width: min(852px, var(--fit, 9999px) * 1.2); }
+  /* the cabin no taller than the left card column (about 650px) on wider screens */
+  .room { max-width: min(780px, var(--fit, 9999px) * 1.2); }
 }
 
 /* ---------- narrow screens */
 @media (max-width: 860px) {
   .section { grid-template-columns: 1fr; gap: 12px; padding: 40px 0; }
   .proj { grid-template-columns: 1fr; }
-  .scene-box { width: 100% !important; max-width: 420px; }
+  .scene-box { width: 100%; max-width: 300px; }
 }
 @media (max-width: 640px) {
-  .masthead { padding: 12px 16px; gap: 16px; }
-  #nav { gap: 16px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  /* the name and the theme button on one row, every section link below them (wrapping, nothing hidden off screen) */
+  .masthead { flex-wrap: wrap; padding: 10px 16px; gap: 6px 16px; }
+  #nav { order: 3; flex-basis: 100%; flex-wrap: wrap; gap: 4px 13px; margin-left: 0; font-size: 14px; }
   .hero { padding: 32px 16px 16px; }
   .lede { font-size: 17px; }
   .sections, .rail-left { padding-left: 16px; padding-right: 16px; }
   .skills { grid-template-columns: 1fr; }
-  .hero-head { grid-template-columns: 1fr; gap: 20px; }
-  .framed { order: -1; justify-self: start; width: 124px; }
+  /* the portrait small, beside the name; the intro below both */
+  .hero-head { grid-template-columns: minmax(0, 1fr) auto; gap: 0 16px; align-items: start; }
+  .intro { display: contents; }
+  .intro .eyebrow { grid-area: 1 / 1; }
+  .hero h1 { grid-area: 2 / 1; }
+  .lede { grid-area: 3 / 1 / 4 / -1; }
+  .framed { grid-area: 1 / 2 / 3 / 3; justify-self: end; width: 93px; }
   .rows summary { grid-template-columns: 1fr; gap: 2px; }
-  /* the cabin is too detailed to shrink to phone width: show it larger and let it scroll sideways */
-  .room-scroll { overflow-x: auto; overflow-y: hidden; }
-  .room { width: 800px; max-width: none; }
+  /* the whole cabin at phone width (smaller, so the sections come sooner) */
+  .room { max-width: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

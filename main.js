@@ -169,12 +169,6 @@ $("#panels").innerHTML = CONTENT.sections.filter((s) => BODY[s.id]).map((s, i) =
   <header class="section-head"><p class="eyebrow">${String(i + 1).padStart(2, "0")}</p><h2 id="h-${s.id}">${s.title}</h2></header>
   <div class="section-body">${BODY[s.id]}</div>
 </section>`).join("");
-// Close-ups at exactly 2x so pixels stay even; long rooms (the practice field, the café) take the full width.
-document.querySelectorAll(".scene-box").forEach((b) => {
-  const w = +b.querySelector("img").getAttribute("width");
-  b.style.width = `${w}px`;
-  if (w > 320) b.classList.add("wide");
-});
 $("#year").textContent = new Date().getFullYear();
 // The whole cabin fits in the first screen: as tall as the window leaves below the intro (never under 360px).
 const fitRoom = () => { const r = $("#room"); r.style.setProperty("--fit", `${Math.max(360, innerHeight - (r.getBoundingClientRect().top + scrollY) - 16)}px`); };
@@ -186,11 +180,11 @@ const card = (title, body, cls = "") => `<section class="card ${cls}"><h2 class=
 const years = (d) => d.match(/\d{4}/g)?.join("–").replace(/(\d{4})–\1/, "$1") + (/present/i.test(d) ? "–now" : "");
 $("#rail-left").innerHTML =
   card("Focus", `<ul class="plain">${P.tagline.split(" · ").map((f) => `<li>${f}</li>`).join("")}</ul>`) +
-  card("Timeline", `<ol class="timeline">${CONTENT.experience.map((e) => `<li><span class="when">${years(e.date)}</span><b>${e.role}</b><span class="where">${e.org.split(",")[0]}</span></li>`).join("")}</ol>`) +
+  card("Timeline", `<ol class="timeline">${CONTENT.experience.map((e) => `<li><span class="when">${years(e.date)}</span><b>${e.role}</b><span class="where">${e.orgShort}</span></li>`).join("")}</ol>`) +
   card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`, "contact");
 const mainPaper = CONTENT.papers.find((p) => p.link), talk = CONTENT.papers.find((p) => p.badge);
 $("#rail-right").innerHTML =
-  card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.title.split(" Using")[0].split(":")[0]}</span></a></li>`).join("")}</ul>`) +
+  card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.short}</span></a></li>`).join("")}</ul>`) +
   card("Publication", `<p>${mainPaper.cite.split("“")[1]?.split("”")[0].replace(/,$/, "") || mainPaper.cite}</p><p class="where">IEEE ECBIOS 2022${talk ? ` · talk: ${talk.badge}` : ""}</p><p>${link({ label: "Read on IEEE Xplore", url: mainPaper.link.url })}</p>`) +
   card("Stack", `<p class="tags">${CONTENT.stack.slice(0, 10).map((t) => `<span class="tag">${t}</span>`).join("")}</p>`);
 
