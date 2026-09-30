@@ -237,7 +237,8 @@ figure { margin: 12px 0; }
   .masthead { grid-area: head; max-width: none; width: 100%; padding-left: 0; padding-right: 0; }
   main { grid-area: main; min-width: 0; }
   .hero, .sections { max-width: none; padding-left: 0; padding-right: 0; }
-  .rail { display: block; position: sticky; top: 72px; align-self: start; max-height: calc(100vh - 84px); overflow-y: auto; margin-top: 56px; scrollbar-width: none; }
+  /* sticky while they fit on screen; taller than the window, they scroll with the page (never cut off inside) */
+  .rail { display: block; position: sticky; top: 72px; align-self: start; margin-top: 56px; }
   .rail-left { grid-area: left; }
   .rail-right { grid-area: right; }
 }

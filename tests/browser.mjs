@@ -117,6 +117,12 @@ await p.click(...(await p.ev(center("#theme-toggle")))); await p.sleep(500);
 ok(await p.ev(`document.documentElement.dataset.theme === "light"`) && await bg() === bgLight, "the button switches back to light");
 p.close();
 
+// ---- a wide but short window: at the bottom of the page every side card shows in full, nothing cut off
+p = await open(SITE, { width: 1440, height: 640 });
+await p.ev(`scrollTo(0, document.documentElement.scrollHeight)`); await p.sleep(600);
+ok(await p.ev(`[...document.querySelectorAll('.rail .card')].every((c) => { const r = c.getBoundingClientRect(), rail = c.closest('.rail').getBoundingClientRect(); return r.bottom <= rail.bottom + 0.5 && r.bottom <= innerHeight; }) && [...document.querySelectorAll('.rail')].every((r) => r.scrollHeight <= r.clientHeight + 1)`), "short window: at the bottom of the page the side cards show in full");
+p.close();
+
 // ---- deep link
 p = await open(SITE + "#project-mri");
 await p.sleep(500);
