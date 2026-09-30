@@ -77,21 +77,29 @@ for (const [, make] of acts) for (const st of make()) {
 }
 const lookList = [...looks.values()], strip = joinFrames(lookList.map(portrait.frame), portrait.W, portrait.H), pw = portrait.W / 2, ph = portrait.H / 2;
 const [sx0, sx1, sy] = portrait.slit, mid = (sx0 + sx1) / 2;
-$("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${pw} ${ph}" shape-rendering="crispEdges">
+// Three layers, so a new frame repaints only the picture: the shadow (under a still copy of the first frame), the strip
+// shown one frame at a time as a plain background, and the lamp's light over it in its own svg (no blend modes).
+const nFrames = lookList.length, stripBg = `background-image:url(${strip.url});background-size:${nFrames * 100}% 100%`;
+$("#hero-portrait").style.aspectRatio = `${pw} / ${ph}`;
+$("#hero-portrait").innerHTML = `<div class="pshadow" style="${stripBg}"></div><div class="pv" data-frame="0" style="${stripBg}"></div>
+  <svg viewBox="0 0 ${pw} ${ph}" shape-rendering="crispEdges">
   <defs>
     <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1"/></filter>
     <linearGradient id="beam" gradientUnits="userSpaceOnUse" x1="0" y1="${sy}" x2="0" y2="${sy + 30}"><stop offset="0" stop-color="#ffe2a8" stop-opacity=".6"/><stop offset=".45" stop-color="#ffd89a" stop-opacity=".2"/><stop offset="1" stop-color="#ffd89a" stop-opacity="0"/></linearGradient>
     <radialGradient id="shade" gradientUnits="userSpaceOnUse" cx="${mid}" cy="${sy}" r="${ph}"><stop offset=".3" stop-opacity="0"/><stop offset="1" stop-opacity=".7"/></radialGradient>
     <radialGradient id="bloom"><stop offset="0" stop-color="#fff4d6" stop-opacity=".95"/><stop offset=".4" stop-color="#ffd98f" stop-opacity=".5"/><stop offset="1" stop-color="#ffd98f" stop-opacity="0"/></radialGradient>
   </defs>
-  <svg class="pv" x="0" y="0" width="${pw}" height="${ph}" viewBox="0 0 ${pw} ${ph}"><use href="#${strip.id}"/></svg>
   <g class="lit" shape-rendering="auto">
     <rect x="0" y="${portrait.top}" width="${pw}" height="${ph - portrait.top}" fill="url(#shade)"/>
     <rect x="${portrait.hood[0]}" y="${portrait.hood[1]}" width="${portrait.hood[2]}" height="${portrait.hood[3]}" fill="#000" opacity=".45"/>
-    <polygon points="${sx0},${sy} ${sx1},${sy} ${sx1 + 16},${sy + 30} ${sx0 - 16},${sy + 30}" fill="url(#beam)" filter="url(#soft)" style="mix-blend-mode:screen"/>
-    <ellipse cx="${mid}" cy="${sy}" rx="${(sx1 - sx0) / 2 + 2}" ry="1.6" fill="url(#bloom)" style="mix-blend-mode:screen"/>
+    <polygon points="${sx0},${sy} ${sx1},${sy} ${sx1 + 16},${sy + 30} ${sx0 - 16},${sy + 30}" fill="url(#beam)" filter="url(#soft)"/>
+    <ellipse cx="${mid}" cy="${sy}" rx="${(sx1 - sx0) / 2 + 2}" ry="1.6" fill="url(#bloom)"/>
   </g></svg>`;
-const pv = $("#hero-portrait .pv"), show = (o) => pv.setAttribute("viewBox", `${lookList.findIndex((l) => lookKey(l) === lookKey(o)) * pw} 0 ${pw} ${ph}`);
+const pv = $("#hero-portrait .pv"), show = (o) => {
+  const k = lookList.findIndex((l) => lookKey(l) === lookKey(o));
+  if (k < 0 || pv.dataset.frame === String(k)) return;
+  pv.dataset.frame = k; pv.style.backgroundPosition = `${(k / (nFrames - 1)) * 100}% 0`;
+};
 async function portraitLife() {
   const total = acts.reduce((n, [w]) => n + w, 0);
   for (;;) {
@@ -99,7 +107,7 @@ async function portraitLife() {
     while ((r -= acts[i][0]) > 0) i++;
     for (const st of acts[i][1]()) {
       const o = { pose: st.pose, face: st.look ? "frontL" : st.face, eyes: st.eyes, mouth: st.mouth };
-      if (st.chew) for (let t = 0; t < st.ms; t += 180) { show({ ...o, mouth: (t / 180) % 2 ? "closed" : "open" }); await wait(180); }
+      if (st.chew) for (let t = 0; t < st.ms; t += 320) { show({ ...o, mouth: (t / 320) % 2 ? "closed" : "open" }); await wait(320); } // (an unhurried chew)
       else if (!st.pose && !st.face && !st.eyes && !st.mouth && !st.look && st.ms > 2500) { // standing still: now and then a blink
         show(o); await wait(st.ms / 2); show({ eyes: "closed" }); await wait(140); show(o); await wait(st.ms / 2 - 140);
       } else { show(o); await wait(st.ms); }

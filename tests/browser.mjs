@@ -66,10 +66,10 @@ ok(undecoded.length === 0, "every picture shown in the scene has decoded first (
 // the framed portrait comes alive too: within a few seconds it shows another frame (a blink at least)
 await p.ev("scrollTo(0, 0)");
 const faces = new Set();
-for (let i = 0; i < 45; i++) { faces.add(await p.ev(`document.querySelector("#hero-portrait .pv").getAttribute("viewBox")`)); await p.sleep(200); }
+for (let i = 0; i < 45; i++) { faces.add(await p.ev(`document.querySelector("#hero-portrait .pv").dataset.frame`)); await p.sleep(200); }
 ok(faces.size >= 2, `the framed portrait moves (${faces.size} frames seen in 9 s)`);
 ok(await p.ev(`!lookList.some((l) => l.pose === "armsUp" || /^back/.test(l.face))`) === true, "the framed Jen never raises her arm (the oval would cut it off) or turns her back");
-ok(await p.ev(`getComputedStyle(document.querySelector("#hero-portrait .pv")).overflow`) === "hidden", "the portrait shows one frame at a time (its window clips the strip)");
+ok(await p.ev(`(() => { const pv = document.querySelector("#hero-portrait .pv"), b = pv.getBoundingClientRect(), f = document.getElementById("hero-portrait").getBoundingClientRect(); return b.width === f.width && getComputedStyle(pv).backgroundSize === lookList.length * 100 + "% 100%"; })()`) === true, "the portrait shows one frame at a time (the strip is n frames wide in a one-frame box)");
 // Jen's routine (blinks, winks, turning round, coffee, a cookie...): every frame it shows has been drawn
 ok(await p.ev(`(() => { const st = [...STATES.values()].find((s) => s.look === "jen");
   return Object.values(ROUTINES.jen).every(([, make]) => make().every((s) => { const v = s.face && faceBack(s.face) ? "back" : "front";
@@ -160,9 +160,9 @@ p.close();
 
 // ---- reduced motion
 p = await open(SITE, { reducedMotion: true });
-const r0 = await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').getAttribute('viewBox')`);
+const r0 = await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').dataset.frame`);
 await p.sleep(5000);
-ok(await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').getAttribute('viewBox')`) === r0, "reduced motion: nobody walks or animates");
+ok(await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').dataset.frame`) === r0, "reduced motion: nobody walks or animates");
 p.close();
 
 console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");
