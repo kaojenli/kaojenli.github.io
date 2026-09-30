@@ -31,7 +31,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 76px; }
-body { margin: 0; background: var(--bg); transition: background-color .3s, color .3s; color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
 a { color: var(--ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent); text-underline-offset: 3px; }
 a:hover { color: var(--accent); text-decoration-color: currentColor; }
 a:focus-visible, summary:focus-visible, .who:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
@@ -63,14 +63,13 @@ h1, h2, h3, h4 { color: var(--ink); }
 .hero { max-width: var(--wide); margin: 0 auto; padding: 56px 24px 24px; }
 .hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(186px, 1fr); gap: 40px; align-items: center; margin-bottom: 40px; }
 /* the portrait in its frame under a picture light (main.js), centred in the space beside the intro. In the dark the
-   lamp throws a cone of warm light down the wall and the frame fades into shadow below it. */
-.framed { position: relative; isolation: isolate; justify-self: center; width: 186px; margin: 0; }
-.framed svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 6px 10px var(--frame-shadow)); }
-.framed .spot { opacity: 0; transition: opacity .4s; }
-.framed::before { content: ""; position: absolute; z-index: -1; left: -45%; right: -45%; top: var(--lamp); bottom: -16%; opacity: 0; transition: opacity .4s;
-  background: radial-gradient(ellipse 40% 100% at 50% 0, rgba(255, 216, 160, .42), rgba(255, 216, 160, .13) 55%, transparent 100%);
-  -webkit-mask-image: linear-gradient(transparent, #000 10%); mask-image: linear-gradient(transparent, #000 10%); }
-[data-theme="dark"] .framed .spot, [data-theme="dark"] .framed::before { opacity: 1; }
+   lamp comes on: its light fans down over the painting and onto the wall, and the frame falls into shadow below. */
+.framed { justify-self: center; width: 186px; margin: 0; }
+.framed svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 6px 10px var(--frame-shadow)); }
+.framed .lit { opacity: 0; }
+[data-theme="dark"] .framed .lit { opacity: 1; }
+/* switching between light and dark: a slow crossfade of the whole page */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .6s; animation-timing-function: ease-in-out; }
 .hero h1 { margin: 10px 0 16px; font-size: clamp(40px, 6vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
 .lede { margin: 0 0 16px; color: var(--text); font-size: 19px; line-height: 1.6; }
 .now { margin: 0 0 20px; color: var(--muted); font-size: 15px; }

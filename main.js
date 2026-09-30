@@ -53,23 +53,37 @@ function framedPortrait() {
   for (let x = hx0 + 2; x < hx1 - 2; x++) set(x, 7, "#ffe6a8");
   for (let y = 7; y < fy + 1; y++) { set(cx - 1, y, C.o); set(cx, y, C.gm); set(cx + 1, y, C.o); }
   for (let x = cx - 3; x <= cx + 2; x++) { set(x, fy, C.o); set(x, fy + 1, C.gd); }
-  return { img: toImage(px, W, H), lampY: 7.5 / H, frameY: fy / H };
+  return { img: toImage(px, W, H), slit: [(hx0 + 2) / 2, (hx1 - 2) / 2, 4], hood: [hx0 / 2, 0.5, (hx1 - hx0) / 2, 3], top: fy / 2 }; // in units (2 px)
 }
-const portrait = framedPortrait(), { w: pw, h: ph } = portrait.img;
-$("#hero-portrait").style.setProperty("--lamp", `${portrait.lampY * 100}%`);
+// The light (dark mode only, style.css): a bright slit and its bloom under the hood, the hood itself unlit, a soft beam
+// fanning down over the painting and spilling onto the wall, and the painting falling into shadow away from the lamp.
+const portrait = framedPortrait(), { w: pw, h: ph } = portrait.img, [sx0, sx1, sy] = portrait.slit, mid = (sx0 + sx1) / 2;
 $("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${pw} ${ph}" shape-rendering="crispEdges">
-  <defs><radialGradient id="spot" cx="50%" cy="0%" r="100%" fx="50%" fy="0%"><stop offset=".25" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></radialGradient></defs>
-  ${imageTag(portrait.img, 0, 0)}<rect class="spot" x="0" y="${ph * portrait.frameY}" width="${pw}" height="${ph * (1 - portrait.frameY)}" fill="url(#spot)"/></svg>`;
+  <defs>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1"/></filter>
+    <linearGradient id="beam" gradientUnits="userSpaceOnUse" x1="0" y1="${sy}" x2="0" y2="${sy + 30}"><stop offset="0" stop-color="#ffe2a8" stop-opacity=".6"/><stop offset=".45" stop-color="#ffd89a" stop-opacity=".2"/><stop offset="1" stop-color="#ffd89a" stop-opacity="0"/></linearGradient>
+    <radialGradient id="shade" gradientUnits="userSpaceOnUse" cx="${mid}" cy="${sy}" r="${ph}"><stop offset=".3" stop-opacity="0"/><stop offset="1" stop-opacity=".7"/></radialGradient>
+    <radialGradient id="bloom"><stop offset="0" stop-color="#fff4d6" stop-opacity=".95"/><stop offset=".4" stop-color="#ffd98f" stop-opacity=".5"/><stop offset="1" stop-color="#ffd98f" stop-opacity="0"/></radialGradient>
+  </defs>
+  ${imageTag(portrait.img, 0, 0)}
+  <g class="lit" shape-rendering="auto">
+    <rect x="0" y="${portrait.top}" width="${pw}" height="${ph - portrait.top}" fill="url(#shade)"/>
+    <rect x="${portrait.hood[0]}" y="${portrait.hood[1]}" width="${portrait.hood[2]}" height="${portrait.hood[3]}" fill="#000" opacity=".45"/>
+    <polygon points="${sx0},${sy} ${sx1},${sy} ${sx1 + 16},${sy + 30} ${sx0 - 16},${sy + 30}" fill="url(#beam)" filter="url(#soft)" style="mix-blend-mode:screen"/>
+    <ellipse cx="${mid}" cy="${sy}" rx="${(sx1 - sx0) / 2 + 2}" ry="1.6" fill="url(#bloom)" style="mix-blend-mode:screen"/>
+  </g></svg>`;
 $("#hero-caption").textContent = CONTENT.hero.caption;
 
 // ---------- light / dark: the button flips the theme and remembers it; until then the page follows the system
 const root = document.documentElement, darkMQ = matchMedia("(prefers-color-scheme: dark)"), toggle = $("#theme-toggle");
 const showTheme = () => toggle.setAttribute("aria-pressed", root.dataset.theme === "dark");
-toggle.addEventListener("click", () => {
+const flip = () => {
   root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
   try { localStorage.setItem("theme", root.dataset.theme); } catch {}
   showTheme();
-});
+};
+// the whole page crossfades from one theme to the other (where the browser can; otherwise it just switches)
+toggle.addEventListener("click", () => (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches ? document.startViewTransition(flip) : flip()));
 darkMQ.addEventListener("change", (e) => {
   let chosen = null;
   try { chosen = localStorage.getItem("theme"); } catch {}

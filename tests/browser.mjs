@@ -48,7 +48,7 @@ ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
 // when someone talks, the people near them turn their heads to look
 await p.ev(`say(document.querySelector('.who[data-look="customerA"]'), "hello there everyone")`);
-await p.sleep(300);
+await p.sleep(50); // check at once, before a random chat nearby can turn heads elsewhere
 ok(await p.ev(`(() => { const b = stateOf(document.querySelector('.who[data-look="customerB"]')); return performance.now() < b.lookUntil && b.lookRight === false; })()`), "people near a speaker turn their heads toward them");
 // NPCs talk
 await p.ev("scrollTo(0, 0)"); await p.sleep(400);
@@ -99,10 +99,10 @@ ok(await p.ev(`document.querySelectorAll('#rail-right .rooms a').length === CONT
 ok(await p.ev(`[...document.querySelectorAll('.card')].every((c) => c.scrollWidth <= c.clientWidth + 1)`), "wide screen: nothing spills out of a card");
 // the light/dark button flips the page's colours, is remembered on the next visit, and lights the portrait in the dark
 await p.ev(`localStorage.removeItem("theme"); document.documentElement.dataset.theme = "light"`);
-const bg = () => p.ev(`getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()`), bgLight = await bg(); // (the colours themselves fade)
+const bg = () => p.ev(`getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()`), bgLight = await bg(); // (the page crossfades)
 await p.click(...(await p.ev(center("#theme-toggle")))); await p.sleep(500);
 ok(await p.ev(`document.documentElement.dataset.theme === "dark" && localStorage.getItem("theme") === "dark" && document.getElementById("theme-toggle").getAttribute("aria-pressed") === "true"`) && await bg() !== bgLight, "the dark-mode button switches to dark and remembers it");
-ok(await p.ev(`getComputedStyle(document.querySelector("#hero-portrait .spot")).opacity === "1" && getComputedStyle(document.getElementById("hero-portrait"), "::before").opacity === "1"`), "dark mode: the picture light shines on the portrait");
+ok(await p.ev(`getComputedStyle(document.querySelector("#hero-portrait .lit")).opacity === "1"`), "dark mode: the picture light shines on the portrait");
 await p.ev(`location.reload()`); await p.sleep(1500);
 ok(await p.ev(`document.documentElement.dataset.theme === "dark"`), "dark mode is still on after a reload");
 await p.click(...(await p.ev(center("#theme-toggle")))); await p.sleep(500);
