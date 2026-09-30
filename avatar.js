@@ -208,34 +208,50 @@ const HAIR = {
     front: union(hairCut(union(ellipse(15, 12, 14, 10.8), tips(FRINGE))), polyS([[1, 12], [9, 14], [9.5, 34], [7, 38], [1, 36]]), tips([[3, 40], [7.5, 41]], 4)),
   }),
   // Jen's: parted just off the middle, falling past the shoulders on both sides in loose natural waves, fuller toward
-  // the ends, which turn in small curls; the forehead shows between the two sides
+  // the ends, which turn in small curls; curtain bangs from the part sweep out either side of the forehead in two
+  // soft arcs, down to the brows at the temples
   jen: () => {
     const ends = (list) => union(...list.map(([x, y]) => ellipse(x, y, 2.3, 1.8)));
-    const bare = polyS([[9, 26], [9.5, 20], [12.5, 14.5], [15.5, 10.5], [18, 7.5], [19, 7.5], [22.5, 9.5], [26, 12], [28.8, 16], [29.5, 36], [9, 36]]);
+    const bare = polyS([[9, 36], [10, 28], [10.6, 24], [11.4, 21], [12.2, 18], [12.8, 15.5], [13.6, 13.3], [14.8, 11.5], [16.3, 10.2], [18, 9.5],
+      [19, 9.5], [20.8, 10], [22.6, 11], [24.3, 12.4], [25.8, 14.2], [27, 16.4], [27.8, 19], [29.5, 21], [29.5, 36]]);
     return {
       back: union(polyS([[3, 12], [14, 3], [26, 7], [29, 16], [30.5, 27], [30, 39], [2, 39], [0.5, 28], [1.5, 18]]), ends([[3, 40], [7, 41], [25, 41], [29, 40]])),
-      front: union(minus(ellipse(15, 12, 13.9, 10.6), bare), tips([[12, 18.5], [27, 14.5]], 3),
+      front: union(minus(ellipse(15, 12, 13.9, 10.6), bare),
         polyS([[1, 12], [9, 14], [10.5, 22], [9.5, 27], [11, 32], [10, 37], [11, 41], [7.5, 43], [4, 42], [1.5, 43], [0.5, 38], [1.5, 33], [0, 27]]), ends([[9, 42], [3.5, 43]]),
         polyS([[26, 10], [29.8, 13], [31, 22], [30, 28], [31.5, 34], [29.5, 39], [27, 36], [28.2, 30], [27.6, 22]]), ends([[29.5, 39]])),
       // seen from behind it falls down her back to the shoulder blades, the sides rippling, the ends curling
       backFall: union(polyS([...[20, 24, 28, 32, 36, 40].map((y) => [2.5 + Math.sin(y / 2.4), y]), [5, 43], [27, 43], ...[40, 36, 32, 28, 24, 20].map((y) => [29.5 - Math.sin(y / 2.4), y])]),
         ends([[4.5, 43.5], [9, 44.5], [13.5, 44], [18, 44.5], [22.5, 44], [27, 43.5]])),
-      part: [[18, 2], [18, 3], [18, 4], [18, 5], [18, 6], [18, 7]], scalp: true, waves: [3, 6.5, 29], backWaves: [5.5, 10.5, 15.5, 20.5, 25.5],
+      // light catching the roll of each bang, just above its edge
+      shine: [[[16, 8], [15, 9], [14, 10], [13, 11], [12, 12], [11, 14], [11, 15]], [[20, 8], [21, 8], [22, 9], [23, 9], [24, 10], [25, 11], [26, 12], [27, 13], [27, 14]]],
+      part: [[18, 2], [18, 3], [18, 4], [18, 5], [18, 6]], scalp: true, crown: [18.5, 1], waves: [3, 6.5, 29], backWaves: [5.5, 10.5, 15.5, 20.5, 25.5],
     };
   },
   // short and tousled, tufts sticking out every way
   messy: () => ({ front: union(hairCut(union(ellipse(15, 12, 13.4, 10), tips([[6, 1.5], [12, 0.5], [18, 1], [24, 2.5], [28.5, 6.5], [2, 8]], -4), tips([[12, 21], [16.5, 17.5], [21, 14.5], [25.5, 12.5]]))),
     polyS([[4.5, 13], [9, 15], [9, 21], [6.5, 21]])) }),
 };
-// Hair is drawn in clumps of strands: darker strand lines follow the sweep of the fringe, a few light strands catch the
-// light near the front of the crown, and the back of the head is in shade.
-const hairTone = (r, texture) => (x, y) => {
-  if (texture === "buzz") return (x + y) % 2 ? r[1] : r[2];                                    // clipped: fine stubble dots
-  if (texture === "curl") return x < 6 ? r[2] : ((x * 7 + y * 3) % 9 < 2 ? r[2] : (x * 5 + y * 11) % 13 === 0 ? r[0] : r[1]); // tight curls
-  const k = x + Math.floor(y * 0.7), strand = k % 5 === 0 && (Math.floor(y / 3) + k) % 3 !== 0; // broken strands, in clumps
-  if (x < 6.5) return strand ? r[3] : r[2];
-  if (strand) return y < 9 && x > 12 && x % 8 === 3 ? r[0] : r[2];
-  return r[1];
+// Hair has volume, like the head under it: lit from above and in front (the way the figure faces), a band of sheen
+// across the crown, shade toward the back of the head and underneath, and strands that fan out from the crown (or
+// the part) and fall down the lengths, one tone darker than the hair around them. Five tones, from the sheen down;
+// the darkest stays clear of the black outline even for black hair.
+const hairRamp = (hex) => { const dark = hexToHsl(hex)[2] < 25;
+  return [mixHex(hex, dark ? "#c9d4e0" : "#fff6e8", dark ? 0.26 : 0.4), dark ? hex : mixHex(hex, "#ffffff", 0.18), hex, mixHex(hex, "#000000", dark ? 0.22 : 0.3), mixHex(hex, "#000000", dark ? 0.3 : 0.5)]; };
+const LIGHT = (() => { const v = [0.5, -0.6, 0.62], l = Math.hypot(...v); return v.map((a) => a / l); })();
+const hairTone = (t, texture, crown = [15, -1], sheenArc = true) => (x, y) => {
+  const px = x + 0.5, py = y + 0.5;
+  let nx = (px - 15) / 14.5, ny = Math.min((py - 12) / 14, py > 20 ? 0.25 : 1);   // the head a ball; the lengths below it hang straight
+  const d = Math.hypot(nx, ny); if (d > 1) { nx /= d; ny /= d; }
+  const lam = nx * LIGHT[0] + ny * LIGHT[1] + Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)) * LIGHT[2];
+  const k = lam > 0.82 ? 1 : lam > 0.45 ? 2 : lam > 0.1 ? 3 : 4;                 // lit, base, shade, deep
+  if (texture === "buzz") return t[Math.min(4, k + ((x + y) % 2))];               // clipped: fine stubble dots
+  if (texture === "curl") return t[Math.min(4, k + ((x * 7 + y * 3) % 9 < 2 ? 1 : 0))]; // tight curls
+  const N = 12, dx = px - crown[0], dy = py - crown[1], r = Math.hypot(dx, dy);
+  const a = (Math.atan2(dx, dy) / Math.PI) * N + (py > 22 ? Math.sin(py / 2.3) * 0.4 : 0), line = Math.round(a), off = Math.abs(a - line) * r * Math.PI / N; // px from the strand
+  const sheen = sheenArc && py < 20 && Math.abs(Math.hypot(nx, ny) - 0.58) < 0.04 && nx > -0.3 && ny < 0.3;
+  if (r > 4 && off < 0.5 && (Math.floor(r / 3.5) + line) % 4 !== 0) return t[Math.min(4, k + 1)]; // a strand, in clumps
+  if (sheen) return t[k > 2 ? 1 : 0];                                              // the sheen: a thin bright arc
+  return t[k];
 };
 
 // ---------- draw one avatar. opts: eyes "open"/"closed"/"wink" (the near one shut), mouth "closed"/"open", back (seen from behind: no face).
@@ -277,7 +293,8 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   };
   const cupAt = ([hx, hy]) => { c.part(rectS(hx - 2, hy - 5, hx + 2.5, hy + 1), (x, y) => (y < hy - 3.5 ? "#6f4a2f" : y > hy - 2 && y < hy - 0.5 ? "#c8453c" : "#fbfbf6")); };
 
-  if (hair.back) c.part(hair.back, bodyShade(hairC, 2, 28, 0.4));
+  const hairT = hairRamp(look.hair[1]);
+  if (hair.back) c.part(hair.back, hairTone(hairT, hair.texture, hair.crown));
   if (hoodie) c.part(polyS([[6, 29], [23, 28.5], [25, 34], [5, 35]]), bodyShade(top, 5, 25));   // the hood lying behind the neck
   // the far arm, behind the body (a raised one behind the head too). Seen from behind, a near arm reaching forward
   // (toward what the person faces) also goes behind the body.
@@ -404,13 +421,13 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 29, AW, AH)), ...(hair.backFall ? [hair.backFall] : [])) : hair.front;
   if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
   else {
-    c.part(hairShape, hairTone(hairC, hair.texture));
+    c.part(hairShape, hairTone(hairT, hair.texture, hair.crown, !hair.shine || back)); // (bangs with their own shine skip the crown's)
     if (hair.part && !back) hair.part.forEach(([x, y]) => c.set(x, y, hair.scalp ? mixHex(look.skin, look.hair[1], 0.45) : hairC[3]));
     // wavy locks: darker strands snaking down the lengths
-    if (hair.waves && !back) for (const x0 of hair.waves) for (let y = 18; y < 43; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2)); if (hair.front(x, y)) c.set(x, y, hairC[2]); }
-    if (hair.backWaves && back) for (const x0 of hair.backWaves) for (let y = 24; y < 45; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2 + x0)); if (hair.backFall(x, y)) c.set(x, y, hairC[2]); }
+    if (hair.waves && !back) for (const x0 of hair.waves) for (let y = 18; y < 43; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2)); if (hair.front(x, y)) c.set(x, y, hairT[x < 7 ? 2 : 3]); } // (on the shaded side, a lighter crest)
+    if (hair.shine && !back) hair.shine.forEach((arc, i) => arc.forEach(([x, y]) => hair.front(x, y) && c.set(x, y, hairT[0])));
+    if (hair.backWaves && back) for (const x0 of hair.backWaves) for (let y = 24; y < 45; y++) { const x = Math.round(x0 + 1.2 * Math.sin(y / 2.2 + x0)); if (hair.backFall(x, y)) c.set(x, y, hairT[4]); if (Math.sin(y / 2.2 + x0) > 0.4 && hair.backFall(x + 1, y)) c.set(x + 1, y, hairT[0]); } // a dark trough, light on each bulge
     for (const t of [hair.tie, ...(hair.ties || [])].filter(Boolean)) c.part(rectS(t[0] - 1.5, t[1] - 1, t[0] + 1.5, t[1] + 1.5), () => look.tieColor || "#e0584f");
-    if (look.hair[0] === "long") for (let x = 3; x < 9; x += 3) for (let y = 22; y < 42; y++) c.set(x, y, hairC[2]);
   }
   if (back) ear();
   if (hair.beanie) {
