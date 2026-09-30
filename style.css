@@ -241,6 +241,8 @@ figure { margin: 12px 0; }
   .rail { display: block; position: sticky; top: 72px; align-self: start; margin-top: 56px; }
   .rail-left { grid-area: left; }
   .rail-right { grid-area: right; }
+  /* the cabin no taller than the left card column (about 710px), floating in its sky on wider screens */
+  .room { max-width: 852px; }
 }
 
 /* ---------- narrow screens */
