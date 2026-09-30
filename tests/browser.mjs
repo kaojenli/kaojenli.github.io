@@ -54,6 +54,11 @@ const s0 = await p.ev(still); await p.sleep(1500);
 ok(await p.ev(still) === s0, "off screen, nothing in the scene moves");
 await p.ev(reveal("#scene")); await p.sleep(300);
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
+// the framed portrait comes alive too: within a few seconds it shows another frame (a blink at least)
+await p.ev("scrollTo(0, 0)");
+const faces = new Set();
+for (let i = 0; i < 45; i++) { faces.add(await p.ev(`document.querySelector("#hero-portrait .pv").getAttribute("viewBox")`)); await p.sleep(200); }
+ok(faces.size >= 2, `the framed portrait moves (${faces.size} frames seen in 9 s)`);
 // Jen's routine (blinks, winks, turning round, coffee, a cookie...): every frame it shows has been drawn
 ok(await p.ev(`(() => { const st = [...STATES.values()].find((s) => s.look === "jen");
   return Object.values(ROUTINES.jen).every(([, make]) => make().every((s) => { const v = s.face && faceBack(s.face) ? "back" : "front";
@@ -143,9 +148,9 @@ p.close();
 
 // ---- reduced motion
 p = await open(SITE, { reducedMotion: true });
-const r0 = await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox')`);
+const r0 = await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').getAttribute('viewBox')`);
 await p.sleep(5000);
-ok(await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox')`) === r0, "reduced motion: nobody walks or animates");
+ok(await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').getAttribute('viewBox')`) === r0, "reduced motion: nobody walks or animates");
 p.close();
 
 console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");

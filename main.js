@@ -38,9 +38,6 @@ function framedPortrait() {
     set(x, y, r <= 1 ? (r < 0.5 ? "#6d8f87" : r < 0.72 && (x + y) % 2 ? "#6d8f87" : "#53736c")
       : r < 1 + 1.2 / rx ? C.o : r < 1 + 2.4 / rx ? C[lit ? "gh" : "gd"] : r < 1 + 3.4 / rx ? C[lit ? "wd" : "o"] : C[(x * 3 + y) % 7 ? "wm" : "wd"]);
   }
-  // Jen, turned toward the text, head centred in the opening, cut off by its rim
-  const jen = drawAvatar(AVATAR_LOOKS.jen, "stand"), ax = Math.round(cx - 16.5), ay = fy + B + 5;
-  jen.forEach((col, k) => { const x = ax + AW - 1 - (k % AW), y = ay + Math.floor(k / AW); if (col && e(x, y) <= 1) set(x, y, col); });
   // small gilt rosettes on the corners
   for (const [rcx, rcy] of [[4.5, fy + 4.5], [W - 4.5, fy + 4.5], [4.5, fy + FH - 4.5], [W - 4.5, fy + FH - 4.5]])
     for (let y = Math.floor(rcy - 4); y <= rcy + 4; y++) for (let x = Math.floor(rcx - 4); x <= rcx + 4; x++) {
@@ -53,11 +50,34 @@ function framedPortrait() {
   for (let x = hx0 + 2; x < hx1 - 2; x++) set(x, 7, "#ffe6a8");
   for (let y = 7; y < fy + 1; y++) { set(cx - 1, y, C.o); set(cx, y, C.gm); set(cx + 1, y, C.o); }
   for (let x = cx - 3; x <= cx + 2; x++) { set(x, fy, C.o); set(x, fy + 1, C.gd); }
-  return { img: toImage(px, W, H), slit: [(hx0 + 2) / 2, (hx1 - 2) / 2, 4], hood: [hx0 / 2, 0.5, (hx1 - hx0) / 2, 3], top: fy / 2 }; // in units (2 px)
+  // Jen in the opening, head centred, cut off by its rim: one frame of the painting per way she can look (see below).
+  // Facing "front" she turns toward the text (the scene's down-right, mirrored).
+  const ay = fy + B + 5, frame = ({ pose = "stand", face = "front", eyes = "open", mouth = "closed" }) => {
+    const out = px.slice(), mirror = !faceMirror(face), ax = mirror ? Math.round(cx - 16.5) : Math.round(cx - 15.5);
+    drawAvatar(AVATAR_LOOKS.jen, pose, { eyes, mouth, back: faceBack(face) }).forEach((col, k) => {
+      const x = ax + (mirror ? AW - 1 - (k % AW) : k % AW), y = ay + Math.floor(k / AW);
+      if (col && e(x, y) <= 1) out[y * W + x] = col;
+    });
+    return out;
+  };
+  return { W, H, frame, slit: [(hx0 + 2) / 2, (hx1 - 2) / 2, 4], hood: [hx0 / 2, 0.5, (hx1 - hx0) / 2, 3], top: fy / 2 }; // in units (2 px)
 }
 // The light (dark mode only, style.css): a bright slit and its bloom under the hood, the hood itself unlit, a soft beam
 // fanning down over the painting and spilling onto the wall, and the painting falling into shadow away from the lamp.
-const portrait = framedPortrait(), { w: pw, h: ph } = portrait.img, [sx0, sx1, sy] = portrait.slit, mid = (sx0 + sx1) / 2;
+// The painting comes alive like Jen downstairs: the same little routine (ROUTINES.jen in cabin.js: blinks, winks,
+// glances, a yawn, turning round, a coffee, a cookie), each way she looks one frame of a strip, shown through a window.
+const portrait = framedPortrait(), looks = new Map(), lookKey = (o) => ["pose", "face", "eyes", "mouth"].map((k) => (o[k] === "front" || o[k] === "stand" ? "" : o[k] || "")).join("|");
+const want = (o) => { if (!looks.has(lookKey(o))) looks.set(lookKey(o), o); };
+want({});
+want({ eyes: "closed" });
+want({ mouth: "open" });
+for (const [, make] of Object.values(ROUTINES.jen)) for (const st of make()) {
+  const o = { pose: st.pose, face: st.look ? "frontL" : st.face, eyes: st.eyes, mouth: st.mouth };
+  want(o);
+  if (st.chew) want({ ...o, mouth: "open" });
+}
+const lookList = [...looks.values()], strip = joinFrames(lookList.map(portrait.frame), portrait.W, portrait.H), pw = portrait.W / 2, ph = portrait.H / 2;
+const [sx0, sx1, sy] = portrait.slit, mid = (sx0 + sx1) / 2;
 $("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${pw} ${ph}" shape-rendering="crispEdges">
   <defs>
     <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1"/></filter>
@@ -65,13 +85,30 @@ $("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${pw} ${ph}" shape-rendering=
     <radialGradient id="shade" gradientUnits="userSpaceOnUse" cx="${mid}" cy="${sy}" r="${ph}"><stop offset=".3" stop-opacity="0"/><stop offset="1" stop-opacity=".7"/></radialGradient>
     <radialGradient id="bloom"><stop offset="0" stop-color="#fff4d6" stop-opacity=".95"/><stop offset=".4" stop-color="#ffd98f" stop-opacity=".5"/><stop offset="1" stop-color="#ffd98f" stop-opacity="0"/></radialGradient>
   </defs>
-  ${imageTag(portrait.img, 0, 0)}
+  <svg class="pv" x="0" y="0" width="${pw}" height="${ph}" viewBox="0 0 ${pw} ${ph}"><use href="#${strip.id}"/></svg>
   <g class="lit" shape-rendering="auto">
     <rect x="0" y="${portrait.top}" width="${pw}" height="${ph - portrait.top}" fill="url(#shade)"/>
     <rect x="${portrait.hood[0]}" y="${portrait.hood[1]}" width="${portrait.hood[2]}" height="${portrait.hood[3]}" fill="#000" opacity=".45"/>
     <polygon points="${sx0},${sy} ${sx1},${sy} ${sx1 + 16},${sy + 30} ${sx0 - 16},${sy + 30}" fill="url(#beam)" filter="url(#soft)" style="mix-blend-mode:screen"/>
     <ellipse cx="${mid}" cy="${sy}" rx="${(sx1 - sx0) / 2 + 2}" ry="1.6" fill="url(#bloom)" style="mix-blend-mode:screen"/>
   </g></svg>`;
+const pv = $("#hero-portrait .pv"), show = (o) => pv.setAttribute("viewBox", `${lookList.findIndex((l) => lookKey(l) === lookKey(o)) * pw} 0 ${pw} ${ph}`);
+async function portraitLife() {
+  const acts = Object.values(ROUTINES.jen), total = acts.reduce((n, [w]) => n + w, 0);
+  for (;;) {
+    let r = Math.random() * total, i = 0;
+    while ((r -= acts[i][0]) > 0) i++;
+    for (const st of acts[i][1]()) {
+      const o = { pose: st.pose, face: st.look ? "frontL" : st.face, eyes: st.eyes, mouth: st.mouth };
+      if (st.chew) for (let t = 0; t < st.ms; t += 180) { show({ ...o, mouth: (t / 180) % 2 ? "closed" : "open" }); await wait(180); }
+      else if (!st.pose && !st.face && !st.eyes && !st.mouth && !st.look && st.ms > 2500) { // standing still: now and then a blink
+        show(o); await wait(st.ms / 2); show({ eyes: "closed" }); await wait(140); show(o); await wait(st.ms / 2 - 140);
+      } else { show(o); await wait(st.ms); }
+    }
+    show({});
+  }
+}
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(portraitLife, 1500);
 $("#hero-caption").textContent = CONTENT.hero.caption;
 
 // ---------- light / dark: the button flips the theme and remembers it; until then the page follows the system
