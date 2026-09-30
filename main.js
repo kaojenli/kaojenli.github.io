@@ -65,13 +65,15 @@ function framedPortrait() {
 // The light (dark mode only, style.css): a bright slit and its bloom under the hood, the hood itself unlit, a soft beam
 // fanning down over the painting and spilling onto the wall, and the painting falling into shadow away from the lamp.
 // The painting comes alive like Jen downstairs: the same little routine (ROUTINES.jen in cabin.js: blinks, winks,
-// glances, a yawn, turning round, a coffee, a cookie), each way she looks one frame of a strip, shown through a window.
+// glances, turning round, a coffee, a cookie; not the yawn, whose raised arm the oval cuts off), each way she looks one
+// frame of a strip, shown through a window.
+const acts = Object.values(ROUTINES.jen).filter(([, make]) => !make().some((st) => st.pose === "armsUp"));
 const portrait = framedPortrait(), looks = new Map(), lookKey = (o) => ["pose", "face", "eyes", "mouth"].map((k) => (o[k] === "front" || o[k] === "stand" ? "" : o[k] || "")).join("|");
 const want = (o) => { if (!looks.has(lookKey(o))) looks.set(lookKey(o), o); };
 want({});
 want({ eyes: "closed" });
 want({ mouth: "open" });
-for (const [, make] of Object.values(ROUTINES.jen)) for (const st of make()) {
+for (const [, make] of acts) for (const st of make()) {
   const o = { pose: st.pose, face: st.look ? "frontL" : st.face, eyes: st.eyes, mouth: st.mouth };
   want(o);
   if (st.chew) want({ ...o, mouth: "open" });
@@ -94,7 +96,7 @@ $("#hero-portrait").innerHTML = `<svg viewBox="0 0 ${pw} ${ph}" shape-rendering=
   </g></svg>`;
 const pv = $("#hero-portrait .pv"), show = (o) => pv.setAttribute("viewBox", `${lookList.findIndex((l) => lookKey(l) === lookKey(o)) * pw} 0 ${pw} ${ph}`);
 async function portraitLife() {
-  const acts = Object.values(ROUTINES.jen), total = acts.reduce((n, [w]) => n + w, 0);
+  const total = acts.reduce((n, [w]) => n + w, 0);
   for (;;) {
     let r = Math.random() * total, i = 0;
     while ((r -= acts[i][0]) > 0) i++;
