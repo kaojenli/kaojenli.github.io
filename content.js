@@ -6,9 +6,9 @@ const CONTENT = {
     now: "AI Engineer @ We Share Baseball",
     email: "kaojenli@gmail.com",
     intro:
-      "My research interests are computer vision, sensing and medical devices: recovering 3D motion from multiple " +
-      "cameras, millimeter-wave and radar sensing, and imaging systems for medicine, from MRI hardware to breast " +
-      "cancer detection. MS ECE from Texas A&M, MS CS from Chang Gung University.",
+      "My research interests are computer vision, sensing and medical devices: recovering 3D human motion from " +
+      "multiple cameras, millimeter-wave and radar sensing, imaging systems for medicine from MRI hardware to breast " +
+      "cancer detection, and how to evaluate the models behind them.",
     links: [
       { label: "GitHub", url: "https://github.com/Dino-Boooo" },
       { label: "LinkedIn", url: "https://www.linkedin.com/in/jenlikao/" },
