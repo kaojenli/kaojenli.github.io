@@ -689,6 +689,34 @@ function edges(level, add, addOut) {
   }
 }
 const sorted = (list) => list.sort((a, b) => a.depth - b.depth).map((t) => `<g data-depth="${t.depth}">${t.svg}</g>`).join("");
+// The same for the live building, with the furniture flattened: every change in the scene (a blink, a step) makes the
+// browser repaint all of it, and ten thousand shapes of furniture made that expensive. Things that never change (no
+// class or id: not a person, nothing animated) become pictures, a run of neighbours at a time, each cropped to what it
+// covers. A run never spans a whole-number depth, the depths walkers stand at (x + y + 1, see setDepth), so anyone
+// walking still slips in between the right pieces.
+function sortedFlat(list) {
+  list.sort((a, b) => a.depth - b.depth);
+  const probe = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  probe.setAttribute("style", "position:absolute;visibility:hidden;width:0;height:0");
+  document.body.append(probe);
+  let out = "", run = [], band = null;
+  const flush = () => {
+    if (!run.length) return;
+    probe.innerHTML = run.map((t) => t.svg).join("");
+    const b = probe.getBBox(), x = Math.floor(b.x - 3), y = Math.floor(b.y - 3), w = Math.ceil(b.x + b.width + 3) - x, h = Math.ceil(b.y + b.height + 3) - y;
+    out += `<g data-depth="${run[run.length - 1].depth}"><image href="${asImage(probe.innerHTML, [x, y, w, h])}" x="${x}" y="${y}" width="${w}" height="${h}" pointer-events="none"/></g>`;
+    run = [];
+  };
+  for (const t of list) {
+    const live = / (class|id)=/.test(t.svg);
+    if (live || Math.ceil(t.depth) !== band) flush();
+    if (live) out += `<g data-depth="${t.depth}">${t.svg}</g>`;
+    else { run.push(t); band = Math.ceil(t.depth); }
+  }
+  flush();
+  probe.remove();
+  return out;
+}
 const decoFor = (rooms, X0, withLive = false) => rooms.filter((r) => r.right || (withLive && r.live)).map((r) => [(r.rect[0] - X0) * 16, (r.right || "") + (withLive ? r.live || "" : "")]);
 // Animated wall pieces (flames, blinking lights) are drawn with the room's things, flat on its back wall.
 const liveWall = (r) => plane(iso(r.rect[0], r.rect[1]), 0.5, r.live);
@@ -784,10 +812,10 @@ function cabinSVG() {
     const [left, leftDeco] = leftOf(back);
     const still = (level ? box(0, y0, NX, depth, SLAB, BEAM, -SLAB) + leftFace(0, y0, depth, -SLAB, beamFace(NX * 16)) : "") + floor +
       backWalls(0, y0, NX, depth, decoFor(back, 0), wallSegs(back, 0), left, leftDeco) + posts + shadows.join("");
-    s += lift(level, picture(still) + `<g id="things-${level}">${sorted(list)}</g>`);
+    s += lift(level, picture(still) + `<g id="things-${level}">${sortedFlat(list)}</g>`);
   }
   shadows = null;
-  return s + `<g id="things-out">${sorted(outdoor)}</g>`;
+  return s + `<g id="things-out">${sortedFlat(outdoor)}</g>`;
 }
 
 // ---------- a project's room(s) on their own, walls at full height (shown next to each project)
@@ -822,6 +850,7 @@ function closeupSVG(slug) {
 const scene = document.getElementById("scene");
 const room = document.getElementById("room");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let onScreen = true; // the cabin is in view (see the animator at the end)
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 scene.innerHTML = cabinSVG();
 
@@ -876,14 +905,19 @@ const TWEENS = [1 / 3, 2 / 3], tweensOf = (a, b) => (a === b ? [] : TWEENS.map((
 const loopPairs = (list) => list.map((p, i) => [p, list[(i + 1) % list.length]]);
 function framesNeeded(st) {
   const views = st.cfg.walker ? ["front", "back"] : [st.view], poses = new Set(st.idle.map((p) => p.pose)), pairs = [];
-  const seq = (list) => { list.forEach((p) => poses.add(p)); pairs.push(...loopPairs(list)); };
-  seq(st.idle.map((p) => p.pose));
-  if (st.cfg.walker) { WALK8.forEach((p) => poses.add(p)); poses.add("stand"); (ROUTES[st.look]?.stops || []).forEach((s) => seq(s.poses.map((p) => parsePose(p).pose))); }
+  // pairs of poses one can follow the other, with how long the second is held (a change takes up to 45% of that)
+  const seq = (list) => { list.forEach((p) => poses.add(p.pose)); pairs.push(...loopPairs(list).map(([a, b]) => [a.pose, b.pose, b.ms])); };
+  seq(st.idle);
+  if (st.cfg.walker) { WALK8.forEach((p) => poses.add(p)); poses.add("stand"); (ROUTES[st.look]?.stops || []).forEach((s) => seq(s.poses.map(parsePose))); }
   else if (bodyKind(st)) {
-    const rest = st.idle[0].pose;
-    Object.values(GESTURES).forEach((g) => { const list = g[bodyKind(st)]; seq(list); pairs.push([rest, list[0]], ...list.map((p) => [p, rest])); });
+    const rest = st.idle[0];
+    Object.entries(GESTURES).forEach(([kind, g]) => {
+      const list = g[bodyKind(st)].map((pose) => ({ pose, ms: kind === "wave" ? 260 : 380 }));
+      seq(list); pairs.push([rest.pose, list[0].pose, list[0].ms], ...list.map((p) => [p.pose, rest.pose, rest.ms]));
+    });
   }
-  pairs.forEach(([a, b]) => tweensOf(a, b).forEach((p) => poses.add(p)));
+  // in-between frames only where they get shown: a change that lasts at least two animation ticks (not quick typing)
+  pairs.forEach(([a, b, ms]) => { if (0.45 * ms >= 120) tweensOf(a, b).forEach((p) => poses.add(p)); });
   const bodyKeys = views.flatMap((v) => [...poses].map((pose) => ({ pose, back: v === "back", key: `${pose}|${v}` })));
   const headKeys = views.flatMap((v) => (v === "back" ? [{ back: true, key: "back|open|closed" }]
     : ["open|closed", "closed|closed", "open|open", "closed|open"].map((e) => { const [eyes, mouth] = e.split("|"); return { back: false, eyes, mouth, key: `front|${e}` }; })));
@@ -903,7 +937,7 @@ async function upgrade(st) {
     swapStrip(st.over, over, overKeys);
   }
   st.pose = null;
-  draw(st, performance.now());
+  if (onScreen) draw(st, performance.now()); // (off screen: the next tick once it is back)
 }
 // Pick and show one person's (or animal's) frame for this moment.
 function draw(st, now) {
@@ -924,7 +958,7 @@ function draw(st, now) {
     const tw = k === 0 ? st.from : tweenPose(st.from, st.to, TWEENS[k - 1]);
     if (st.body.keys.has(`${tw}|${st.view}`)) pose = tw;
   }
-  if (now > st.blinkEnd) { st.blinkAt = now + 4500 + Math.random() * 1000; st.blinkEnd = st.blinkAt + 50 + Math.random() * 200; }
+  if (now > st.blinkEnd) { st.blinkAt = now + 4500 + Math.random() * 1000; st.blinkEnd = st.blinkAt + 90 + Math.random() * 160; } // long enough to land on a tick (below)
   const eyes = now >= st.blinkAt && now < st.blinkEnd ? "closed" : "open";
   if (now < st.talkUntil && now >= st.mouthNext) { st.mouthOpen = !st.mouthOpen; st.mouthNext = now + (st.mouthOpen ? 110 + Math.random() * 150 : 75 + Math.random() * 110); }
   const mouth = now < st.talkUntil && st.mouthOpen ? "open" : "closed", v = st.view, bi = st.body.keys.get(`${pose}|${v}`);
@@ -1011,6 +1045,17 @@ const WALKERS = [
   { look: "dog", level: 0, tile: [3, 14], allowed: ([x, y]) => roomAt(0, x, y).outdoor },
   ...Object.entries(ROUTES).map(([look, r]) => ({ look, level: r.level, tile: r.stops[0].tile, route: r, stopAt: 0, allowed: () => true })),
 ].map((w) => ({ ...w, also: new Set(w.route?.also || []), el: scene.querySelector(`.walker[data-look="${w.look}"]`), heading: [1, 0] }));
+// where each walker is drawn (scene px), read from where the scene put them
+WALKERS.forEach((wk) => (wk.xy = wk.el.style.transform.match(/-?[\d.]+/g).map(Number)));
+// Walking between two tiles: in whole pixels, a little further on each animation tick.
+function moveWalkers(now) {
+  for (const wk of WALKERS) {
+    if (!wk.move) continue;
+    const { from, to, t0 } = wk.move, t = Math.min(1, (now - t0) / 500), xy = from.map((a, i) => Math.round(a + (to[i] - a) * t));
+    if (xy[0] !== wk.xy[0] || xy[1] !== wk.xy[1]) { wk.xy = xy; wk.el.style.transform = `translate(${xy[0]}px,${xy[1]}px)`; }
+    if (t === 1) wk.move = null;
+  }
+}
 WALKERS.forEach((wk) => (STATES.get(wk.el).wk = wk));
 const posOf = (st) => (st.wk ? [st.wk.tile[0] + 0.5, st.wk.tile[1] + 0.5] : st.pos);
 const takenBy = (wk, [x, y]) => WALKERS.some((o) => o !== wk && o.level === wk.level && o.tile[0] === x && o.tile[1] === y);
@@ -1039,7 +1084,7 @@ function stepTo(wk, [nx, ny], done) {
   faceTo(wk, headingFace(wk.heading, st.human));
   if (!st.walking) { st.walking = true; st.walkT0 = performance.now(); }
   wk.stepping = true;
-  requestAnimationFrame(() => (wk.el.style.transform = `translate(${px}px,${py}px)`));
+  wk.move = { from: wk.xy, to: [px, py], t0: performance.now() }; // carried out by the animator (below)
   setTimeout(() => {
     if (!forward) setDepth(wk.el, d);
     wk.stepping = false;
@@ -1114,7 +1159,24 @@ WALKERS.filter((wk) => wk.route).forEach(arrive);
   for (const st of [...STATES.values()].filter((s) => s.human).sort((a, b) => !!b.cfg.walker - !!a.cfg.walker)) { await upgrade(st); await new Promise((r) => setTimeout(r, 0)); }
 })();
 if (!reduceMotion) {
-  (function tick(now) { STATES.forEach((st) => draw(st, now)); requestAnimationFrame(tick); })(performance.now());
+  // One clock for everything that moves: 16 ticks a second, like the walk cycle. Every change makes the browser repaint
+  // the scene, so changes are batched onto the ticks, the CSS animations (fire, steam, screens...) too: they are paused
+  // and moved on by hand at each tick. Nothing moves while the cabin is off screen.
+  let lastTick = 0;
+  const started = new WeakMap(); // animation → when it would have started
+  new IntersectionObserver(([e]) => (onScreen = e.isIntersecting)).observe(scene);
+  (function tick(now) {
+    if (onScreen && now - lastTick >= 60) {
+      lastTick = now;
+      STATES.forEach((st) => draw(st, now));
+      moveWalkers(now);
+      for (const a of scene.getAnimations({ subtree: true })) {
+        if (!started.has(a)) { started.set(a, now - (a.currentTime || 0)); a.pause(); }
+        a.currentTime = now - started.get(a);
+      }
+    }
+    requestAnimationFrame(tick);
+  })(performance.now());
   WALKERS.forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
   setTimeout(glance, 2000);
   (function chatter() { setTimeout(() => { randomChat(); chatter(); }, 2500 + Math.random() * 2500); })();

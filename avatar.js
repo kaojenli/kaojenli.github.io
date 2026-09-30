@@ -28,16 +28,18 @@ const bounded = (f, b) => Object.assign(f, { b });
 const ellipse = (cx, cy, rx, ry) => bounded((x, y) => ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1, [cx - rx - 1, cy - ry - 1, cx + rx, cy + ry]);
 const rectS = (x0, y0, x1, y1) => bounded((x, y) => x >= x0 && x < x1 && y >= y0 && y < y1, [x0 - 1, y0 - 1, x1, y1]);
 function polyS(pts) {
-  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const n = pts.length, xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), x1 = Math.max(...xs), y1 = Math.max(...ys);
   return bounded((x, y) => {
-    let inside = false;
     const px = x + 0.5, py = y + 0.5;
-    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-      const [xi, yi] = pts[i], [xj, yj] = pts[j];
-      if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+    if (px < x0 || px > x1 || py < y0 || py > y1) return false; // (cheap, and most tests in a union land outside)
+    let inside = false;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const yi = ys[i], yj = ys[j];
+      if (yi > py !== yj > py && px < ((xs[j] - xs[i]) * (py - yi)) / (yj - yi) + xs[i]) inside = !inside;
     }
     return inside;
-  }, [Math.min(...xs) - 1, Math.min(...ys) - 1, Math.max(...xs), Math.max(...ys)]);
+  }, [x0 - 1, y0 - 1, x1, y1]);
 }
 const union = (...s) => bounded((x, y) => s.some((f) => f(x, y)), s.every((f) => f.b) ? [0, 1, 2, 3].map((i) => (i < 2 ? Math.min : Math.max)(...s.map((f) => f.b[i]))) : undefined);
 const minus = (a, b) => bounded((x, y) => a(x, y) && !b(x, y), a.b);
@@ -148,8 +150,10 @@ function tweenPose(a, b, t) {
 function limb(points, w) {
   const segs = points.slice(1).map(([bx, by], i) => { const [ax, ay] = points[i], dx = bx - ax, dy = by - ay; return [ax, ay, dx, dy, dx * dx + dy * dy]; });
   const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]), r = w / 2;
+  const x0 = Math.min(...xs) - r, y0 = Math.min(...ys) - r, x1 = Math.max(...xs) + r, y1 = Math.max(...ys) + r;
   return bounded((x, y) => {
     const px = x + 0.5, py = y + 0.5;
+    if (px < x0 || px > x1 || py < y0 || py > y1) return false;
     for (const [ax, ay, dx, dy, l2] of segs) {
       const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
       if (Math.hypot(px - (ax + t * dx), py - (ay + t * dy)) <= r) return true;

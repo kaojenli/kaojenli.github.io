@@ -23,10 +23,11 @@ export async function open(url, { width = 1440, height = 900, mobile = false, re
   if (!page) { proc.kill(); throw new Error("Chrome did not start"); }
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((r) => (ws.onopen = r));
-  let id = 0; const pending = new Map(); const logs = [];
+  let id = 0; const pending = new Map(); const logs = [], listeners = [];
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
+    if (m.method) listeners.forEach((f) => f(m));
     if (m.method === "Runtime.exceptionThrown") logs.push("EXCEPTION " + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
     if (m.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(m.params.type)) logs.push(m.params.type + " " + m.params.args.map((a) => a.value ?? a.description).join(" "));
   };
@@ -50,5 +51,6 @@ export async function open(url, { width = 1440, height = 900, mobile = false, re
   for (let i = 0; i < 100 && (await ev("document.readyState")) !== "complete"; i++) await sleep(100);
   await sleep(800);
   const close = () => { ws.close(); proc.kill(); };
-  return { ev, send, click, key, shot, close, logs, sleep };
+  const on = (f) => listeners.push(f); // every protocol event (e.g. for tracing)
+  return { ev, send, click, key, shot, close, logs, sleep, on };
 }

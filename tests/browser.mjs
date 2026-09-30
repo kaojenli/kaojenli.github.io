@@ -37,6 +37,7 @@ await p.ev(reveal("#experience summary")); await p.sleep(200);
 await p.click(...(await p.ev(center("#experience summary"))));
 ok(await p.ev(`document.querySelector('#experience details').open`), "an experience row opens");
 // people move like Habbo avatars: frames change, and nothing shown is ever a picture that hasn't decoded (no flicker)
+await p.ev(reveal("#scene")); await p.sleep(300); // (off screen the scene stands still)
 const frames = [], undecoded = [];
 for (let i = 0; i < 25; i++) {
   frames.push(await p.ev(`["dancer", "hacker"].map((l) => document.querySelector('.who[data-look="' + l + '"] .bv').getAttribute('viewBox')).join('|')`));
@@ -45,6 +46,13 @@ for (let i = 0; i < 25; i++) {
 }
 ok(await p.ev(`[...document.querySelectorAll('#scene .who')].every((el) => el.getAnimations({ subtree: true }).every((a) => !(a instanceof CSSAnimation) || !a.effect.getKeyframes().some((k) => 'transform' in k || 'translate' in k)))`), "nobody drifts: no CSS animation moves any person or animal (walking between tiles is a transition; frames are set by script)");
 ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((f) => f.split("|")[1])).size >= 2, "the dancer dances and the hacker types (frames change)");
+// off screen the scene stands still (it costs no CPU while you read the sections)
+await p.ev(reveal("#contact")); await p.sleep(400);
+// (by name: walkers still take their steps in the background, which only reorders them in the page)
+const still = `[...document.querySelectorAll('#scene .who')].map((el) => el.dataset.look + el.querySelector('.bv').getAttribute('viewBox') + el.style.transform).sort().join('|') + document.querySelector('#scene .fire')?.getAnimations()[0]?.currentTime`;
+const s0 = await p.ev(still); await p.sleep(1500);
+ok(await p.ev(still) === s0, "off screen, nothing in the scene moves");
+await p.ev(reveal("#scene")); await p.sleep(300);
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
 // when someone talks, the people near them turn their heads to look
 await p.ev(`say(document.querySelector('.who[data-look="customerA"]'), "hello there everyone")`);

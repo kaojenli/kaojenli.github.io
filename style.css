@@ -83,8 +83,7 @@ h1, h2, h3, h4 { color: var(--ink); }
 /* ---------- people in the room */
 .who { cursor: pointer; outline: none; }
 .who:hover, .who:focus-visible { filter: drop-shadow(1px 0 0 #ffcc00) drop-shadow(-1px 0 0 #ffcc00) drop-shadow(0 1px 0 #ffcc00) drop-shadow(0 -1px 0 #ffcc00); }
-/* people and animals walk a tile in 500 ms, in a straight line (as in Habbo); their frames are picked by cabin.js */
-.walker { transition: transform 0.5s linear; }
+/* people and animals walk a tile in 500 ms, in a straight line (as in Habbo); cabin.js moves them and picks their frames */
 /* decoration never takes clicks: light, view cones, tracking boxes, skeletons, pulses, steam, smoke, the ball */
 #scene circle[fill="url(#glow)"], #scene .fov, #scene .bbox, #scene .skel, #scene .wave, #scene .steam, #scene .smoke, #scene .ball { pointer-events: none; }
 .skel { animation: skel 4.8s infinite; }
