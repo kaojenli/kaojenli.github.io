@@ -204,7 +204,10 @@ figure { margin: 12px 0; }
 .noscript { margin: 24px; padding: 12px; background: var(--surface); border: 1px solid var(--line); }
 
 /* ---------- the side cards: on wide screens the page becomes three columns, the cards staying in view as you scroll */
+/* below the wide layout only the contact card shows, at the end of the page */
 .rail { display: none; }
+.rail-left { display: block; max-width: var(--read); margin: 0 auto; padding: 16px 24px 40px; }
+.rail-left .card:not(.contact) { display: none; }
 .card { margin: 0 0 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
 .card-title { margin: 0 0 10px; color: var(--muted); font: 500 11px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 .card p { margin: 0 0 6px; }
@@ -237,7 +240,8 @@ figure { margin: 12px 0; }
   main { grid-area: main; min-width: 0; }
   .hero, .sections { max-width: none; padding-left: 0; padding-right: 0; }
   /* sticky while they fit on screen; taller than the window, they scroll with the page (never cut off inside) */
-  .rail { display: block; position: sticky; top: 72px; align-self: start; margin-top: 56px; }
+  .rail, .rail-left { display: block; position: sticky; top: 72px; align-self: start; margin: 56px 0 0; padding: 0; max-width: none; }
+  .rail-left .card:not(.contact) { display: block; }
   .rail-left { grid-area: left; }
   .rail-right { grid-area: right; }
   /* the cabin no taller than the left card column (about 710px), floating in its sky on wider screens */
@@ -255,7 +259,7 @@ figure { margin: 12px 0; }
   #nav { gap: 16px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
   .hero { padding: 32px 16px 16px; }
   .lede { font-size: 17px; }
-  .sections { padding: 0 16px; }
+  .sections, .rail-left { padding-left: 16px; padding-right: 16px; }
   .skills { grid-template-columns: 1fr; }
   .hero-head { grid-template-columns: 1fr; gap: 20px; }
   .framed { order: -1; justify-self: start; width: 124px; }

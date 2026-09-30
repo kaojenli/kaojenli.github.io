@@ -20,9 +20,12 @@ ok(await p.ev(`document.querySelectorAll('#scene .who').length === Object.keys(C
 ok(await p.ev(`[...document.querySelectorAll('.scene-box img')].filter((i) => i.naturalWidth > 0).length`) === 7 && await p.ev(`document.querySelectorAll('.scene-box [tabindex], .scene-box .who').length`) === 0, "7 room close-ups (pictures that load), none focusable or clickable");
 console.log("  DOM elements:", await p.ev(`document.getElementsByTagName('*').length`));
 ok(await p.ev(`document.querySelectorAll('.room-tag').length`) === 0, "no room names drawn on the picture");
-ok(await p.ev(`document.querySelectorAll('#panels .section').length`) === 7 && await p.ev(`document.querySelectorAll('.proj').length`) === 7, "7 sections and 7 projects rendered");
+// the email and profiles show in one place only: the contact card (beside the page, or at its end on narrower screens)
+const contacts = `[...document.querySelectorAll('a[href^="mailto:"], a[href="https://www.linkedin.com/in/jenlikao/"]')].filter((a) => a.offsetParent && !a.closest('noscript')).map((a) => a.closest('.card.contact') ? 'card' : 'elsewhere').join()`;
+ok(await p.ev(contacts) === "card,card", "contact details show once, in the contact card");
+ok(await p.ev(`document.querySelectorAll('#panels .section').length`) === 6 && await p.ev(`document.querySelectorAll('.proj').length`) === 7, "6 sections and 7 projects rendered");
 ok(await p.ev(`(() => { const h = document.querySelector('.hero h1').getBoundingClientRect(), l = document.getElementById('hero-lede'); return h.bottom < innerHeight && l.textContent.length > 50; })()`), "the name and the intro are the first thing on the page");
-for (const id of ["about", "projects", "experience", "education", "papers", "skills", "contact"]) {
+for (const id of ["about", "projects", "experience", "education", "papers", "skills"]) {
   await p.ev("scrollTo(0, 0)"); await p.sleep(300);
   await p.click(...(await p.ev(center(`#nav a[href="#${id}"]`))));
   await p.ev(settle);
@@ -47,7 +50,7 @@ for (let i = 0; i < 25; i++) {
 ok(await p.ev(`[...document.querySelectorAll('#scene .who')].every((el) => el.getAnimations({ subtree: true }).every((a) => !(a instanceof CSSAnimation) || !a.effect.getKeyframes().some((k) => 'transform' in k || 'translate' in k)))`), "nobody drifts: no CSS animation moves any person or animal (walking between tiles is a transition; frames are set by script)");
 ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((f) => f.split("|")[1])).size >= 2, "the dancer dances and the hacker types (frames change)");
 // off screen the scene stands still (it costs no CPU while you read the sections)
-await p.ev(reveal("#contact")); await p.sleep(400);
+await p.ev(reveal("#skills")); await p.sleep(400);
 // (by name: walkers still take their steps in the background, which only reorders them in the page)
 const still = `[...document.querySelectorAll('#scene .who')].map((el) => el.dataset.look + el.querySelector('.bv').getAttribute('viewBox') + el.style.transform).sort().join('|') + document.querySelector('#scene .fire')?.getAnimations()[0]?.currentTime`;
 const s0 = await p.ev(still); await p.sleep(1500);
@@ -143,6 +146,7 @@ p.close();
 // ---- phone
 p = await open(SITE, { width: 390, height: 844, mobile: true });
 ok(await p.ev(`document.documentElement.scrollWidth <= 390`), "phone: no horizontal scroll");
+ok(await p.ev(contacts) === "card,card" && await p.ev(`document.querySelector('.card.contact').getBoundingClientRect().top > document.getElementById('skills').getBoundingClientRect().bottom`), "phone: the contact card closes the page (the only contact details)");
 ok(await p.ev(`(() => { const r = document.getElementById("theme-toggle").getBoundingClientRect(); return r.width > 0 && r.right <= 390; })()`), "phone: the dark-mode button is on screen");
 ok(await p.ev(`(() => { const n = document.getElementById('nav').getBoundingClientRect().top, h = document.getElementById('top').getBoundingClientRect().top, a = document.getElementById('about').getBoundingClientRect().top; return n < h && h < a; })()`), "phone: navigation → intro and cabin → sections");
 ok(p.logs.length === 0, "phone: no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));

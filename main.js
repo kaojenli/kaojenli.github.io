@@ -12,7 +12,6 @@ $("#hero-eyebrow").textContent = CONTENT.hero.eyebrow;
 $("#hero-lede").textContent = P.intro;
 const news = CONTENT.news;
 $("#hero-now").innerHTML = `<span class="now-label">Now</span> ${news.headline.replace(/^Now:\s*/, "")}, ${news.text} <a href="${news.link.href}">${news.link.label}</a>`;
-$("#hero-links").innerHTML = P.links.map(link).join("");
 
 // ---------- Jen's portrait beside the intro: her head and shoulders (avatar.js) in an oval opening on velvet, in a
 // walnut frame with mitred corners and a thin antique-gilt slip, under a brass picture light; all one pixel picture.
@@ -145,8 +144,7 @@ const project = (p) => `<article class="proj" id="project-${p.slug}">
 
 const BODY = {
   about: `<dl class="facts"><dt>Now</dt><dd>${P.now}</dd><dt>Focus</dt><dd>${P.tagline.split(" · ").join("<br>")}</dd>
-      <dt>Studied</dt><dd>${CONTENT.education.map((e) => `${e.degree}, ${e.school}`).join("<br>")}</dd></dl>
-    <p class="links">${P.links.map(link).join("")}</p>`,
+      <dt>Studied</dt><dd>${CONTENT.education.map((e) => `${e.degree}, ${e.school}`).join("<br>")}</dd></dl>`,
   projects: CONTENT.projectGroups.map((g) => `<h3 class="group">${g}</h3>` + CONTENT.projects.filter((p) => p.cat === g).map(project).join("")).join(""),
   experience: `<ol class="rows">${CONTENT.experience.map((e) => `<li><details>
       <summary><span><b>${e.role}</b> · ${e.org}</span><span class="when">${e.date}</span></summary>
@@ -160,7 +158,6 @@ const BODY = {
       <p class="kind">${p.kind}${p.badge ? `<span class="badge">${p.badge}</span>` : ""}</p><p>${p.cite}</p>${p.link ? `<p>${link(p.link)}</p>` : ""}
     </div>`).join(""),
   skills: `<dl class="skills">${CONTENT.skills.map((s) => `<div><dt>${s.name}</dt><dd>${s.items}</dd></div>`).join("")}</dl><h3 class="group">Stack</h3>${tags(CONTENT.stack)}`,
-  contact: `<p class="lead">The fastest way to reach me is email: <a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`,
 };
 $("#panels").innerHTML = CONTENT.sections.filter((s) => BODY[s.id]).map((s, i) => `<section class="section" id="${s.id}" aria-labelledby="h-${s.id}">
   <header class="section-head"><p class="eyebrow">${String(i + 1).padStart(2, "0")}</p><h2 id="h-${s.id}">${s.title}</h2></header>
@@ -174,13 +171,14 @@ document.querySelectorAll(".scene-box").forEach((b) => {
 });
 $("#year").textContent = new Date().getFullYear();
 
-// ---------- the side cards (wide screens): a summary on the left; a guide to the cabin's rooms and highlights on the right
+// ---------- the side cards (wide screens): a summary on the left; a guide to the cabin's rooms and highlights on the right.
+// The contact card is the only place the email and profiles appear; on narrower screens it closes the page instead.
 const card = (title, body, cls = "") => `<section class="card ${cls}"><h2 class="card-title">${title}</h2>${body}</section>`;
 const years = (d) => d.match(/\d{4}/g)?.join("–").replace(/(\d{4})–\1/, "$1") + (/present/i.test(d) ? "–now" : "");
 $("#rail-left").innerHTML =
   card("Focus", `<ul class="plain">${P.tagline.split(" · ").map((f) => `<li>${f}</li>`).join("")}</ul>`) +
   card("Timeline", `<ol class="timeline">${CONTENT.experience.map((e) => `<li><span class="when">${years(e.date)}</span><b>${e.role}</b><span class="where">${e.org.split(",")[0]}</span></li>`).join("")}</ol>`) +
-  card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`);
+  card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`, "contact");
 const mainPaper = CONTENT.papers.find((p) => p.link), talk = CONTENT.papers.find((p) => p.badge);
 $("#rail-right").innerHTML =
   card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.title.split(" Using")[0].split(":")[0]}</span></a></li>`).join("")}</ul>`) +

@@ -34,7 +34,6 @@ const CONTENT = {
     { id: "education", title: "Education", label: "Education" },
     { id: "papers", title: "Papers & Talks", label: "Papers" },
     { id: "skills", title: "Skills", label: "Skills" },
-    { id: "contact", title: "Contact", label: "Contact" },
   ],
 
   projectGroups: ["Work", "Research", "Academic"],
