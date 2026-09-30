@@ -212,7 +212,6 @@ const CONTENT = {
       ],
     },
   ],
-  experienceTotal: "6 roles · 4 organisations · 2 countries",
 
   education: [
     {

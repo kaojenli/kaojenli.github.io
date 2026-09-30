@@ -188,7 +188,6 @@ figure { margin: 12px 0; }
 .rows summary:hover b { color: var(--accent); }
 .when { color: var(--muted); font: 13px var(--mono); white-space: nowrap; }
 .rows .more-box { padding: 0 0 16px; }
-.total { margin: 16px 0 0 !important; color: var(--muted); font: 12px var(--mono); letter-spacing: 0.04em; }
 
 .entry { padding: 16px 0; border-bottom: 1px solid var(--line); }
 .entry:first-child { padding-top: 0; }

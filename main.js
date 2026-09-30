@@ -151,7 +151,7 @@ const BODY = {
   experience: `<ol class="rows">${CONTENT.experience.map((e) => `<li><details>
       <summary><span><b>${e.role}</b> · ${e.org}</span><span class="when">${e.date}</span></summary>
       <div class="more-box"><p class="note">${e.place}</p>${list(e.bullets)}${e.project ? `<a href="#project-${e.project}">See the project</a>` : ""}</div>
-    </details></li>`).join("")}</ol><p class="total">${CONTENT.experienceTotal}</p>`,
+    </details></li>`).join("")}</ol>`,
   education: CONTENT.education.map((e) => `<div class="entry">
       <div class="entry-head"><h3>${e.school}</h3><span class="when">${e.date}</span></div>
       <p>${e.degree} · ${e.place}</p>${e.notes.map((n) => `<p class="note">${n}</p>`).join("")}
