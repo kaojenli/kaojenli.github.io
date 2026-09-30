@@ -1,11 +1,24 @@
 // Offline checks:  node check.mjs          Also hit every external link:  node check.mjs --links
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import vm from "node:vm";
 
 const load = (file, expr) => vm.runInNewContext(readFileSync(file, "utf8") + `;${expr}`, {});
 const errors = [];
 const fail = (msg) => errors.push(msg);
+
+// --- cache busting: index.html asks for the stylesheet and scripts with ?v=<hash of their contents>, so a browser never
+// pairs a new page with an old cached stylesheet (Pages lets each file be cached for 10 minutes on its own).
+// `node check.mjs --stamp` writes the current hash in; run it before every commit that touches these files.
+const ASSETS = ["style.css", "content.js", "avatar.js", "props.js", "furni.js", "cabin.js", "main.js"];
+const ver = createHash("sha1").update(ASSETS.map((f) => readFileSync(f, "utf8")).join("")).digest("hex").slice(0, 8);
+let html = readFileSync("index.html", "utf8");
+if (process.argv.includes("--stamp")) {
+  html = html.replace(/(href|src)="([\w-]+\.(?:css|js))(?:\?v=\w+)?"/g, (m, attr, f) => (ASSETS.includes(f) ? `${attr}="${f}?v=${ver}"` : m));
+  writeFileSync("index.html", html);
+}
+for (const f of ASSETS) if (!html.includes(`"${f}?v=${ver}"`)) fail(`index.html loads ${f} without ?v=${ver} (run: node check.mjs --stamp)`);
 
 // --- content wiring
 const C = load("content.js", "CONTENT");
