@@ -480,8 +480,9 @@ const ROOMS = [
     key: "mri", wall: WOODS.pale, wains: "#e3e7ea", level: 1, rect: [7, 0, 4, 4], href: "#project-mri", slug: "mri", tex: "tile", floor: ["#e9edf0", "#dbe1e6"],
     blocked: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [2, 0], [3, 0], [2, 2], [3, 2], [0, 3]],
     // magnet warning sign and a k-space poster
-    right: `<polygon points="3,37 13,37 8,47" fill="#8a6a1a" stroke="${INK}" stroke-width="0.5"/><polygon points="2,36 12,36 7,46" fill="#f6c945" stroke="${INK}" stroke-width="0.5"/>` + rect(6.5, 39, 1, 4, INK) + rect(6.5, 37.5, 1, 1, INK) +
-      slab3(15, 34, 15, 16, 1.2, "#2b2e35", rect(1, 1, 14, 14, "#101216") + rect(3, 4, 10, 8, "rgba(255,255,255,.12)") + rect(5, 6, 6, 4, "rgba(255,255,255,.35)") + rect(7, 7, 2, 2, "#ffffff")) +
+    // (the sign clear of the corner post, a plate 1 deep like the other wall pieces: its edge joins the face to the wall)
+    right: `<polygon points="7,36 17,36 18,37 13,47 12,46" fill="#8a6a1a" stroke="${INK}" stroke-width="0.5"/><polygon points="7,36 17,36 12,46" fill="#f6c945" stroke="${INK}" stroke-width="0.5"/>` + rect(11.5, 39, 1, 4, INK) + rect(11.5, 37.5, 1, 1, INK) +
+      slab3(20, 34, 15, 16, 1.2, "#2b2e35", rect(1, 1, 14, 14, "#101216") + rect(3, 4, 10, 8, "rgba(255,255,255,.12)") + rect(5, 6, 6, 4, "rgba(255,255,255,.35)") + rect(7, 7, 2, 2, "#ffffff")) +
       windowW(40, 26, 18, 16, { curtain: "#8fb3d9" }),
     draw(add, X, Y) {
       const M = pal("#eef2f5");
@@ -748,10 +749,11 @@ function sideWalls() {
 }
 // Things on top of the top floor's back wall: a stone chimney with smoke, a satellite dish and an antenna with a blinking light.
 const smoke = (x, y) => [0, 1, 2].map((i) => `<circle cx="${x}" cy="${y}" r="${2.5 + i * 0.6}" fill="#eef1f4" stroke="${INK}" stroke-width="0.5" class="smoke" style="animation-delay:-${i}s"/>`).join("");
+// The chimney stands just behind the back wall (0.25 thick) and rises from its top, so none of it shows inside the room.
 function rooftop(add) {
-  const [cx, cy] = up(iso(2.6, -0.1), WALL + 30);
-  add(99, box(2.2, -0.4, 0.8, 0.6, 32, STONE, WALL - 4) + leftFace(2.2, -0.4, 0.6, WALL - 4, stones(12.8, 32, ["#b3aea5", "#a19c93", "#bdb8af"])) +
-    rightFace(2.2, -0.4, 0.8, 0.6, WALL - 4, stones(9.6, 32, ["#8a857c", "#7d786f", "#948f86"])) + box(2.1, -0.5, 1, 0.8, 3, STONE, WALL + 28) + smoke(cx, cy));
+  const [cx, cy] = up(iso(2.6, -0.55), WALL + 30);
+  add(99, box(2.2, -0.85, 0.8, 0.6, 28, STONE, WALL) + leftFace(2.2, -0.85, 0.6, WALL, stones(12.8, 28, ["#b3aea5", "#a19c93", "#bdb8af"])) +
+    rightFace(2.2, -0.85, 0.8, 0.6, WALL, stones(9.6, 28, ["#8a857c", "#7d786f", "#948f86"])) + box(2.1, -0.95, 1, 0.8, 3, STONE, WALL + 28) + smoke(cx, cy));
   const [dx, dy] = up(iso(18.9, 0.2), WALL + 16);
   add(99, box(18.85, 0.15, 0.1, 0.1, 12, CASE, WALL) + `<ellipse cx="${dx}" cy="${dy}" rx="9" ry="6" fill="#dfe4e9" stroke="${INK}" stroke-width="0.5"/>` +
     `<ellipse cx="${dx + 1}" cy="${dy + 0.5}" rx="6" ry="3.8" fill="#c9cdd3"/><line x1="${dx}" y1="${dy}" x2="${dx - 5}" y2="${dy - 7}" stroke="${CASE[1]}" stroke-width="0.8"/>` +
