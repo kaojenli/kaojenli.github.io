@@ -59,6 +59,7 @@ await p.ev("scrollTo(0, 0)");
 const faces = new Set();
 for (let i = 0; i < 45; i++) { faces.add(await p.ev(`document.querySelector("#hero-portrait .pv").getAttribute("viewBox")`)); await p.sleep(200); }
 ok(faces.size >= 2, `the framed portrait moves (${faces.size} frames seen in 9 s)`);
+ok(await p.ev(`getComputedStyle(document.querySelector("#hero-portrait .pv")).overflow`) === "hidden", "the portrait shows one frame at a time (its window clips the strip)");
 // Jen's routine (blinks, winks, turning round, coffee, a cookie...): every frame it shows has been drawn
 ok(await p.ev(`(() => { const st = [...STATES.values()].find((s) => s.look === "jen");
   return Object.values(ROUTINES.jen).every(([, make]) => make().every((s) => { const v = s.face && faceBack(s.face) ? "back" : "front";
