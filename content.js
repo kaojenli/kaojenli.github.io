@@ -19,7 +19,7 @@ const CONTENT = {
   },
 
   hero: {
-    eyebrow: "AI Engineer · Computer Vision & Sensing",
+    eyebrow: "Computer Vision · Sensing · Intelligent Systems",
     caption: "A cabin with a room for each project. Everyone inside is busy with one of them; click anyone to say hi.",
   },
 
