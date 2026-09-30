@@ -10,8 +10,6 @@ const tags = (items) => `<p class="tags">${items.map((t) => `<span class="tag">$
 $("#nav").innerHTML = CONTENT.sections.map((s) => `<a href="#${s.id}">${s.label}</a>`).join("");
 $("#hero-eyebrow").textContent = CONTENT.hero.eyebrow;
 $("#hero-lede").textContent = P.intro;
-const news = CONTENT.news;
-$("#hero-now").innerHTML = `<span class="now-label">Now</span> ${news.headline.replace(/^Now:\s*/, "")}, ${news.text} <a href="${news.link.href}">${news.link.label}</a>`;
 
 // ---------- Jen's portrait beside the intro: her head and shoulders (avatar.js) in an oval opening on velvet, in a
 // walnut frame with mitred corners and a thin antique-gilt slip, under a brass picture light; all one pixel picture.

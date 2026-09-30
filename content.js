@@ -20,11 +20,6 @@ const CONTENT = {
     eyebrow: "AI Engineer · Computer Vision & Sensing",
     caption: "A cabin with a room for each project. Everyone inside is busy with one of them; click anyone to say hi.",
   },
-  news: {
-    headline: "Now: AI Engineer at We Share Baseball",
-    text: "building multi-view 3D pose and multi-camera tracking pipelines for pro baseball.",
-    link: { label: "See the project", href: "#project-pitching" },
-  },
 
   // Page sections, top to bottom; `label` is the navigation link.
   sections: [

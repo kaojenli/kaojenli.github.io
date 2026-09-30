@@ -12,7 +12,6 @@ const C = load("content.js", "CONTENT");
 const slugs = new Set(C.projects.map((p) => p.slug));
 const ids = C.sections.map((x) => x.id);
 if (new Set(ids).size !== ids.length) fail(`duplicate section ids: ${ids}`);
-if (!slugs.has(C.news.link.href.replace("#project-", ""))) fail(`news links unknown project ${C.news.link.href}`);
 for (const e of C.experience) if (e.project && !slugs.has(e.project)) fail(`experience "${e.org}" links unknown project "${e.project}"`);
 for (const p of C.projects) {
   if (!p.title || !p.bullets?.length) fail(`project "${p.slug}" needs a title and bullets`);
