@@ -97,7 +97,7 @@ function makeCanvas(W = AW, Ht = AH, k = K) {
 // ---------- body geometry for each pose, in canvas pixels (three-quarter view facing down-right).
 // Arms run shoulder → elbow → hand and legs hip → knee → ankle; armL / legL are the near side (screen left), armR /
 // legR the far side; feet are [x0, y0, x1, y1] boxes with the toe to the right; `seat` is for sitting; `bob` lifts
-// the figure a pixel (walking); `phone` / `cupNear` put a phone or the cup in the near hand.
+// the figure a pixel (walking); `phone` / `cupNear` / `snack` put a phone, the cup or a cookie in the near hand.
 const posed = (o) => ({ armL: [[6, 33], [5, 45], [6, 57.5]], armR: [[26, 33], [27, 45], [27, 56]], legL: [[12, 54], [12, 65], [12, 75]], legR: [[20, 54], [20.5, 65], [21, 74]],
   footL: [6, 74, 18, 81], footR: [15, 72, 27, 79], ...o });
 const SIT = { seat: true, armL: [[6, 33], [8, 45], [12, 54]], armR: [[26, 33], [27, 45], [27, 52]], legL: [[12, 60], [22, 63], [22, 73]], legR: [[19, 59], [27, 61], [27, 70]],
@@ -121,6 +121,8 @@ const POSES = {
   talk1: posed({ armL: [[6, 33], [10, 44], [16, 41]] }),
   talk2: posed({ armL: [[6, 33], [9, 42], [13, 36]], armR: [[26, 33], [29, 41], [31, 38]] }),
   drink: posed({ armL: [[6, 33], [10, 43], [16, 31]], cupNear: true }),
+  holdCup: posed({ armL: [[6, 33], [9, 44], [14, 42]], cupNear: true }),   // the cup held in front, between sips
+  snack: posed({ armL: [[6, 33], [10, 43], [15, 31]], snack: true }),      // a cookie to the mouth
   danceL: posed({ armL: [[6, 33], [1, 26], [1, 16]], armR: [[26, 33], [21, 25], [17, 17]], legL: [[12, 54], [9, 65], [7, 75]], footL: [1, 74, 13, 81], legR: [[20, 54], [22, 65], [24, 74]], footR: [20, 72, 31, 79] }),
   danceMix: posed({ armL: [[6, 33], [2, 24], [2, 13]], armR: [[26, 33], [30, 40], [31, 47]], legL: [[12, 54], [15, 64], [13, 74]], footL: [8, 73, 20, 80] }),
   danceR: posed({ armL: [[6, 33], [11, 40], [18, 38]], armR: [[26, 33], [30, 23], [29, 13]], legL: [[12, 54], [14, 65], [17, 75]], footL: [12, 74, 24, 81], legR: [[20, 54], [20, 65], [19, 74]], footR: [13, 72, 25, 79] }),
@@ -141,7 +143,7 @@ function tweenPose(a, b, t) {
   if (!POSES[name]) {
     const A = POSES[a], B = POSES[b], near = t < 0.5 ? A : B, box = (p, q) => p.map((v, i) => v + (q[i] - v) * t);
     POSES[name] = { armL: lerpPts(A.armL, B.armL, t), armR: lerpPts(A.armR, B.armR, t), legL: lerpPts(A.legL, B.legL, t), legR: lerpPts(A.legR, B.legR, t),
-      footL: box(A.footL, B.footL), footR: box(A.footR, B.footR), seat: near.seat, phone: near.phone, cupNear: near.cupNear, bob: A.bob && B.bob };
+      footL: box(A.footL, B.footL), footR: box(A.footR, B.footR), seat: near.seat, phone: near.phone, cupNear: near.cupNear, snack: near.snack, bob: A.bob && B.bob };
   }
   return name;
 }
@@ -233,7 +235,7 @@ const hairTone = (r, texture) => (x, y) => {
   return r[1];
 };
 
-// ---------- draw one avatar. opts: eyes "open"/"closed", mouth "closed"/"open", back (seen from behind: no face).
+// ---------- draw one avatar. opts: eyes "open"/"closed"/"wink" (the near one shut), mouth "closed"/"open", back (seen from behind: no face).
 // layer: "all", or one of the three layers a figure is built from, like Habbo's separate body parts: "body" (everything
 // under the head), "head" (head, face, hair, hat, glasses; the same in every pose, and free to turn on its own) and "over"
 // (a raised arm, or what the near hand holds, in front of the head).
@@ -358,7 +360,7 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
     const iris = look.eyes || "#6b4526", st = { eyes: "round", brows: "flat", nose: "line", mouth: "smile", ...face };
     const darkHair = hexToHsl(look.hair[1])[2] < 38, brow = st.brows === "thin" ? skin[3] : darkHair ? OUTLINE : hairC[3];
     const eye = (x, y, outer) => {
-      if (eyes === "closed") { c.set(x, y + 3, OUTLINE); c.set(x + 1, y + 3, OUTLINE); c.set(x + 2, y + 2, OUTLINE); c.set(x + 3, y + 2, OUTLINE); return; }
+      if (eyes === "closed" || (eyes === "wink" && !outer)) { c.set(x, y + 3, OUTLINE); c.set(x + 1, y + 3, OUTLINE); c.set(x + 2, y + 2, OUTLINE); c.set(x + 3, y + 2, OUTLINE); return; }
       if (st.eyes === "narrow") { [[0, 2], [1, 2], [2, 2], [3, 2]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE)); c.set(x + 1, y + 3, "#ffffff"); c.set(x + 2, y + 3, OUTLINE); c.set(x + 3, y + 3, OUTLINE); c.set(x, y + 3, OUTLINE); return; }
       const lid = st.eyes === "sleepy" ? 1 : 0;
       [[1, 0], [2, 0], [3, 0], [0, 1], [0, 2], [0, 3], [1, 4]].forEach(([dx, dy]) => c.set(x + dx, y + dy, OUTLINE));   // lid and the back of the eye
@@ -426,6 +428,10 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   cur = "over";
   if (raised(pose.armL)) nearHand = arm(pose.armL, true);
   if (pose.cupNear && !back) cupAt(nearHand);
+  if (pose.snack && !back) { // a chocolate-chip cookie, a bite out of its top
+    const [hx, hy] = nearHand;
+    c.part(minus(ellipse(hx + 0.5, hy - 2, 2.8, 2.6), ellipse(hx + 3, hy - 4.5, 1.4, 1.4)), (x, y) => ((x * 3 + y * 5) % 7 === 0 ? "#5a3a22" : y < hy - 2.5 ? "#dca25e" : "#c98b4f"));
+  }
   if (pose.phone && !back) { const [hx, hy] = nearHand; c.part(rectS(hx - 1.5, hy - 5, hx + 2, hy + 1), () => "#2b2e35"); c.set(Math.round(hx), Math.round(hy - 4), "#8cc8f0"); }
   // things worn on the face
   cur = "head";
@@ -475,7 +481,7 @@ function toImage(px, W, Ht) {
 // A drawn picture placed at (x, y) in units.
 const imageTag = ({ id }, x, y) => `<use href="#${id}" x="${x}" y="${y}"/>`;
 // Whether a pose has anything in the "over" layer (a raised near arm, a cup at the mouth, a phone).
-const hasOver = (poseName) => { const p = POSES[poseName]; return p.armL[2][1] < 36 || !!p.cupNear || !!p.phone; };
+const hasOver = (poseName) => { const p = POSES[poseName]; return p.armL[2][1] < 36 || !!p.cupNear || !!p.phone || !!p.snack; };
 // Frames side by side in one picture (a sprite strip): showing another frame only moves the window onto the strip, so
 // nothing new has to load and nothing can blink out. frames: [{ pose, back, eyes, mouth, layer }].
 function joinFrames(list, W, Ht) {

@@ -54,6 +54,10 @@ const s0 = await p.ev(still); await p.sleep(1500);
 ok(await p.ev(still) === s0, "off screen, nothing in the scene moves");
 await p.ev(reveal("#scene")); await p.sleep(300);
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
+// Jen's routine (blinks, winks, turning round, coffee, a cookie...): every frame it shows has been drawn
+ok(await p.ev(`(() => { const st = [...STATES.values()].find((s) => s.look === "jen");
+  return Object.values(ROUTINES.jen).every(([, make]) => make().every((s) => { const v = s.face && faceBack(s.face) ? "back" : "front";
+    return st.body.keys.has((s.pose || "stand") + "|" + v) && (v === "back" || st.head.keys.has("front|" + (s.eyes || "open") + "|" + (s.mouth || "closed"))); })); })()`), "Jen's routine: every pose, turn and wink it uses is drawn");
 // when someone talks, the people near them turn their heads to look
 await p.ev(`say(document.querySelector('.who[data-look="customerA"]'), "hello there everyone")`);
 await p.sleep(50); // check at once, before a random chat nearby can turn heads elsewhere

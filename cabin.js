@@ -895,9 +895,54 @@ Promise.all([...staticURLs.map(decodeURL), ...firstIds.map((id) => { const im = 
 const STANDING = ["stand", "shift", "phone", "think", "reach", "typeA", "typeB", "drink"], SITTING = ["sit", "sitDrink"];
 const GESTURES = { wave: { stand: ["wave1", "wave2"], sit: ["sitWave", "sit"] }, talk: { stand: ["talk1", "stand", "talk2", "stand"], sit: ["sit", "sitWave"] } };
 const bodyKind = (st) => (STANDING.includes(st.idle[0].pose) ? "stand" : SITTING.includes(st.idle[0].pose) ? "sit" : null);
+// A little routine of her own for Jen in the living room: mostly she just stands there, and every so often she blinks
+// twice, winks, looks round, stretches with a yawn, spins on the spot, turns to look at the fireplace for a bit, sips a coffee or
+// (after checking nobody is looking) sneaks a cookie. Each act is a list of steps: a pose, a way to face, eyes (closed
+// or a wink), a mouth (open), `look` (turn the head away) or `chew`, held for ms.
+const ROUTINES = {
+  jen: {
+    still: [5, () => [{ ms: 3000 + Math.random() * 4000 }]],
+    blink: [2, () => [{ eyes: "closed", ms: 130 }, { ms: 170 }, { eyes: "closed", ms: 130 }, { ms: 1500 }]],
+    wink: [1, () => [{ eyes: "wink", ms: 700 }, { ms: 1200 }]],
+    look: [2, () => [{ look: true, ms: 1500 + Math.random() * 800 }, { ms: 900 }]],
+    yawn: [1, () => [{ pose: "armsUp", eyes: "closed", mouth: "open", ms: 1500 }, { ms: 900 }]],
+    spin: [1, () => [...["frontL", "back", "backR", "front"].map((face) => ({ face, ms: 240 })), { ms: 1200 }]],
+    away: [1, () => [{ face: "frontL", ms: 260 }, { face: "back", ms: 2400 }, { face: "frontL", ms: 260 }, { face: "front", ms: 1000 }]],
+    coffee: [1.5, () => [{ pose: "holdCup", ms: 1200 }, { pose: "drink", ms: 1400 }, { pose: "holdCup", ms: 1600 }, { pose: "drink", ms: 1200 }, { pose: "holdCup", ms: 1000 }, { ms: 800 }]],
+    snack: [1.5, () => [{ look: true, ms: 600 }, { ms: 300 }, { look: true, ms: 500 }, { pose: "snack", ms: 700 }, { chew: true, ms: 1600 }, { eyes: "wink", ms: 500 }, { ms: 800 }]],
+  },
+};
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function routine(st) {
+  const acts = Object.values(ROUTINES[st.look]), total = acts.reduce((n, [w]) => n + w, 0);
+  st.routine = true;
+  while (st.routine) { // (set it false to stop)
+    let r = Math.random() * total, i = 0;
+    while ((r -= acts[i][0]) > 0) i++;
+    for (const step of acts[i][1]()) {
+      if (!st.routine) return;
+      const now = performance.now();
+      if (!st.gesture) { // (a wave when clicked takes over; the routine carries on after)
+        st.override = step;
+        if (step.face) turn(st, step.face);
+        if (step.look) { st.lookUntil = now + step.ms; st.lookRight = !bodyRight(st); }
+        if (step.chew) st.talkUntil = now + step.ms;
+      }
+      await wait(step.ms);
+    }
+    st.override = null;
+    turn(st, st.cfg.face);
+  }
+}
+// poses a routine uses one after the other (standing between them), with how long each is held
+const routinePairs = (look) => Object.values(ROUTINES[look]).flatMap(([, make]) => {
+  const steps = make(), list = steps.map((s) => ({ pose: s.pose || "stand", ms: s.ms }));
+  return [["stand", list[0].pose, list[0].ms], ...list.slice(1).map((b, i) => [list[i].pose, b.pose, b.ms]), [list[list.length - 1].pose, "stand", 1800]];
+});
 function act(el, kind = "wave", ms = 3000) {
   const st = STATES.get(el);
   if (!st?.human || st.cfg.walker || !bodyKind(st)) return;
+  if (st.routine) { st.override = null; turn(st, st.cfg.face); }
   const now = performance.now();
   st.gesture = { kind, poses: GESTURES[kind][bodyKind(st)], ms: kind === "wave" ? 260 : 380, t0: now, until: now + ms };
   el.classList.add("acting");
@@ -920,11 +965,17 @@ function framesNeeded(st) {
       seq(list); pairs.push([rest.pose, list[0].pose, list[0].ms], ...list.map((p) => [p.pose, rest.pose, rest.ms]));
     });
   }
+  if (ROUTINES[st.look]) routinePairs(st.look).forEach((pair) => { poses.add(pair[1]); pairs.push(pair); });
   // in-between frames only where they get shown: a change that lasts at least two animation ticks (not quick typing)
   pairs.forEach(([a, b, ms]) => { if (0.45 * ms >= 120) tweensOf(a, b).forEach((p) => poses.add(p)); });
   const bodyKeys = views.flatMap((v) => [...poses].map((pose) => ({ pose, back: v === "back", key: `${pose}|${v}` })));
   const headKeys = views.flatMap((v) => (v === "back" ? [{ back: true, key: "back|open|closed" }]
     : ["open|closed", "closed|closed", "open|open", "closed|open"].map((e) => { const [eyes, mouth] = e.split("|"); return { back: false, eyes, mouth, key: `front|${e}` }; })));
+  // a routine also turns round (standing, seen from behind) and winks
+  if (ROUTINES[st.look]) {
+    if (!views.includes("back")) { bodyKeys.push({ pose: "stand", back: true, key: "stand|back" }); headKeys.push({ back: true, key: "back|open|closed" }); }
+    headKeys.push({ back: false, eyes: "wink", mouth: "closed", key: "front|wink|closed" });
+  }
   return { bodyKeys, headKeys, overKeys: bodyKeys.filter((k) => hasOver(k.pose)) };
 }
 function swapStrip(w, strip, keys) { w.svg.querySelector("use").setAttribute("href", `#${strip.id}`); w.keys = new Map(keys.map((k, i) => [k.key, i])); w.i = -1; }
@@ -951,8 +1002,11 @@ function draw(st, now) {
   else if (st.gesture && now < st.gesture.until) { target = st.gesture.poses[Math.floor((now - st.gesture.t0) / st.gesture.ms) % st.gesture.poses.length]; hold = st.gesture.ms; }
   else {
     if (st.gesture) { st.gesture = null; st.el.classList.remove("acting"); }
-    if (!reduceMotion && now >= st.idleNext) { st.idleI = (st.idleI + 1) % st.idle.length; st.idleNext = now + st.idle[st.idleI].ms * (0.85 + Math.random() * 0.3); }
-    target = st.idle[st.idleI].pose; hold = st.idle[st.idleI].ms;
+    if (st.override) { target = st.override.pose || "stand"; hold = st.override.ms; }
+    else {
+      if (!reduceMotion && now >= st.idleNext) { st.idleI = (st.idleI + 1) % st.idle.length; st.idleNext = now + st.idle[st.idleI].ms * (0.85 + Math.random() * 0.3); }
+      target = st.idle[st.idleI].pose; hold = st.idle[st.idleI].ms;
+    }
   }
   // a new target pose: move there through the in-between frames (not while walking: the walk cycle is its own)
   if (target !== st.to) { st.from = st.walking || WALK8.includes(st.to) ? null : st.to; st.to = target; st.tAt = now; st.tDur = Math.min(280, 0.45 * (hold || 300)); }
@@ -963,9 +1017,9 @@ function draw(st, now) {
     if (st.body.keys.has(`${tw}|${st.view}`)) pose = tw;
   }
   if (now > st.blinkEnd) { st.blinkAt = now + 4500 + Math.random() * 1000; st.blinkEnd = st.blinkAt + 90 + Math.random() * 160; } // long enough to land on a tick (below)
-  const eyes = now >= st.blinkAt && now < st.blinkEnd ? "closed" : "open";
+  const eyes = st.override?.eyes || (now >= st.blinkAt && now < st.blinkEnd ? "closed" : "open");
   if (now < st.talkUntil && now >= st.mouthNext) { st.mouthOpen = !st.mouthOpen; st.mouthNext = now + (st.mouthOpen ? 110 + Math.random() * 150 : 75 + Math.random() * 110); }
-  const mouth = now < st.talkUntil && st.mouthOpen ? "open" : "closed", v = st.view, bi = st.body.keys.get(`${pose}|${v}`);
+  const mouth = st.override?.mouth || (now < st.talkUntil && st.mouthOpen ? "open" : "closed"), v = st.view, bi = st.body.keys.get(`${pose}|${v}`);
   if (bi === undefined) return; // not drawn yet (before its strips are ready): stay as we are
   setWin(st.body, bi);
   const oi = st.over?.keys.get(`${pose}|${v}`);
@@ -1072,11 +1126,11 @@ function setDepth(el, d) {
   if (holder.nextElementSibling !== next) things.insertBefore(holder, next || null);
 }
 // Face a way ("front", "frontL", "back", "backR"; see person()); animals only mirror.
-function faceTo(wk, face) {
-  const st = STATES.get(wk.el);
+function turn(st, face) {
   if (st.human) { st.view = faceBack(face) ? "back" : "front"; st.mirror = faceMirror(face); }
-  st.face.setAttribute("transform", faceMirror(face) ? `translate(${+wk.el.dataset.w} 0) scale(-1 1)` : "");
+  st.face.setAttribute("transform", faceMirror(face) ? `translate(${+st.el.dataset.w} 0) scale(-1 1)` : "");
 }
+const faceTo = (wk, face) => turn(STATES.get(wk.el), face);
 const headingFace = ([hx, hy], human) => (human ? (hx > 0 ? "front" : hy > 0 ? "frontL" : hx < 0 ? "back" : "backR") : hx - hy < 0 ? "frontL" : "front");
 // One step to a neighbouring tile (moving between the indoor and outdoor layers at a doorway), then done().
 function stepTo(wk, [nx, ny], done) {
@@ -1185,6 +1239,7 @@ if (!reduceMotion) {
   })(performance.now());
   WALKERS.forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
   setTimeout(glance, 2000);
+  STATES.forEach((st) => ROUTINES[st.look] && setTimeout(() => routine(st), 4000)); // (after the greeting)
   (function chatter() { setTimeout(() => { randomChat(); chatter(); }, 2500 + Math.random() * 2500); })();
 }
 // On phones the building scrolls sideways; start in the middle.
