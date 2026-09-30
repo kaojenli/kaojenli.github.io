@@ -390,8 +390,9 @@ const ROOMS = [
   },
   {
     key: "street", level: 0, rect: [0, 13, 15, 2], label: "Sidewalk", outdoor: true, tex: "paving", floor: ["#c9c4bb", "#bfb9ae"],
-    blocked: [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 0], [7, 0], [9, 1], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]],
-    rug: (X, Y) => rect(X, Y + 1.88, 15, 0.12, "#8d8d8d"),
+    blocked: [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1], [4, 0], [7, 0], [8, 1], [9, 1], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]],
+    // the curb, and a patch of snow under Snow girl
+    rug: (X, Y) => rect(X, Y + 1.88, 15, 0.12, "#8d8d8d") + `<ellipse cx="${X + 8.4}" cy="${Y + 1.45}" rx="0.5" ry="0.38" fill="#f2f6fa"/><ellipse cx="${X + 8.15}" cy="${Y + 1.66}" rx="0.3" ry="0.16" fill="#f2f6fa"/>`,
     draw(add, X, Y) {
       // the queue outside the café door, each person tracked with a box
       // the first in line goes in to order (see ROUTES) and comes back; the rest wait facing the door, glancing about
@@ -405,14 +406,14 @@ const ROOMS = [
       add(X + Y + 4.6, lantern3(X + 4.55, Y + 0.25));
       add(X + Y + 5.9, lamp(X + 4.5, Y + 1.45));
       add(X + Y + 7.8, mailbox3(X + 7.4, Y + 0.35));
+      add(X + Y + 9.9, critter("snowgirl", ["snowGirl"], X + 8.4, Y + 1.45));
       add(X + Y + 10.5, lamp(X + 9.2, Y + 1.5));
     },
   },
   {
     key: "yard", level: 0, rect: [15, 9, 5, 6], label: "Practice field", href: "#project-pitching", slug: "pitching", outdoor: true, tex: "field", floor: ["#62b444", "#6cbd4a"],
-    blocked: [[1, 0], [3, 0], [3, 1], [0, 2], [4, 1], [4, 2], [4, 3], [4, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5]],
-    // (a patch of snow under Snow girl)
-    rug: (X, Y) => `<ellipse cx="${X + 3.5}" cy="${Y + 1.5}" rx="0.55" ry="0.42" fill="#f2f6fa"/><ellipse cx="${X + 3.3}" cy="${Y + 1.75}" rx="0.32" ry="0.17" fill="#f2f6fa"/>` + `<ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.6" ry="0.6" fill="#b9834a"/><ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.45" ry="0.45" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.65, 0.08, 0.3, "#fff") +
+    blocked: [[1, 0], [3, 0], [0, 2], [4, 1], [4, 2], [4, 3], [4, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5]],
+    rug: (X, Y) => `<ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.6" ry="0.6" fill="#b9834a"/><ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.45" ry="0.45" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.65, 0.08, 0.3, "#fff") +
       `<ellipse cx="${X + 4.3}" cy="${Y + 3.1}" rx="0.5" ry="0.5" fill="#b9834a"/>` + `<polygon points="${X + 4.2},${Y + 3.0} ${X + 4.4},${Y + 3.0} ${X + 4.45},${Y + 3.15} ${X + 4.3},${Y + 3.25} ${X + 4.15},${Y + 3.15}" fill="#fff"/>` +
       `<line x1="${X + 0.9}" y1="${Y + 2.8}" x2="${X + 4.3}" y2="${Y + 3.1}" stroke="rgba(255,255,255,.35)" stroke-width="0.03" stroke-dasharray="0.1 0.1"/>` +
       [[3.85, 2.5], [3.85, 3.35]].map(([a, b]) => rect(X + a, Y + b, 0.9, 0.55, "none", ` stroke="rgba(255,255,255,.85)" stroke-width="0.04"`)).join(""),
@@ -430,8 +431,7 @@ const ROOMS = [
       add(X + Y + 7.9, box(X + 4.75, Y + 2.35, 0.06, 0.06, 18, CASE) + box(X + 4.75, Y + 3.7, 0.06, 0.06, 18, CASE) + rightFace(X + 4.72, Y + 2.35, 0.06, 1.4, 0, mesh));
       for (const [cx, cy] of [[1.9, 0.45], [3.3, 0.4], [4.35, 5.45]]) add(X + Y + cx + cy, camera(X + cx, Y + cy));
       add(X + Y + 5.3, onFloor(X + 4.45, Y + 1.0, 0, "treeSmall"));
-      // Snow girl on a patch of snow; Sam the turtle wanders the field (see WALKERS)
-      add(X + Y + 5, critter("snowgirl", ["snowGirl"], X + 3.5, Y + 1.5));
+      // Sam the turtle starts out on the field (he wanders the whole ground floor, see WALKERS)
       add(X + Y + 4, critter("sam", ["turtle", "turtleB"], X + 2.5, Y + 1.5, { cls: "walker" }));
       add(X + Y + 5.8, tableF(X + 0.2, Y + 5.1, 0.7, 0.6, { h: 11, wood: FC.oak }) + laptop3(X + 0.35, Y + 5.25, 11));
       add(X + Y + 7.2, legs(X + 1.45, Y + 5.4, 1.2, 0.3, 5, pal(FC.iron), 0.06) + box(X + 1.4, Y + 5.35, 1.3, 0.4, 1.5, pal(FC.oak, "wood"), 5));
@@ -1041,15 +1041,16 @@ const ROUTES = {
 // the stations are kept for their people: wanderers never stop (or get stuck) on them
 const STATIONS = new Set(Object.values(ROUTES).flatMap((r) => r.stops.map((s) => `${r.level}:${s.tile}`)));
 const onFloorOK = (wk, [x, y]) => !!roomAt(wk.level, x, y) && (!BLOCKED.has(`${wk.level}:${x},${y}`) || wk.also.has(`${x},${y}`)) && wk.allowed([x, y]) &&
-  (!!wk.route || !STATIONS.has(`${wk.level}:${x},${y}`));
+  (!!wk.route || wk.through || !STATIONS.has(`${wk.level}:${x},${y}`));
 const walkable = (wk, from, to) => onFloorOK(wk, to) && !isWall(wk.level, from, to);
 const WALKERS = [
   { look: "coffee", level: 0, tile: [12, 11], allowed: ([x, y]) => !roomAt(0, x, y).outdoor },
   { look: "cat", level: 1, tile: [6, 2], allowed: () => true },
   { look: "dog", level: 0, tile: [3, 14], allowed: ([x, y]) => roomAt(0, x, y).outdoor },
-  { look: "sam", level: 0, tile: [17, 10], stepMs: 1400, allowed: ([x, y]) => roomAt(0, x, y).key === "yard" }, // a turtle: slow
+  // a turtle: slow, and free to crawl anywhere downstairs, in and out by the café door (never stopping in it)
+  { look: "sam", level: 0, tile: [17, 10], stepMs: 1400, allowed: () => true, through: true, also: ["10,13"] },
   ...Object.entries(ROUTES).map(([look, r]) => ({ look, level: r.level, tile: r.stops[0].tile, route: r, stopAt: 0, allowed: () => true })),
-].map((w) => ({ ...w, also: new Set(w.route?.also || []), el: scene.querySelector(`.walker[data-look="${w.look}"]`), heading: [1, 0] }));
+].map((w) => ({ ...w, also: new Set(w.also || w.route?.also || []), el: scene.querySelector(`.walker[data-look="${w.look}"]`), heading: [1, 0] }));
 // where each walker is drawn (scene px), read from where the scene put them
 WALKERS.forEach((wk) => (wk.xy = wk.el.style.transform.match(/-?[\d.]+/g).map(Number)));
 // Walking between two tiles: in whole pixels, a little further on each animation tick.
@@ -1125,7 +1126,7 @@ function wander(wk) {
   const key = ([x, y]) => `${x},${y}`, dist = new Map([[key(wk.tile), 0]]), queue = [wk.tile], spots = [];
   while (queue.length) {
     const t = queue.shift(), dd = dist.get(key(t));
-    if (dd >= 2) spots.push(t);
+    if (dd >= 2 && !STATIONS.has(`${wk.level}:${t}`)) spots.push(t);
     if (dd === 6) continue;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = [t[0] + dx, t[1] + dy]; if (!dist.has(key(n)) && walkable(wk, t, n) && !takenBy(wk, n)) { dist.set(key(n), dd + 1); queue.push(n); } }
   }

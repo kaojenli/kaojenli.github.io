@@ -264,17 +264,17 @@ const PROPS = {
     c.part(polyS([[16.5, 5], [18.5, 4], [18.5, 11], [16.5, 10]]), () => "#6f4a2f"); c.part(polyS([[25, 4], [27, 5], [27, 10], [25, 11]]), () => "#6f4a2f");
     c.set(20, 7, O); c.set(23, 7, O); c.set(24, 10, O); c.set(23, 10, O);
   } }])),
-  // Sam the turtle, walking to the right: a domed shell with its plates marked out and a pale rim, head on a stretched
+  // Sam the turtle (aqua blue), walking to the right: a domed shell with its plates marked out and a pale rim, head on a stretched
   // neck, the legs stepping in turn (two frames).
   ...Object.fromEntries(["turtle", "turtleB"].map((name, f) => [name, { w: 24, h: 13, draw(c) {
-    const skin = ramp("#8cc152"), shell = ramp("#6b8e3a");
+    const skin = ramp("#8fdbe6"), shell = ramp("#3eaecb"); // aqua blue
     const far = f ? [[7, 9, 6, 12], [15, 9, 16.5, 12]] : [[7, 9, 8, 12], [15, 9, 14, 12]], near = f ? [[5.5, 9.5, 6.5, 12.5], [13.5, 9.5, 12.5, 12.5]] : [[5.5, 9.5, 4.5, 12.5], [13.5, 9.5, 14.5, 12.5]];
     far.forEach(([x0, y0, x1, y1]) => c.part(limb([[x0, y0], [x1, y1]], 3.4), () => skin[2]));
     c.part(polyS([[1.5, 8.5], [4.5, 7.5], [4.5, 9.8]]), () => skin[1]);
     c.part(limb([[16, 8], [19, 6.5]], 2.6), bands(skin, 16, 20));
     c.part(ellipse(20.2, 5.8, 3, 2.5), sphere(skin, 20.2, 5.8, 3, 2.5));
     c.part(minus(ellipse(10.5, 7.5, 7.5, 6), rectS(0, 9, 24, 13)), sphere(shell, 9, 5, 7.5, 6));
-    c.part(rectS(3, 8, 18, 10), (x) => (x < 6 ? "#e8d690" : "#d2bb6c"), null);
+    c.part(rectS(3, 8, 18, 10), (x) => (x < 6 ? "#e2f7fa" : "#bfe7ef"), null);
     for (let x = 2; x < 19; x++) c.set(x, 10, O);
     for (let y = 3; y < 9; y++) { c.set(7, y, shell[3]); c.set(13, y, shell[3]); }
     for (let x = 5; x < 17; x++) c.set(x, 5, shell[3]);
