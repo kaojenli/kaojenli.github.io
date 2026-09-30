@@ -264,6 +264,49 @@ const PROPS = {
     c.part(polyS([[16.5, 5], [18.5, 4], [18.5, 11], [16.5, 10]]), () => "#6f4a2f"); c.part(polyS([[25, 4], [27, 5], [27, 10], [25, 11]]), () => "#6f4a2f");
     c.set(20, 7, O); c.set(23, 7, O); c.set(24, 10, O); c.set(23, 10, O);
   } }])),
+  // Sam the turtle, walking to the right: a domed shell with its plates marked out and a pale rim, head on a stretched
+  // neck, the legs stepping in turn (two frames).
+  ...Object.fromEntries(["turtle", "turtleB"].map((name, f) => [name, { w: 24, h: 13, draw(c) {
+    const skin = ramp("#8cc152"), shell = ramp("#6b8e3a");
+    const far = f ? [[7, 9, 6, 12], [15, 9, 16.5, 12]] : [[7, 9, 8, 12], [15, 9, 14, 12]], near = f ? [[5.5, 9.5, 6.5, 12.5], [13.5, 9.5, 12.5, 12.5]] : [[5.5, 9.5, 4.5, 12.5], [13.5, 9.5, 14.5, 12.5]];
+    far.forEach(([x0, y0, x1, y1]) => c.part(limb([[x0, y0], [x1, y1]], 3.4), () => skin[2]));
+    c.part(polyS([[1.5, 8.5], [4.5, 7.5], [4.5, 9.8]]), () => skin[1]);
+    c.part(limb([[16, 8], [19, 6.5]], 2.6), bands(skin, 16, 20));
+    c.part(ellipse(20.2, 5.8, 3, 2.5), sphere(skin, 20.2, 5.8, 3, 2.5));
+    c.part(minus(ellipse(10.5, 7.5, 7.5, 6), rectS(0, 9, 24, 13)), sphere(shell, 9, 5, 7.5, 6));
+    c.part(rectS(3, 8, 18, 10), (x) => (x < 6 ? "#e8d690" : "#d2bb6c"), null);
+    for (let x = 2; x < 19; x++) c.set(x, 10, O);
+    for (let y = 3; y < 9; y++) { c.set(7, y, shell[3]); c.set(13, y, shell[3]); }
+    for (let x = 5; x < 17; x++) c.set(x, 5, shell[3]);
+    [[5, 3], [6, 2], [9, 2]].forEach(([x, y]) => c.set(x, y, shell[0]));
+    near.forEach(([x0, y0, x1, y1]) => c.part(limb([[x0, y0], [x1, y1]], 3.6), bands(skin, x0 - 1.5, x0 + 2)));
+    c.set(21, 5, O); c.set(22, 7, skin[3]); c.set(21, 7, skin[3]);
+  } }])),
+  // Snow girl: three balls of snow, coal eyes with lashes, rosy cheeks, a carrot nose, twig arms, and a red tartan scarf
+  // (with a matching bow) wound round her neck, one end hanging down with a fringe.
+  snowGirl: { w: 28, h: 46, draw(c) {
+    const snow = ["#ffffff", "#eaf0f7", "#c7d3e2", "#a3b3c9"], twig = () => "#6f4a2f";
+    const tartan = (x, y) => { const a = x % 4 === 1, b = y % 3 === 0; return a && b ? "#1f2d4f" : a || b ? "#8a0f22" : x % 8 === 3 && y % 3 === 1 ? "#f6c945" : "#c8102e"; };
+    c.part(limb([[7, 22], [2, 15.5]], 1.4), twig, null); c.part(limb([[3.5, 17.5], [1, 18.5]], 1), twig, null);
+    c.part(limb([[21, 22], [26, 15.5]], 1.4), twig, null); c.part(limb([[24.5, 17.5], [27, 18.5]], 1), twig, null);
+    c.part(ellipse(14, 36, 11, 9), sphere(snow, 14, 36, 11, 9));
+    c.part(ellipse(14, 22.5, 8, 7), sphere(snow, 14, 22.5, 8, 7));
+    c.part(ellipse(14, 10.5, 6.5, 6), sphere(snow, 14, 10.5, 6.5, 6));
+    [[12, 21], [12, 24], [12, 27]].forEach(([x, y]) => { c.set(x, y, O); c.set(x + 1, y, "#2b2e35"); });
+    c.part(polyS([[7, 15], [21, 15], [21.5, 18.5], [6.5, 18.5]]), tartan);
+    c.part(polyS([[16, 17], [19.5, 17], [20.5, 27], [17, 27]]), tartan);
+    for (let x = 17; x < 21; x++) if (x % 2) c.set(x, 28, "#c8102e");
+    // the bow, on the side of her head
+    c.part(polyS([[5, 3], [10, 5.5], [5, 8.5]]), (x, y) => (y < 5 ? "#e0334f" : "#c8102e")); c.part(polyS([[15, 3], [10, 5.5], [15, 8.5]]), () => "#a30d25");
+    c.part(rectS(9, 4.5, 11, 6.5), () => "#7a0b1c", null);
+    // round coal eyes with a glint, lashes at the outer corners, rosy cheeks
+    for (const ex of [10, 16]) { c.set(ex, 9, O); c.set(ex + 1, 9, O); c.set(ex, 10, O); c.set(ex + 1, 10, O); c.set(ex, 9, "#6b7280"); }
+    c.set(9, 8, O); c.set(18, 8, O);
+    c.set(9, 11, "#f4a7c0"); c.set(10, 12, "#f4a7c0"); c.set(18, 12, "#f4a7c0"); c.set(19, 11, "#f4a7c0");
+    // the carrot nose, pointing to the right
+    c.part(polyS([[13.5, 10.5], [19.5, 12], [13.5, 13]]), (x, y) => (y > 11.5 ? "#c9611a" : "#f28c28"), null);
+    [[11, 14], [12, 15], [14, 15], [15, 14]].forEach(([x, y]) => c.set(x, y, "#2b2e35"));
+  } },
   ...Object.fromEntries([["flowerP", "#f06292"], ["flowerR", "#e0584f"]].map(([name, col]) => [name, { w: 8, h: 12, draw(c) {
     c.part(limb([[4, 6], [4, 11]], 1), () => "#2d7a38", null);
     c.part(ellipse(2, 9, 1.8, 1), () => "#3fa34d", null);

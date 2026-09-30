@@ -410,8 +410,9 @@ const ROOMS = [
   },
   {
     key: "yard", level: 0, rect: [15, 9, 5, 6], label: "Practice field", href: "#project-pitching", slug: "pitching", outdoor: true, tex: "field", floor: ["#62b444", "#6cbd4a"],
-    blocked: [[1, 0], [3, 0], [0, 2], [4, 1], [4, 2], [4, 3], [4, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5]],
-    rug: (X, Y) => `<ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.6" ry="0.6" fill="#b9834a"/><ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.45" ry="0.45" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.65, 0.08, 0.3, "#fff") +
+    blocked: [[1, 0], [3, 0], [3, 1], [0, 2], [4, 1], [4, 2], [4, 3], [4, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5]],
+    // (a patch of snow under Snow girl)
+    rug: (X, Y) => `<ellipse cx="${X + 3.5}" cy="${Y + 1.5}" rx="0.55" ry="0.42" fill="#f2f6fa"/><ellipse cx="${X + 3.3}" cy="${Y + 1.75}" rx="0.32" ry="0.17" fill="#f2f6fa"/>` + `<ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.6" ry="0.6" fill="#b9834a"/><ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.45" ry="0.45" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.65, 0.08, 0.3, "#fff") +
       `<ellipse cx="${X + 4.3}" cy="${Y + 3.1}" rx="0.5" ry="0.5" fill="#b9834a"/>` + `<polygon points="${X + 4.2},${Y + 3.0} ${X + 4.4},${Y + 3.0} ${X + 4.45},${Y + 3.15} ${X + 4.3},${Y + 3.25} ${X + 4.15},${Y + 3.15}" fill="#fff"/>` +
       `<line x1="${X + 0.9}" y1="${Y + 2.8}" x2="${X + 4.3}" y2="${Y + 3.1}" stroke="rgba(255,255,255,.35)" stroke-width="0.03" stroke-dasharray="0.1 0.1"/>` +
       [[3.85, 2.5], [3.85, 3.35]].map(([a, b]) => rect(X + a, Y + b, 0.9, 0.55, "none", ` stroke="rgba(255,255,255,.85)" stroke-width="0.04"`)).join(""),
@@ -429,6 +430,9 @@ const ROOMS = [
       add(X + Y + 7.9, box(X + 4.75, Y + 2.35, 0.06, 0.06, 18, CASE) + box(X + 4.75, Y + 3.7, 0.06, 0.06, 18, CASE) + rightFace(X + 4.72, Y + 2.35, 0.06, 1.4, 0, mesh));
       for (const [cx, cy] of [[1.9, 0.45], [3.3, 0.4], [4.35, 5.45]]) add(X + Y + cx + cy, camera(X + cx, Y + cy));
       add(X + Y + 5.3, onFloor(X + 4.45, Y + 1.0, 0, "treeSmall"));
+      // Snow girl on a patch of snow; Sam the turtle wanders the field (see WALKERS)
+      add(X + Y + 5, critter("snowgirl", ["snowGirl"], X + 3.5, Y + 1.5));
+      add(X + Y + 4, critter("sam", ["turtle", "turtleB"], X + 2.5, Y + 1.5, { cls: "walker" }));
       add(X + Y + 5.8, tableF(X + 0.2, Y + 5.1, 0.7, 0.6, { h: 11, wood: FC.oak }) + laptop3(X + 0.35, Y + 5.25, 11));
       add(X + Y + 7.2, legs(X + 1.45, Y + 5.4, 1.2, 0.3, 5, pal(FC.iron), 0.06) + box(X + 1.4, Y + 5.35, 1.3, 0.4, 1.5, pal(FC.oak, "wood"), 5));
       add(X + Y + 8.7, disc(X + 3.2, Y + 5.5, 0.16, 0, 6, "#3b6fb6") + [[3.16, 5.46], [3.26, 5.5], [3.2, 5.56]].map(([a, b]) => rect(...up(iso(X + a, Y + b), 7), 1.5, 1.5, "#fff", ` stroke="${INK}" stroke-width="0.3"`)).join(""));
@@ -941,7 +945,7 @@ async function upgrade(st) {
 }
 // Pick and show one person's (or animal's) frame for this moment.
 function draw(st, now) {
-  if (!st.human) return setWin(st.body, st.walking ? Math.floor((now - st.walkT0) / 250) % 2 : 0);
+  if (!st.human) return setWin(st.body, st.walking ? Math.floor((now - st.walkT0) / ((st.wk?.stepMs || 500) / 2)) % 2 : 0);
   let target, hold;
   if (st.walking) target = WALK8[Math.floor((now - st.walkT0) / 62.5) % 8];
   else if (st.gesture && now < st.gesture.until) { target = st.gesture.poses[Math.floor((now - st.gesture.t0) / st.gesture.ms) % st.gesture.poses.length]; hold = st.gesture.ms; }
@@ -1043,6 +1047,7 @@ const WALKERS = [
   { look: "coffee", level: 0, tile: [12, 11], allowed: ([x, y]) => !roomAt(0, x, y).outdoor },
   { look: "cat", level: 1, tile: [6, 2], allowed: () => true },
   { look: "dog", level: 0, tile: [3, 14], allowed: ([x, y]) => roomAt(0, x, y).outdoor },
+  { look: "sam", level: 0, tile: [17, 10], stepMs: 1400, allowed: ([x, y]) => roomAt(0, x, y).key === "yard" }, // a turtle: slow
   ...Object.entries(ROUTES).map(([look, r]) => ({ look, level: r.level, tile: r.stops[0].tile, route: r, stopAt: 0, allowed: () => true })),
 ].map((w) => ({ ...w, also: new Set(w.route?.also || []), el: scene.querySelector(`.walker[data-look="${w.look}"]`), heading: [1, 0] }));
 // where each walker is drawn (scene px), read from where the scene put them
@@ -1051,7 +1056,7 @@ WALKERS.forEach((wk) => (wk.xy = wk.el.style.transform.match(/-?[\d.]+/g).map(Nu
 function moveWalkers(now) {
   for (const wk of WALKERS) {
     if (!wk.move) continue;
-    const { from, to, t0 } = wk.move, t = Math.min(1, (now - t0) / 500), xy = from.map((a, i) => Math.round(a + (to[i] - a) * t));
+    const { from, to, t0 } = wk.move, t = Math.min(1, (now - t0) / (wk.stepMs || 500)), xy = from.map((a, i) => Math.round(a + (to[i] - a) * t));
     if (xy[0] !== wk.xy[0] || xy[1] !== wk.xy[1]) { wk.xy = xy; wk.el.style.transform = `translate(${xy[0]}px,${xy[1]}px)`; }
     if (t === 1) wk.move = null;
   }
@@ -1080,7 +1085,7 @@ function stepTo(wk, [nx, ny], done) {
   const d = nx + ny + 1, forward = d > x + y + 1, group = scene.querySelector(roomAt(wk.level, nx, ny).outdoor ? "#things-out" : `#things-${wk.level}`);
   if (wk.el.parentElement.parentElement !== group) { group.appendChild(wk.el.parentElement); setDepth(wk.el, d); }
   else if (forward) setDepth(wk.el, d); // stepping toward the viewer: draw in front before moving
-  const [px, py] = at(nx + 0.5, ny + 0.5, +wk.el.dataset.w, +wk.el.dataset.h);
+  const [px, py] = at(nx + 0.5, ny + 0.5, +wk.el.dataset.w, +wk.el.dataset.h), ms = wk.stepMs || 500;
   faceTo(wk, headingFace(wk.heading, st.human));
   if (!st.walking) { st.walking = true; st.walkT0 = performance.now(); }
   wk.stepping = true;
@@ -1090,7 +1095,7 @@ function stepTo(wk, [nx, ny], done) {
     wk.stepping = false;
     done();
     if (!wk.stepping) st.walking = false; // stopped here (not straight on to the next tile)
-  }, 500);
+  }, ms);
 }
 // Shortest path over free tiles (ignoring the other walkers, who are waited for), as a list of tiles after the start.
 function pathTo(wk, goal) {
