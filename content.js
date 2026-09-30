@@ -5,13 +5,12 @@ const CONTENT = {
     tagline: "Computer Vision & 3D Reconstruction · Signal Processing & Sensing · Machine Learning & Evaluation",
     now: "AI Engineer @ We Share Baseball",
     email: "kaojenli@gmail.com",
-    // (HTML: the last sentence is in bold)
     intro:
-      "I am interested in building intelligent systems that can perceive, understand, and learn from people. " +
+      "My research interests center on building intelligent systems that can perceive, understand, and learn from people. " +
       "My research draws on sensing, signal processing, computer vision, and machine learning to infer human states and " +
       "behavior from incomplete and multimodal observations, spanning millimeter-wave radar and medical imaging to " +
-      "multi-view 3D reconstruction of human motion. <strong>I hope to develop systems that go beyond perception to " +
-      "learn from human feedback and adapt to the people they interact with.</strong>",
+      "multi-view 3D reconstruction of human motion. I hope to develop systems that go beyond perception to " +
+      "learn from human feedback and adapt to the people they interact with.",
     links: [
       { label: "GitHub", url: "https://github.com/Dino-Boooo" },
       { label: "LinkedIn", url: "https://www.linkedin.com/in/jenlikao/" },
