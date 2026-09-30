@@ -6,9 +6,9 @@ const CONTENT = {
     now: "AI Engineer @ We Share Baseball",
     email: "kaojenli@gmail.com",
     intro:
-      "I build vision and sensing pipelines: multi-view 3D pose for baseball pitchers, multi-camera tracking, " +
-      "millimeter-wave imaging for breast tumor detection, and LLM systems that write security rules. " +
-      "MS ECE from Texas A&M, MS CS from Chang Gung University.",
+      "My research interests are computer vision, sensing and medical devices: recovering 3D motion from multiple " +
+      "cameras, millimeter-wave and radar sensing, and imaging systems for medicine, from MRI hardware to breast " +
+      "cancer detection. MS ECE from Texas A&M, MS CS from Chang Gung University.",
     links: [
       { label: "GitHub", url: "https://github.com/Dino-Boooo" },
       { label: "LinkedIn", url: "https://www.linkedin.com/in/jenlikao/" },

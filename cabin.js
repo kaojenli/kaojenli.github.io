@@ -1225,7 +1225,10 @@ if (!reduceMotion) {
   let lastTick = 0;
   const started = new WeakMap(); // animation → when it would have started
   new IntersectionObserver(([e]) => (onScreen = e.isIntersecting)).observe(scene);
-  (function tick(now) {
+  // (the clock is performance.now(), which gestures and steps also start from: the frame's own timestamp can lag it,
+  // and a gesture that started "after" the frame would look up a frame before its first)
+  (function tick() {
+    const now = performance.now();
     if (onScreen && now - lastTick >= 60) {
       lastTick = now;
       STATES.forEach((st) => draw(st, now));
@@ -1236,7 +1239,7 @@ if (!reduceMotion) {
       }
     }
     requestAnimationFrame(tick);
-  })(performance.now());
+  })();
   WALKERS.forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
   setTimeout(glance, 2000);
   STATES.forEach((st) => ROUTINES[st.look] && setTimeout(() => routine(st), 4000)); // (after the greeting)

@@ -56,6 +56,12 @@ const still = `[...document.querySelectorAll('#scene .who')].map((el) => el.data
 const s0 = await p.ev(still); await p.sleep(1500);
 ok(await p.ev(still) === s0, "off screen, nothing in the scene moves");
 await p.ev(reveal("#scene")); await p.sleep(300);
+// one clock: every frame is drawn at a time no earlier than when the gestures and steps on it started (a gesture that
+// "starts after" its frame looks up a pose before its first, and the in-between frames toward it throw)
+await p.ev(`window.EARLY = 0; { const d0 = draw; draw = (st, now) => { if ((st.gesture && now < st.gesture.t0) || (st.walking && now < st.walkT0)) EARLY++; return d0(st, now); }; }
+  window.ACTS = setInterval(() => { people.slice(0, 12).forEach((el) => act(el, "talk", 400)); const t = performance.now(); while (performance.now() - t < 40); }, 25);`); // (busy, so frames run late, as while the page loads)
+await p.sleep(3000);
+ok(await p.ev(`(clearInterval(ACTS), EARLY)`) === 0, "one clock: no frame is drawn before the gesture or step on it started");
 ok(undecoded.length === 0, "every picture shown in the scene has decoded first (no blank frames)" + (undecoded.length ? ": " + undecoded.slice(0, 3) : ""));
 // the framed portrait comes alive too: within a few seconds it shows another frame (a blink at least)
 await p.ev("scrollTo(0, 0)");

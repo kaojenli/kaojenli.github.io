@@ -60,8 +60,8 @@ h1, h2, h3, h4 { color: var(--ink); }
 #nav a:hover { color: var(--ink); }
 
 /* ---------- intro and the cabin */
-.hero { max-width: var(--wide); margin: 0 auto; padding: 56px 24px 24px; }
-.hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(155px, 1fr); gap: 40px; align-items: center; margin-bottom: 40px; }
+.hero { max-width: var(--wide); margin: 0 auto; padding: 32px 24px 24px; }
+.hero-head { display: grid; grid-template-columns: minmax(0, 720px) minmax(155px, 1fr); gap: 40px; align-items: center; margin-bottom: 24px; }
 /* the portrait in its frame under a picture light (main.js), centred in the space beside the intro. In the dark the
    lamp comes on: its light fans down over the painting and onto the wall, and the frame falls into shadow below. */
 .framed { justify-self: center; width: 155px; margin: 0; }
@@ -70,13 +70,14 @@ h1, h2, h3, h4 { color: var(--ink); }
 [data-theme="dark"] .framed .lit { opacity: 1; }
 /* switching between light and dark: a slow crossfade of the whole page */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .6s; animation-timing-function: ease-in-out; }
-.hero h1 { margin: 10px 0 16px; font-size: clamp(40px, 6vw, 64px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
-.lede { margin: 0 0 16px; color: var(--text); font-size: 19px; line-height: 1.6; }
-.now { margin: 0 0 20px; color: var(--muted); font-size: 15px; }
+.hero h1 { margin: 8px 0 12px; font-size: clamp(36px, 4.6vw, 52px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
+.lede { margin: 0 0 12px; color: var(--text); font-size: 17px; line-height: 1.55; }
+.now { margin: 0; color: var(--muted); font-size: 15px; }
 .now-label { margin-right: 6px; padding: 1px 7px; border: 1px solid var(--line); border-radius: 99px; color: var(--accent); font: 500 11px/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
 .stage { margin: 0; }
 .room-scroll { background: var(--sky); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-.room { position: relative; width: 100%; max-width: 1152px; aspect-ratio: 576 / 480; margin: 0 auto; }
+/* the whole cabin fits in the first screen: no taller than the window leaves below the intro (--fit, set by main.js) */
+.room { position: relative; width: 100%; max-width: min(1152px, var(--fit, 9999px) * 1.2); aspect-ratio: 576 / 480; margin: 0 auto; }
 #scene { display: block; width: 100%; height: 100%; }
 .stage figcaption { margin-top: 12px; color: var(--muted); font-size: 14px; }
 
@@ -240,12 +241,12 @@ figure { margin: 12px 0; }
   main { grid-area: main; min-width: 0; }
   .hero, .sections { max-width: none; padding-left: 0; padding-right: 0; }
   /* sticky while they fit on screen; taller than the window, they scroll with the page (never cut off inside) */
-  .rail, .rail-left { display: block; position: sticky; top: 72px; align-self: start; margin: 56px 0 0; padding: 0; max-width: none; }
+  .rail, .rail-left { display: block; position: sticky; top: 72px; align-self: start; margin: 32px 0 0; padding: 0; max-width: none; }
   .rail-left .card:not(.contact) { display: block; }
   .rail-left { grid-area: left; }
   .rail-right { grid-area: right; }
   /* the cabin no taller than the left card column (about 710px), floating in its sky on wider screens */
-  .room { max-width: 852px; }
+  .room { max-width: min(852px, var(--fit, 9999px) * 1.2); }
 }
 
 /* ---------- narrow screens */

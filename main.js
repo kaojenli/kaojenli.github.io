@@ -170,6 +170,9 @@ document.querySelectorAll(".scene-box").forEach((b) => {
   if (w > 320) b.classList.add("wide");
 });
 $("#year").textContent = new Date().getFullYear();
+// The whole cabin fits in the first screen: as tall as the window leaves below the intro (never under 360px).
+const fitRoom = () => { const r = $("#room"); r.style.setProperty("--fit", `${Math.max(360, innerHeight - (r.getBoundingClientRect().top + scrollY) - 16)}px`); };
+fitRoom(); addEventListener("resize", fitRoom); document.fonts.ready.then(fitRoom);
 
 // ---------- the side cards (wide screens): a summary on the left; a guide to the cabin's rooms and highlights on the right.
 // The contact card is the only place the email and profiles appear; on narrower screens it closes the page instead.
