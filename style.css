@@ -75,6 +75,7 @@ h1, h2, h3, h4 { color: var(--ink); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .6s; animation-timing-function: ease-in-out; }
 .hero h1 { margin: 8px 0 12px; font-size: clamp(36px, 4.6vw, 52px); line-height: 1.02; font-weight: 700; letter-spacing: -0.03em; }
 .lede { margin: 0; color: var(--text); font-size: 17px; line-height: 1.55; }
+.lede strong { color: var(--ink); font-weight: 600; }
 .stage { margin: 0; }
 .room-scroll { overflow: hidden; } /* no box: the cabin stands on the page like a diorama */
 /* the whole cabin fits in the first screen: no taller than the window leaves below the intro (--fit, set by main.js) */
