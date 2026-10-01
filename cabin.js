@@ -334,7 +334,10 @@ const ROOMS = [
       add(X + Y + 4.2, cabinets(X + 0.6, Y + 1.6, 3.4, 0.6, { h: 15, body: FC.walnut, top: "#e8e2d6", drawers: false, doors: 7 }) +
         tipJar(X + 0.95, Y + 1.85, 15) +
         smallBox(X + 1.4, Y + 1.75, 15, 0.34, 0.28, 4, FC.charcoal, (L) => rect(1, 1, L - 2, 2, "#8cc8f0")) + cups(X + 1.95, Y + 1.85, 15, 2) +
-        [[2.6, "#c98b4f"], [2.9, "#f06292"], [3.2, "#f6c945"], [3.45, "#c98b4f"]].map(([dx, col]) => box(X + dx, Y + 1.75, 0.2, 0.2, 1.5, pal(col), 15.8)).join("") + box(X + 2.5, Y + 1.65, 1.25, 0.5, 7, GLASS, 15));
+        [[2.6, "#c98b4f"], [2.9, "#f06292"], [3.2, "#f6c945"], [3.45, "#c98b4f"]].map(([dx, col]) => box(X + dx, Y + 1.75, 0.2, 0.2, 1.5, pal(col), 15.8)).join("") +
+        box(X + 2.58, Y + 1.96, 1.12, 0.17, 0.4, pal("#d8d2c4"), 15.4) + // a tray of brownies at the front, stacked two high
+        [2.62, 2.9, 3.18, 3.46].map((dx) => box(X + dx, Y + 1.98, 0.24, 0.14, 1.3, pal("#3a2014"), 15.8) + box(X + dx + 0.02, Y + 1.99, 0.2, 0.12, 1.3, pal("#4a2a1a"), 17.1)).join("") +
+        box(X + 2.5, Y + 1.65, 1.25, 0.5, 7, GLASS, 15));
       add(X + Y + 4.7, stool(X + 1.1, Y + 2.5, { h: 12 }) + stool(X + 2.1, Y + 2.5, { h: 12 }) + stool(X + 3.1, Y + 2.5, { h: 12 }));
       // banquette under the window with two customers, their tables in front
       add(X + Y + 7.1, sofa(X + 5.3, Y + 0.05, 2.6, "down", { col: FC.teal, cushion: "#56a8a0", pillows: [[0.3], [1.2], [2.1]] }));
@@ -1087,7 +1090,7 @@ const ROUTES = {
   ] },
   q1: { level: 0, also: ["10,13"], stops: [
     { tile: [10, 13], face: "backR", poses: ["phone", "shift"], wait: 4000 },                     // first in line
-    { tile: [9, 8], face: "backR", poses: ["stand:900", "talk1", "talk2", "stand:1200"], wait: 4800 }, // ordering at the counter
+    { tile: [9, 8], face: "backR", poses: ["stand:900", "talk1", "talk2", "stand:1200"], wait: 4800, order: true }, // ordering at the counter
   ] },
   labB: { level: 1, stops: [
     { tile: [1, 3], face: "back", poses: ["reach:1100", "stand:900", "reach:1100", "think:1500"], wait: 5200 }, // checking on the mice
@@ -1202,6 +1205,12 @@ function arrive(wk) {
 }
 function route(wk) {
   arrive(wk);
+  // at the counter: order (a line from content.js), and the barista answers a moment later
+  if (wk.route.stops[wk.stopAt].order) {
+    say(wk.el, pick(npcOf(wk.el).order));
+    const barista = WALKERS.find((w) => w.look === "barista").el;
+    setTimeout(() => say(barista, pick(npcOf(barista).serve)), 1600);
+  }
   setTimeout(() => {
     wk.stopAt = (wk.stopAt + 1) % wk.route.stops.length;
     walkPath(wk, wk.route.stops[wk.stopAt].tile, () => route(wk));

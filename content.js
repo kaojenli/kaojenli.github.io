@@ -275,11 +275,13 @@ const CONTENT = {
     jen: { name: "Jen", lines: [], click: ["Hi, I'm Jen. Welcome in.", "Every room here is one of my projects.", "Click around, everyone's busy with something."] },
     dancer: { name: "Dancer", lines: ["one more song!", "dance break", "training converged!"], click: ["join me!"] },
     pitcher: { name: "Pitcher", lines: ["keypoints: 17/17", "one more rep!", "fastball incoming"], click: ["relax, my elbow is tracked in 3D"] },
-    barista: { name: "Barista", lines: ["one latte, coming up!", "next, please!", "oat milk?"], click: ["this one's on the house"] },
+    barista: { name: "Barista", lines: ["one latte, coming up!", "next, please!", "oat milk?", "fresh brownies today!"], click: ["this one's on the house"],
+      serve: ["one brownie, coming up!", "here's your brownie!", "last warm brownie, enjoy!"] }, // (her answer when someone orders, below)
     hacker: { name: "Hacker", lines: ["re-ID: same person on camera 2", "heatmap updated", "the queue is growing!"], click: ["watching the foot traffic in real time"] },
-    q1: { name: "Customer #3", lines: ["is it my turn yet?", "worth the wait"], click: ["I'm in a queue"] },
+    q1: { name: "Customer #3", lines: ["is it my turn yet?", "worth the wait"], click: ["I'm in a queue"],
+      order: ["one brownie, please!", "a latte and a brownie, please", "can I get a brownie?"] }, // (said at the counter)
     q2: { name: "Customer #4", lines: ["the line is moving!", "hi camera!"], click: ["why do I have a box around me?"] },
-    q3: { name: "Customer #5", lines: ["I'm ID #5 apparently", "smells like espresso"], click: ["tracked, but caffeinated"] },
+    q3: { name: "Customer #5", lines: ["I'm ID #5 apparently", "smells like espresso", "those brownies look good"], click: ["tracked, but caffeinated"] },
     q4: { name: "Customer #6", lines: ["double shot please", "5 minutes left?"], click: ["still waiting for my double shot"] },
     q5: { name: "Customer #7", lines: ["what's a bounding box?", "so many cameras"], click: ["smile for the dataset"] },
     q6: { name: "Customer #8", lines: ["back of the line...", "croissant time"], click: ["the line starts back here"] },
