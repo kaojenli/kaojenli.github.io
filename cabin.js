@@ -462,7 +462,7 @@ const ROOMS = [
   {
     key: "hacker", wall: WOODS.dark, wains: "#4a4f5c", level: 0, rect: [15, 5, 5, 4], label: "Hacker room", href: "#project-tracking", slug: "tracking", tex: "carpet", floor: ["#23262e", "#262a33"],
     blocked: [[0, 0], [1, 1], [2, 1], [3, 1], [2, 2], [3, 0], [4, 0], [4, 2], [3, 3]],
-    rug: (X, Y) => rect(X + 0.6, Y + 1.9, 3.2, 1.7, "#2e3440") + rect(X + 0.7, Y + 2.0, 3.0, 1.5, "none", ` stroke="${GREEN}" stroke-width="0.03"`) +
+    rug: (X, Y) => furRug(X + 4.35, Y + 2.95, 0.62, 0.48, "#4a3d6e") + rect(X + 0.6, Y + 1.9, 3.2, 1.7, "#2e3440") + rect(X + 0.7, Y + 2.0, 3.0, 1.5, "none", ` stroke="${GREEN}" stroke-width="0.03"`) +
       `<polyline points="${X + 3.7},${Y + 0.8} ${X + 3.3},${Y + 1.9} ${X + 2.4},${Y + 1.8}" fill="none" stroke="#111" stroke-width="0.05"/><polyline points="${X + 4.4},${Y + 0.8} ${X + 4.1},${Y + 2.2} ${X + 3.4},${Y + 2.9}" fill="none" stroke="#3b82c4" stroke-width="0.04"/>`,
     // wall screen: bird's-eye floor plan of the café, heat, and people moving as dots; an LED strip and a neon sign
     right: rect(0, 2, 80, 0.8, "#b14cff") + rect(0, 2.8, 80, 0.4, "rgba(177,76,255,.35)") +
@@ -482,7 +482,11 @@ const ROOMS = [
       add(X + Y + 2.2, officeChair(X + 1.35, Y + 1.75, "up", "#5b2d86"));
       add(X + Y + 3.0, desk(X + 1.0, Y + 1.05, 2.25, 0.62, { wood: "#2f323a" }) + monitor(X + 1.05, Y + 1.12, 0.62, 12, heat) + monitor(X + 1.75, Y + 1.12, 0.62, 12, paths) +
         monitor(X + 2.45, Y + 1.12, 0.62, 12, codeLines(3, 7, 3, 6, GREEN)) + keyboard(X + 1.8, Y + 1.42, 12) +
-        box(X + 1.15, Y + 1.5, 0.08, 0.08, 2, pal("#3fa34d"), 12) + box(X + 3.0, Y + 1.45, 0.08, 0.08, 2, pal("#e0584f"), 12) + box(X + 2.8, Y + 1.4, 0.3, 0.2, 0.6, pal("#c98b4f"), 12));
+        speaker(X + 1.02, Y + 1.4, 12) + speaker(X + 3.08, Y + 1.15, 12) + box(X + 2.8, Y + 1.4, 0.3, 0.2, 0.6, pal("#c98b4f"), 12) +
+        raised(12, rect(X + 1.0, Y + 1.05, 2.25, 0.62, "rgba(140,210,255,.22)")) + raised(10.3, rect(X + 1.0, Y + 1.62, 2.25, 0.05, "#b14cff"))); // (a glass top, a purple glow under it)
+      add(X + Y + 2.6, cubeLamp(X + 2.0, Y + 1.4, 36, 0.7, 14)); // a glowing cube lamp over the desk
+      add(X + Y + 5.3, wasteBin(X + 3.45, Y + 1.8));
+      add(X + Y + 7.2, sodaBottles(X + 3.55, Y + 3.55));
       add(X + Y + 4.7, person("hacker", ["typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "stand:900", "think:1500"], X + 2.3, Y + 2.4, { face: "backR" }));
       for (const x0 of [3.4, 4.1]) add(X + Y + x0 + 0.6, box(X + x0, Y + 0.15, 0.6, 0.6, 32, pal("#2b2e35")) + leftFace(X + x0, Y + 0.15, 0.6, 0, rackFront(9.6, 32)) + rightFace(X + x0, Y + 0.15, 0.6, 0.6, 0, [6, 12, 18, 24].map((v) => rect(2, v, 5.6, 0.6, "#1c1e24")).join("")));
       add(X + Y + 6.9, onFloor(X + 4.35, Y + 2.6, 0, "beanbag"));
@@ -639,22 +643,27 @@ const ROOMS = [
         add(x0 + 0.4 + Y + 0.4, box(x0, Y + 0.05, 0.85, 0.75, 40, pal("#2b2e35")) + leftFace(x0, Y + 0.05, 0.75, 0, rackFront(13.6, 40)) + rightFace(x0, Y + 0.05, 0.85, 0.75, 0, rect(1, 1, 10, 38, "rgba(255,255,255,.05)")));
       }
       add(X + Y + 1.2, box(X + 0.1, Y + 0.1, 2.8, 0.3, 1, pal(FC.steel, "metal"), 44) + box(X + 0.15, Y + 0.12, 2.7, 0.26, 1.5, pal("#e0584f"), 42.5));
-      add(X + Y + 3.0, desk(X + 0.05, Y + 2.3, 0.8, 1.35, { front: "R", wood: FC.charcoal }) + monitor(X + 0.3, Y + 2.5, 0.75, 12, codeLines(3, 7, 3, 8, GREEN), "R") + keyboard(X + 0.55, Y + 2.7, 12, 0.16, 0.45));
-      add(X + Y + 3.8, officeChair(X + 1.0, Y + 2.75, "left"));
-      add(X + Y + 4.1, onFloor(X + 2.75, Y + 1.35, 0, "extinguisher"));
+      add(X + Y + 3.0, desk(X + 0.05, Y + 2.3, 0.8, 1.35, { front: "R", wood: FC.charcoal }) + monitor(X + 0.3, Y + 2.5, 0.75, 12, codeLines(3, 7, 3, 8, GREEN), "R") + keyboard(X + 0.55, Y + 2.7, 12, 0.16, 0.45) + deskLamp(X + 0.2, Y + 2.42, 12) + speaker(X + 0.12, Y + 3.42, 12));
+      add(X + Y + 3.8, officeChair(X + 1.0, Y + 2.75, "left", "#2f3542"));
+      add(X + Y + 3.6, neonShelf(X + 2.08, Y + 1.1, 0.85, 0.42, 32)); // games and figurines
+      add(X + Y + 7.6, onFloor(X + 2.88, Y + 4.7, 0, "extinguisher"));
       add(X + Y + 6.6, crate(X + 2.3, Y + 4.1, 0.5, 8) + crate(X + 2.35, Y + 4.15, 0.4, 6, 8));
     },
   },
   {
     key: "security", wall: WOODS.dark, wains: "#4a4f5c", level: 1, rect: [17, 0, 3, 5], href: "#project-sigma", slug: "sigma", tex: "carpet", floor: ["#2f3d60", "#2a3858"],
+    rug: (X, Y) => furRug(X + 0.95, Y + 3.5, 0.7, 0.5, "#7fb7d9"),
     blocked: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1], [1, 2], [2, 2], [2, 4]],
     right: slab3(4, 18, 40, 32, 2.5, "#1b1f2a", rect(2, 2, 36, 28, "#07140c") + codeLines(5, 26, 11, 18, GREEN) + onWall("iconShield", 26, 24)),
     draw(add, X, Y) {
       add(X + Y + 0.7, box(X + 0.15, Y + 0.15, 0.55, 0.55, 14, pal("#3a3f4b", "metal")) + onL(X + 0.15, Y + 0.15, 0.55, 0.55, 0, (L) => panelF(1, 1, L - 2, 12) + stud(L / 2, 7, 2, 1.2, "#c9cdd3", "L", `<line x1="{cx}" y1="{cy}" x2="{cx}" y2="${7 - 1.2 + 1.5}" stroke="${INK}" stroke-width="0.4"/>`) + slab3(L - 3, 4, 1, 4, 1.2, "#c9cdd3")));
+      add(X + Y + 2.75, aquarium(X + 2.33, Y + 0.13, 22, 0.54, 0.54, 7));
       add(X + Y + 2.7, box(X + 2.3, Y + 0.1, 0.6, 0.6, 22, pal("#8d96a0", "metal")) + onL(X + 2.3, Y + 0.1, 0.6, 0.6, 0, (L) => [0, 1, 2, 3].map((k) => panelF(1, 1 + k * 5.2, L - 2, 4.6) + pull(L / 2 - 1.5, 3 + k * 5.2, 3, "L", "#c9cdd3")).join("")));
       add(X + Y + 3.4, desk(X + 0.3, Y + 1.35, 2.4, 0.6, { wood: FC.charcoal }) +
         monitor(X + 0.45, Y + 1.41, 0.7, 12, codeLines(3, 7, 3, 8, GREEN)) + monitor(X + 1.2, Y + 1.41, 0.7, 12, codeLines(3, 7, 3, 8, "#ffb800")) + monitor(X + 1.95, Y + 1.41, 0.6, 12, codeLines(3, 7, 3, 7, "#ff5a5a")) +
-        keyboard(X + 1.1, Y + 1.71, 12) + onFloor(X + 0.55, Y + 1.8, 12, "mug") + onFloor(X + 2.55, Y + 1.75, 12, "cactus"));
+        keyboard(X + 1.1, Y + 1.71, 12) + onFloor(X + 0.55, Y + 1.8, 12, "mug") + onFloor(X + 2.55, Y + 1.75, 12, "cactus") +
+        speaker(X + 0.3, Y + 1.4, 12) + deskLamp(X + 2.6, Y + 1.45, 12) + raised(12, rect(X + 0.3, Y + 1.35, 2.4, 0.6, "rgba(140,210,255,.22)")));
+      add(X + Y + 2.4, cubeLamp(X + 1.45, Y + 1.2, 36, 0.6, 14));
       add(X + Y + 4.0, person("analyst", ["typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "think:1700", "stand:900", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB", "typeA", "typeB"], X + 1.4, Y + 2.6, { face: "backR" }));
       add(X + Y + 5.3, critter("robot", ["robot"], X + 2.4, Y + 2.9, { extra: rect(5.5, 0, 1, 1, "#ff3b3b", ' class="blink"') }));
       add(X + Y + 7, onFloor(X + 2.55, Y + 4.45, 0, "monstera"));

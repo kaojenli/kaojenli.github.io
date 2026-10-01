@@ -356,6 +356,45 @@ const bookStack = (x, y, z, n = 3) => Array.from({ length: n }, (_, i) => {
 const laptop3 = (x, y, z) => box(x, y, 0.38, 0.26, 0.6, pal("#b9c0c8", "metal"), z) + raised(z + 0.6, rect(x + 0.04, y + 0.1, 0.3, 0.12, "#3a3d44")) +
   box(x, y, 0.38, 0.03, 5, pal("#3a3d44"), z + 0.6) + leftFace(x, y, 0.03, z + 0.6, rect(0.6, 0.5, 4.9, 4, "#8cc8f0") + rect(1.2, 3, 3, 0.6, "#3b82c4") + rect(1.2, 1.8, 2.2, 0.6, "#3b82c4"));
 // A mailbox on a post: the slot on its front, a yellow flag on its side.
+// ---------- computer rooms: the things in a gamer's or a hacker's den
+const NEON = ["#ff4fd8", "#3bb8ff", "#39ff88", "#ffb800", "#b14cff", "#ff5a5a"];
+// A glowing cube lamp of coloured squares (3 by 3 on each face), hung on a cord; its bottom corner at z.
+function cubeLamp(x, y, z, s = 0.42, cord = 14) {
+  const [cx, cy] = up(iso(x, y), z), e = s * 16, P = (u, v, w) => [cx + (u - v) * e * 0.5, cy - (u + v) * e * 0.25 - w * e * 0.62]; // u, v along the floor, w up (0..1)
+  const top = P(1, 1, 1);
+  return rect(top[0] - 0.25, top[1] - cord, 0.5, cord, INK) + circle(cx, cy - e * 0.6, e * 1.5, "url(#glow)", ' opacity=".8"') +
+    `<polygon points="${[P(0, 0, 0), P(1, 0, 0), P(1, 0, 1), P(1, 1, 1), P(0, 1, 1), P(0, 1, 0)].map((p) => p.join(",")).join(" ")}" fill="#1b1f2a"/>` +
+    [0, 1, 2].map((i) => [0, 1, 2].map((j) => { const q = (a, b) => P((i + a) / 3, 0, (j + b) / 3); return `<polygon points="${[q(0.1, 0.1), q(0.9, 0.1), q(0.9, 0.9), q(0.1, 0.9)].map((p) => p.join(",")).join(" ")}" fill="${NEON[(i * 3 + j * 2) % 6]}" opacity=".8"/>`; }).join("")).join("") + // the right face (v = 0, nearest the viewer with u = 0)
+    [0, 1, 2].map((i) => [0, 1, 2].map((j) => { const q = (a, b) => P(0, (i + a) / 3, (j + b) / 3); return `<polygon points="${[q(0.1, 0.1), q(0.9, 0.1), q(0.9, 0.9), q(0.1, 0.9)].map((p) => p.join(",")).join(" ")}" fill="${NEON[(i + j * 4 + 2) % 6]}" opacity=".85"/>`; }).join("")).join("") + // the left face (u = 0)
+    [0, 1, 2].map((i) => [0, 1, 2].map((j) => { const q = (a, b) => P((i + a) / 3, (j + b) / 3, 1); return `<polygon points="${[q(0.1, 0.1), q(0.9, 0.1), q(0.9, 0.9), q(0.1, 0.9)].map((p) => p.join(",")).join(" ")}" fill="${NEON[(i * 2 + j + 4) % 6]}"/>`; }).join("")).join(""); // the top
+}
+// A pair of desk speakers, a lamp on an arm, a wastebasket of crumpled paper, a crate of soda bottles, an aquarium.
+const speaker = (x, y, z) => box(x, y, 0.14, 0.14, 4.5, pal("#2b2e35"), z) + (() => { const [a, b] = up(iso(x + 0.07, y + 0.14), z); return `<circle cx="${a - 0.6}" cy="${b - 1.5}" r="0.9" fill="#4a4f5c" stroke="#111" stroke-width="0.25"/><circle cx="${a - 0.6}" cy="${b - 3.4}" r="0.45" fill="#4a4f5c"/>`; })();
+const deskLamp = (x, y, z, col = "#2b2e35") => { const [a, b] = up(iso(x, y), z);
+  return disc(x, y, 0.08, z, 0.6, col) + `<polyline points="${a},${b - 0.6} ${a - 1},${b - 6} ${a + 2.5},${b - 8.5}" fill="none" stroke="${col}" stroke-width="0.7"/>` +
+    `<polygon points="${a + 1.5},${b - 9.5} ${a + 4.5},${b - 8.5} ${a + 3.8},${b - 6.6} ${a + 1.4},${b - 7.4}" fill="${col}" stroke="#111" stroke-width="0.3"/>` + circle(a + 3, b - 5, 6, "url(#glow)", ' opacity=".6"'); };
+const wasteBin = (x, y) => { const [a, b] = up(iso(x, y), 5);
+  return disc(x, y, 0.13, 0, 5, "#c8453c") + [[-1, 0], [0.8, -0.6], [0, -1.2]].map(([dx, dy]) => `<circle cx="${a + dx}" cy="${b + dy}" r="0.9" fill="#f4f1ea" stroke="#9aa4b1" stroke-width="0.25"/>`).join(""); };
+const sodaBottles = (x, y) => ["#c8102e", "#39a845", "#f7a21b"].map((col, k) => disc(x + k * 0.12, y + (k % 2) * 0.08, 0.05, 0, 4, col) + disc(x + k * 0.12, y + (k % 2) * 0.08, 0.025, 4, 1.5, col) + disc(x + k * 0.12, y + (k % 2) * 0.08, 0.03, 5.5, 0.5, "#f4f1ea")).join("");
+function aquarium(x, y, z, w, d, h) {
+  const [a, b] = up(iso(x + w, y + d), z);
+  let fish = "";
+  for (let k = 0; k < 4; k++) { const [fx, fy] = up(iso(x + w * (0.2 + 0.2 * k), y + d), z + 2 + (k % 3) * 1.8); fish += `<ellipse cx="${fx - 1}" cy="${fy}" rx="1" ry="0.55" fill="${["#ff7a2f", "#ffd23f", "#ff4fd8", "#3bb8ff"][k]}"/><polygon points="${fx},${fy} ${fx + 0.9},${fy - 0.6} ${fx + 0.9},${fy + 0.6}" fill="${["#ff7a2f", "#ffd23f", "#ff4fd8", "#3bb8ff"][k]}"/>`; }
+  let weed = "";
+  for (let k = 0; k < 5; k++) { const [px, py] = up(iso(x + w * (0.1 + 0.2 * k), y + d * 0.6), z + 1); weed += `<polyline points="${px},${py} ${px - 0.6},${py - 2} ${px + 0.4},${py - 3.8} ${px - 0.3},${py - 5}" fill="none" stroke="#3fa34d" stroke-width="0.7"/>`; }
+  return box(x, y, w, d, 1, pal("#d9c7a0"), z) + box(x, y, w, d, h, pal("#7fc9e8", "glass"), z + 1) + weed + fish +
+    box(x - 0.02, y - 0.02, w + 0.04, d + 0.04, 0.8, pal("#2b2e35"), z + h + 1);
+}
+// A tall dark shelf: rows of neon-spined games and books, a figurine now and then.
+function neonShelf(x, y, w, d, h, front = "L") {
+  const rows = Math.floor(h / 8);
+  return box(x, y, w, d, h, pal("#23262e")) + onFront(front, x, y, w, d, 0, (L) => Array.from({ length: rows }, (_, r) => {
+    const v = 1 + r * 8;
+    let row = rect(0.8, v, L - 1.6, 6.6, "#0e1014");
+    for (let u = 1.2; u < L - 1.6; u += 1.3) row += hsh(u, r) < 0.12 ? rect(u, v + 2.5, 1, 4, "#f4f1ea") + rect(u + 0.2, v + 1.6, 0.6, 1, "#f6c945") : rect(u, v + 0.8 + hsh(r, u) * 1.2, 1, 5.6, NEON[Math.floor(hsh(u * 3, r) * 6)]);
+    return row;
+  }).join(""));
+}
 const mailbox3 = (x, y) => box(x - 0.04, y - 0.04, 0.08, 0.08, 10, pal("#8a8f98")) + box(x - 0.13, y - 0.22, 0.26, 0.44, 6, pal("#c8102e"), 10) +
   leftFace(x - 0.13, y - 0.22, 0.44, 10, rect(1, 3, 2.2, 0.6, "#5a0a14")) + box(x + 0.13, y - 0.05, 0.02, 0.06, 5, pal("#f6c945"), 13);
 // A camera on a tripod, lens toward +y ("L") or +x ("R"), a blinking record light.
