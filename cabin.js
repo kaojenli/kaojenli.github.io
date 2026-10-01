@@ -83,12 +83,19 @@ const LOG = ["#c47e40", "#a8652f", "#8a4f22"], SHELF = ["#d9d2c3", "#bfb6a4", "#
 const WOODS = { walnut: "#6e4630", brown: "#7d5237", honey: "#946a45", pale: "#b99a74", dark: "#4a3326" }; // wall boards
 const STONE = ["#b3aea5", "#948f86", "#78736b"];
 const stones = (len, h, shade) => {
-  let s = rect(0, 0, len, h, "#5e5a54");
-  for (let v = 0, row = 0; v < h - 1; v += 4, row++) for (let u = row % 2 ? -3 : 0; u < len; u += 6) {
-    const u0 = Math.max(0, u) + 0.5, w = Math.min(u + 6, len) - u0 - 0.5, t = pickSeeded(shade), sh = Math.min(3, h - v - 0.5);
+  let s = rect(0, 0, len, h, "#4b4741");
+  for (let v = 0, row = 0; v < h - 1; v += 4, row++) for (let u = row % 2 ? -3 : 0, sw; u < len; u += sw) {
+    sw = 5 + Math.floor(hsh(u, v + len) * 4); // (stones of different widths)
+    // each stone its own: warmer or cooler, lighter or darker; a lit top edge, a shaded underside, a speckled face, now
+    // and then a hairline crack or a chipped corner
+    const tint = hsh(u + 1, v) < 0.5 ? "#c8b49a" : "#8e9aa6", t = mixHex(mixHex(pickSeeded(shade), tint, 0.1 + hsh(v, u + 2) * 0.25), hsh(v, u) < 0.5 ? "#ffffff" : "#000000", hsh(u, v) * 0.14);
+    const u0 = Math.max(0, u) + 0.5, w = Math.min(u + sw, len) - u0 - 0.5, sh = Math.min(3, h - v - 0.5);
     if (w <= 0 || sh <= 0) continue;
     s += rect(u0, v + 0.5, w, sh, t) + rect(u0, v + 0.5 + sh - 0.6, w, 0.6, "rgba(255,255,255,.32)") + rect(u0, v + 0.5, 0.5, sh, "rgba(255,255,255,.16)") +
-      rect(u0, v + 0.5, w, 0.5, "rgba(0,0,0,.24)") + rect(u0 + w - 0.5, v + 0.5, 0.5, sh, "rgba(0,0,0,.18)") + (hsh(u, v + len) < 0.3 ? rect(u0 + w * 0.4, v + 1.6, 0.7, 0.6, "rgba(0,0,0,.18)") : "");
+      rect(u0, v + 0.5, w, 0.5, "rgba(0,0,0,.24)") + rect(u0 + w - 0.5, v + 0.5, 0.5, sh, "rgba(0,0,0,.18)");
+    for (let q = 0; q < Math.round(w * 1.6); q++) s += rect(u0 + hsh(q, u + v) * (w - 0.6), v + 0.7 + hsh(u + v, q) * (sh - 0.9), 0.6, 0.55, hsh(q, v) < 0.55 ? "rgba(0,0,0,.2)" : "rgba(255,255,255,.28)");
+    if (hsh(v + 5, u) < 0.18) s += `<polyline points="${u0 + w * 0.3},${v + 0.6} ${u0 + w * 0.45},${v + sh * 0.5} ${u0 + w * 0.4},${v + sh}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="0.35"/>`;
+    if (hsh(u, v * 3) < 0.22) s += rect(u0 + w - 1.2, v + 0.5 + sh - 0.9, 1.2, 0.9, "#4b4741");
   }
   return s;
 };
@@ -104,15 +111,17 @@ const TEX = {
   // wood: four planks per tile running along x, each board its own tone with a lit edge, a dark gap, staggered end joints,
   // grain and the odd knot
   wood: (i, j, c) => {
-    const tones = [c, mixHex(c, "#ffffff", 0.08), mixHex(c, "#000000", 0.1), mixHex(c, "#d08a4a", 0.12)];
+    const tones = [c, mixHex(c, "#ffffff", 0.18), mixHex(c, "#000000", 0.2), mixHex(c, "#d08a4a", 0.26), mixHex(c, "#3a1f10", 0.14)];
     let s = "";
     for (let k = 0; k < 4; k++) {
       const R = j * 4 + k, y0 = j + k * 0.25, off = hsh(R) * 1.5;
       for (let a = i; a < i + 1 - 1e-6;) {
-        const n = Math.floor((a - off) / 1.5), b = Math.min(i + 1, off + (n + 1) * 1.5), t = tones[Math.floor(hsh(R, n) * 4)];
+        const n = Math.floor((a - off) / 1.5), b = Math.min(i + 1, off + (n + 1) * 1.5), t = tones[Math.floor(hsh(R, n) * 5)];
         s += rect(a, y0, b - a, 0.25, t);
-        if (hsh(R, n + 7) < 0.6) s += rect(a + (b - a) * 0.15, y0 + 0.08 + hsh(R, n + 3) * 0.08, (b - a) * 0.55, 0.018, mixHex(t, "#000000", 0.16));
-        if (hsh(R, n + 11) < 0.07) s += `<ellipse cx="${a + (b - a) * 0.6}" cy="${y0 + 0.13}" rx="0.05" ry="0.035" fill="${mixHex(t, "#000000", 0.28)}"/>`;
+        // grain: a long dark line and a shorter pale one along the board, each starting somewhere of its own
+        s += rect(a + (b - a) * (0.05 + hsh(R, n + 3) * 0.2), y0 + 0.06 + hsh(R, n + 5) * 0.06, (b - a) * (0.4 + hsh(R, n + 9) * 0.4), 0.022, mixHex(t, "#000000", 0.3));
+        if (hsh(R, n + 7) < 0.7) s += rect(a + (b - a) * (0.3 + hsh(R, n + 4) * 0.3), y0 + 0.15 + hsh(R, n + 6) * 0.05, (b - a) * 0.3, 0.016, mixHex(t, "#ffffff", 0.18));
+        if (hsh(R, n + 11) < 0.1) { const kx = a + (b - a) * 0.6, ky = y0 + 0.13; s += `<ellipse cx="${kx}" cy="${ky}" rx="0.07" ry="0.045" fill="${mixHex(t, "#000000", 0.18)}"/><ellipse cx="${kx}" cy="${ky}" rx="0.035" ry="0.022" fill="${mixHex(t, "#000000", 0.38)}"/>`; }
         if (b < i + 1 - 1e-6) s += rect(b - 0.012, y0, 0.024, 0.25, "rgba(30,15,5,.6)") + rect(b + 0.012, y0, 0.02, 0.25, "rgba(255,230,190,.18)");
         a = b;
       }
@@ -630,14 +639,15 @@ const wallShade = (X, Y, lenX, lenY) => rect(X, Y, lenX, 0.45, "url(#aoY)") + re
 // wainscot with a chair rail and a dark baseboard. `wood` colours the boards; `wains` the wainscot (null: a stone base).
 const WAINS = 18, CAP = "#5e3b26";
 function planks(len, h, wood = WOODS.brown, wains = "#c9a26a") {
-  const r = ramp(wood), top = wains ? WAINS : 8, bh = h - top, tones = [wood, mixHex(wood, "#ffffff", 0.07), mixHex(wood, "#000000", 0.09), mixHex(wood, "#c07040", 0.1)];
+  const r = ramp(wood), top = wains ? WAINS : 8, bh = h - top, tones = [wood, mixHex(wood, "#ffffff", 0.12), mixHex(wood, "#000000", 0.14), mixHex(wood, "#c07040", 0.16)];
   let s = rect(0, 0, len, h, r[3]);
   // boards: each its own tone, a lit left bevel and a shaded right one, grain streaks, the odd knot and butt joint, nails
   for (let u = 0, k = 0; u < len; u += 6, k++) {
     const bw = Math.min(6, len - u), t = tones[Math.floor(hsh(k, len + h) * 4)], dk = mixHex(t, "#000000", 0.14);
     if (bw <= 1) continue;
     s += rect(u + 0.6, top, bw - 0.6, bh, t) + rect(u + 0.6, top, 0.8, bh, mixHex(t, "#ffffff", 0.13)) + rect(u + bw - 1, top, 1, bh, dk) +
-      rect(u + 2.1 + hsh(k, 1) * 1.2, top + 1.5 + hsh(k, 2) * 8, 0.45, bh * 0.42, mixHex(t, "#000000", 0.1)) + rect(u + 3.3 + hsh(k, 7) * 0.8, top + bh * 0.35 + hsh(k, 3) * 6, 0.4, bh * 0.38, mixHex(t, "#000000", 0.08));
+      rect(u + 2.1 + hsh(k, 1) * 1.2, top + 1.5 + hsh(k, 2) * 8, 0.45, bh * 0.42, mixHex(t, "#000000", 0.16)) + rect(u + 3.3 + hsh(k, 7) * 0.8, top + bh * 0.35 + hsh(k, 3) * 6, 0.4, bh * 0.38, mixHex(t, "#000000", 0.13)) +
+      rect(u + 1.6 + hsh(k, 9) * 1.5, top + bh * 0.55 + hsh(k, 10) * 8, 0.35, bh * 0.3, mixHex(t, "#ffffff", 0.1)) + rect(u + 4.4, top + 4 + hsh(k, 11) * 10, 0.3, bh * 0.25, mixHex(t, "#000000", 0.1));
     if (hsh(k, 4) < 0.22) { const kv = top + 8 + hsh(k, 8) * (bh - 16); s += `<ellipse cx="${u + 3.2}" cy="${kv}" rx="1.1" ry="1.5" fill="${dk}"/><ellipse cx="${u + 3.2}" cy="${kv}" rx="0.5" ry="0.7" fill="${mixHex(t, "#000000", 0.28)}"/>`; }
     if (hsh(k, 5) < 0.3) { const jv = top + 10 + hsh(k, 6) * (bh - 20); s += rect(u + 0.6, jv, bw - 0.6, 0.5, r[3]) + rect(u + 0.6, jv + 0.5, bw - 0.6, 0.4, mixHex(t, "#ffffff", 0.12)); }
     s += rect(u + 2.8, h - 3.2, 0.8, 0.8, "#2b1a10") + rect(u + 2.8, top + 1.6, 0.8, 0.8, "#2b1a10");

@@ -265,6 +265,11 @@ function rugF(x, y, w, d, { edge = "#e8d6a8", field = "#9c3b2e", inner = "#6e2a2
     `<polygon points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}" fill="${inner}" stroke="${accent}" stroke-width="0.04"/>` + rect(cx - r * 0.25, cy - r * 0.25, r * 0.5, r * 0.5, accent);
   for (const [a, c] of [[x + b * 0.25, y + b * 0.25], [x + w - b * 0.75, y + b * 0.25], [x + b * 0.25, y + d - b * 0.75], [x + w - b * 0.75, y + d - b * 0.75]]) s += rect(a, c, b * 0.5, b * 0.5, field);
   if (fringe) for (let k = 0; k <= w / 0.08; k++) s += rect(x + k * 0.08, y - 0.06, 0.03, 0.06, edge) + rect(x + k * 0.08, y + d, 0.03, 0.06, edge);
+  // the weave all over, a band of little diamonds inside the border, a worn (lighter) middle
+  s += rect(x, y, w, d, "url(#rugWeave)");
+  for (let a = x + b * 1.6; a < x + w - b * 1.6; a += 0.16) for (const yy of [y + b * 1.15, y + d - b * 1.15]) s += `<polygon points="${a},${yy - 0.04} ${a + 0.05},${yy} ${a},${yy + 0.04} ${a - 0.05},${yy}" fill="${accent}" opacity=".8"/>`;
+  for (let c = y + b * 1.6; c < y + d - b * 1.6; c += 0.16) for (const xx of [x + b * 1.15, x + w - b * 1.15]) s += `<polygon points="${xx},${c - 0.04} ${xx + 0.05},${c} ${xx},${c + 0.04} ${xx - 0.05},${c}" fill="${accent}" opacity=".8"/>`;
+  s += `<ellipse cx="${cx}" cy="${cy}" rx="${w * 0.32}" ry="${d * 0.3}" fill="#ffffff" opacity=".06"/>`;
   // the pile, and the rug's thickness showing along its two front edges
   for (let k = 0; k < w * d * 60; k++) s += rect(x + b + hsh(k, w) * (w - 2 * b), y + b + hsh(w, k) * (d - 2 * b), 0.03, 0.03, k % 2 ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)");
   return s + rect(x, y + d - 0.035, w, 0.035, "rgba(0,0,0,.28)") + rect(x + w - 0.035, y, 0.035, d, "rgba(0,0,0,.35)");
