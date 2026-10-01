@@ -1170,7 +1170,14 @@ function say(el, text) {
   b.style.left = `${((r.left + r.width / 2 - R.left) / R.width) * 100}%`;
   b.style.top = `${((r.top - R.top - 4) / R.height) * 100}%`;
   room.append(b);
-  setTimeout(() => b.remove(), 4000);
+  // never over another bubble: lift this one above any it would cover
+  for (let k = 0; k < 4; k++) {
+    const r1 = b.getBoundingClientRect(), hit = [...room.querySelectorAll(".bubble")].find((o) => { if (o === b) return false; const r2 = o.getBoundingClientRect();
+      return r1.left < r2.right && r2.left < r1.right && r1.top < r2.bottom && r2.top < r1.bottom; });
+    if (!hit) break;
+    b.style.top = `${((r1.top - R.top - (r1.bottom - hit.getBoundingClientRect().top) - 3) / R.height) * 100 + (r1.height / R.height) * 100}%`;
+  }
+  setTimeout(() => b.remove(), 3200);
   // the speaker's mouth moves (about a second a word) and they talk with their hands; everyone near turns their head to them
   const st = STATES.get(el), now = performance.now(), dur = Math.min(3600, Math.max(1200, String(text).trim().split(/\s+/).length * 900));
   if (!st) return;
@@ -1188,6 +1195,7 @@ const people = [...scene.querySelectorAll(".who")];
 const npcOf = (el) => CONTENT.npcs[el.dataset.look];
 const chatty = people.filter((el) => npcOf(el).lines.length);
 const randomChat = () => {
+  if (room.querySelectorAll(".bubble").length >= 2) return; // (at most two chats at a time; a click always gets its answer)
   const el = pick(chatty), st = STATES.get(el);
   if (!st?.wk?.patron) return say(el, pick(npcOf(el).lines));
   if (!st.wk.off && !st.walking) say(el, pick(seated(st.wk) ? CONTENT.cafe.seated : npcOf(el).lines)); // (café customers: what fits where they are)

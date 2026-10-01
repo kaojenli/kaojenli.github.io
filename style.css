@@ -126,20 +126,24 @@ h1, h2, h3, h4 { color: var(--ink); }
 .dot4 { animation-duration: 8s; animation-delay: -1s; }
 @keyframes dotmove { 50% { transform: translate(6px, 3px); } 100% { transform: translate(11px, -2px); } }
 
+/* speech: a small dark see-through label like a tracker's, the speaker's name in tracker green; long lines wrap */
 .bubble {
   position: absolute; z-index: 2;
   transform: translate(-50%, -100%);
-  padding: 3px 9px;
-  background: #fff; color: #1d1f23;
-  border: 1.5px solid #1d1f23; border-radius: 9px;
-  font: 12px/1.45 var(--font); white-space: nowrap;
+  width: max-content; max-width: 230px;
+  padding: 2px 6px;
+  background: rgba(16, 18, 22, .74); color: #e9eef2;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  border: 1px solid rgba(57, 255, 136, .55); border-radius: 3px;
+  font: 500 10.5px/1.4 var(--mono);
   pointer-events: none;
-  animation: bubble 4s forwards;
+  animation: bubble 3.2s forwards;
 }
+.bubble b { color: #39ff88; font-weight: 600; }
 .bubble::after {
-  content: ""; position: absolute; left: 50%; bottom: -7px;
-  width: 8px; height: 8px; margin-left: -4px;
-  background: #fff; border: 1.5px solid #1d1f23; border-top: 0; border-left: 0;
+  content: ""; position: absolute; left: 50%; bottom: -4px;
+  width: 6px; height: 6px; margin-left: -3px;
+  background: rgba(16, 18, 22, .74); border: 1px solid rgba(57, 255, 136, .55); border-top: 0; border-left: 0;
   transform: rotate(45deg);
 }
 @keyframes bubble {
