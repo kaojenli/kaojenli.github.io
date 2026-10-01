@@ -233,6 +233,53 @@ function railPlanter(x, y) {
   }
   return ivy + box(x, y, 0.7, 0.22, 4, pal(FC.oak, "wood"), 2) + onFloor(x + 0.15, y + 0.1, 6, "flowerP") + onFloor(x + 0.35, y + 0.12, 6, "flowerR") + onFloor(x + 0.55, y + 0.1, 6, "flowerP");
 }
+// ---------- the café's dressing: strings of warm bulbs twined with vines, bare-bulb pendants, cakes, planters on ledges.
+// (Glows here carry no class, so they are flattened into pictures with the furniture around them.)
+const warmGlow = (x, y, r) => circle(x, y, r, "url(#glow)", ' opacity=".7"');
+const leaf = (x, y, s, k) => `<path d="M${x},${y} q${s * 1.4},-1.4 ${s * 2.3},0.2 q${-s * 0.9},1.2 ${-s * 2.3},-0.2z" fill="${k % 3 ? "#3f8a3a" : "#5fb04a"}" stroke="#1f4a1b" stroke-width="0.3"/>`;
+// A string of bulbs from screen point a to b, sagging `sag` px, vines wound round it.
+function bulbString(a, b, { sag = 5, bulbs = 6, leaves = true } = {}) {
+  const P = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + sag * 4 * t * (1 - t)];
+  let s = `<polyline points="${Array.from({ length: 17 }, (_, k) => P(k / 16).join(",")).join(" ")}" fill="none" stroke="#2b2216" stroke-width="0.45"/>`;
+  if (leaves) for (let k = 1; k < 22; k++) { const [x, y] = P(k / 22); s += leaf(x, y, k % 2 ? 1 : -1, k); }
+  for (let k = 0; k < bulbs; k++) { const [x, y] = P((k + 0.5) / bulbs);
+    s += warmGlow(x, y + 2, 4.5) + `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + 1}" stroke="#2b2216" stroke-width="0.5"/>` + `<ellipse cx="${x}" cy="${y + 2}" rx="0.9" ry="1.2" fill="${k % 2 ? "#ffd27a" : "#ffe7a8"}" stroke="#7a5418" stroke-width="0.3"/>`; }
+  return s;
+}
+// A bare bulb in a little brass cap on a long cord, at floor point (x, y), its bottom z up.
+function bulbPendant(x, y, z, cord = 18) {
+  const [cx, cy] = up(iso(x, y), z);
+  return rect(cx - 0.25, cy - cord - 3, 0.5, cord, INK) + rect(cx - 1, cy - 4, 2, 1.5, FC.brass) + warmGlow(cx, cy, 9) +
+    `<ellipse cx="${cx}" cy="${cy - 1}" rx="1.6" ry="2" fill="#ffe7a8" stroke="#7a5418" stroke-width="0.35"/>` + rect(cx - 0.5, cy - 2, 1, 0.8, "#fff8de");
+}
+// Cakes: a tiered stand with little cakes on each plate, a cake under a glass dome, a jar of cookies, a slice on a plate.
+function cakeStand(x, y, z, r = 0.2) {
+  let s = disc(x, y, 0.03, z, 7, FC.brass);
+  [[0, 1], [3.5, 0.75], [6.5, 0.5]].forEach(([dz, k]) => {
+    s += disc(x, y, r * k, z + dz, 0.5, "#f4f1ea");
+    for (let n = 0; n < Math.round(4 * k); n++) { const a = (n / Math.round(4 * k)) * 6.283 + 0.4; s += disc(x + Math.cos(a) * r * k * 0.55, y + Math.sin(a) * r * k * 0.55, 0.045, z + dz + 0.5, 1.4, ["#f06292", "#f3d9c4", "#6b3a22", "#f6c945"][n % 4]); }
+  });
+  return s;
+}
+const cakeDome = (x, y, z) => { const [dx, dy] = up(iso(x, y), z + 1);
+  return disc(x, y, 0.2, z, 0.6, "#f4f1ea") + disc(x, y, 0.14, z + 0.6, 2.6, "#f3d9c4") + disc(x, y, 0.145, z + 3.2, 0.7, "#f06292") + disc(x + 0.03, y, 0.03, z + 3.9, 0.8, "#c8102e") +
+    `<path d="M${dx - 4.6},${dy} a4.6,5.6 0 0 1 9.2,0z" fill="rgba(210,235,250,.35)" stroke="rgba(255,255,255,.75)" stroke-width="0.4"/>` + rect(dx - 0.6, dy - 6.4, 1.2, 0.9, "#c9cdd3") + rect(dx - 2.6, dy - 4.4, 0.6, 2.2, "rgba(255,255,255,.7)"); };
+const cookieJar = (x, y, z) => { const [jx, jy] = up(iso(x, y), z);
+  return disc(x, y, 0.1, z, 4.5, "rgba(210,235,250,.5)") + [[-1.2, -1.2], [0.8, -2], [-0.2, -3.2], [1, -0.8]].map(([a, b]) => `<ellipse cx="${jx + a}" cy="${jy + b}" rx="1" ry="0.7" fill="#c98b4f" stroke="#7a4a20" stroke-width="0.25"/>`).join("") + disc(x, y, 0.11, z + 4.5, 0.9, "#8a5634"); };
+const cakeSlice = (x, y, z, cream = "#f3d9c4", top = "#f06292") => disc(x, y, 0.1, z, 0.4, "#f4f1ea") + box(x - 0.06, y - 0.05, 0.12, 0.09, 1.2, pal(cream), z + 0.4) + box(x - 0.06, y - 0.05, 0.12, 0.09, 0.4, pal(top), z + 1.6);
+// A planter box on the cap of a low wall along plane y = j (from x to x + len), flowers on top and ivy trailing down its
+// outside face; a string of bulbs along it.
+function ledgePlanter(x, j, len) {
+  const z = LOW + 1.5;
+  let s = box(x, j - 0.12, len, 0.24, 3, pal("#7a4a2a", "wood"), z);
+  for (let k = 0; k < len / 0.16; k++) s += onFloor(x + 0.08 + k * 0.16, j, z + 3, ["flowerP", "flowerR", "flowerP", "flowerR"][k % 4]);
+  for (let k = 0; k < len / 0.3; k++) { // ivy over the front
+    const [sx, sy] = up(iso(x + 0.15 + k * 0.3, j + 0.13), z + 1), n = 4 + Math.floor(hsh(k, x) * 5);
+    const pts = Array.from({ length: n }, (_, t) => [sx + Math.sin(t * 1.2 + k) * 1.1, sy + t * 2]);
+    s += `<polyline points="${pts.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#2d5a26" stroke-width="0.45"/>` + pts.slice(1).map(([lx, ly], t) => leaf(lx, ly, t % 2 ? 1 : -1, t + k)).join("");
+  }
+  return s;
+}
 // Flower box under an outside window (wall units).
 const flowerBox = (u, v, w, wall = "back") => slab3(u, v - 1, w, 3.5, 3.5, "#8a5634", "", wall) +
   `<g transform="translate(${wall === "back" ? -1.75 : 1.75} -1.75)">${[0, 1, 2, 3, 4].map((k) => rect(u + 2 + k * 4, v + 2.5, 3, 2.5, ["#f06292", "#f6c945", "#e0584f", "#ffffff", "#b39ddb"][k]) + rect(u + 3 + k * 4, v + 1.5, 1, 1.5, "#3f8a3a")).join("")}</g>`;
@@ -350,7 +397,9 @@ const ROOMS = [
     blocked: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [0, 1], [1, 1], [2, 1], [3, 1], [5, 1], [6, 1], [7, 1], [0, 2], [1, 2], [2, 2], [3, 2],
       [4, 3], [5, 3], [4, 4], [5, 4], [0, 4], [1, 4], [2, 4], [7, 3], [7, 7], [2, 7]],
     // a doormat at the entrance, and people's paths through the café as the tracker saw them
-    rug: (X, Y) => rect(X + 3.05, Y + 7.5, 0.9, 0.45, "#6e2a22") + rect(X + 3.1, Y + 7.55, 0.8, 0.35, "#8e3a2e") +
+    rug: (X, Y) => rugF(X + 3.85, Y + 2.85, 1.95, 2.25, { field: "#7a2b24", inner: "#5a1f1a", edge: "#d9b77a" }) + rugF(X + 0.45, Y + 4.15, 2.0, 1.05, { field: "#2f6b66", inner: "#1f4a46", edge: "#e8d6a8", fringe: false }) +
+      rugF(X + 5.35, Y + 1.2, 2.55, 0.95, { field: "#7a2b24", inner: "#5a1f1a", edge: "#d9b77a", fringe: false }) +
+      rect(X + 3.05, Y + 7.5, 0.9, 0.45, "#6e2a22") + rect(X + 3.1, Y + 7.55, 0.8, 0.35, "#8e3a2e") +
       trail([[X + 3.5, Y + 8], [X + 3.5, Y + 5.6], [X + 1.4, Y + 3.1]], "rgba(57,255,136,.75)") +
       trail([[X + 3.6, Y + 8], [X + 4.6, Y + 6.3], [X + 6.4, Y + 5.8], [X + 6.9, Y + 3.2], [X + 7.4, Y + 2.3]], "rgba(255,79,216,.75)") +
       trail([[X + 3.4, Y + 8], [X + 5.8, Y + 7.2], [X + 6.3, Y + 2.5]], "rgba(59,184,255,.75)"),
@@ -366,11 +415,19 @@ const ROOMS = [
       add(X + Y + 5.2, fridge(X + 4.4, Y + 0.05, { w: 0.75, col: "#d9e2e8" }));
       add(X + Y + 3, person("barista", ["stand"], X + 1.5, Y + 1.5, { cls: "walker", walker: true }));
       add(X + Y + 3.3, pendant(X + 1.8, Y + 1.95, 33, FC.mustard, 24) + pendant(X + 3.3, Y + 1.95, 33, FC.mustard, 24));
+      add(X + Y + 0.05, [0, 2, 4, 6].map((u) => bulbString(up(iso(X + u, Y), 57), up(iso(X + u + 2, Y), 57), { sag: 6, bulbs: 5 })).join("") +
+        [[1.4, 7], [5.2, 9]].map(([u, n]) => { const [px, py] = up(iso(X + u, Y + 0.1), 52); // a pot of ivy hung from the beam
+          return rect(px - 0.25, py - 5, 0.5, 5, INK) + `<path d="M${px - 3},${py} h6 l-1,3.5 h-4z" fill="#b5652f" stroke="${INK}" stroke-width="0.4"/>` +
+            [-2, 0, 2].map((dx, k) => { const pts = Array.from({ length: n - k * 2 }, (_, t) => [px + dx + Math.sin(t * 1.3 + k) * 1, py + 3 + t * 2]);
+              return `<polyline points="${pts.map((q) => q.join(",")).join(" ")}" fill="none" stroke="#2d5a26" stroke-width="0.45"/>` + pts.slice(1).map(([lx, ly], t) => leaf(lx, ly, t % 2 ? 1 : -1, t + k)).join(""); }).join(""); }).join(""));
+      [[4.8, 4.0, 30, 24], [1.6, 4.7, 32, 22], [6.0, 1.6, 34, 20], [7.35, 1.6, 34, 20]].forEach(([u, v, z, cord]) => add(X + Y + u + v - 0.3, bulbPendant(X + u, Y + v, z, cord)));
+      // planters along the low wall to the street, either side of the door
+      for (let i = 0; i < 8; i++) if (i !== 3) add(X + i + Y + 8 + 0.55, ledgePlanter(X + i + 0.06, Y + 8, 0.88));
       // island: panelled front, marble top, register, espresso with steam, glass case of pastries
       add(X + Y + 4.2, cabinets(X + 0.6, Y + 1.6, 3.4, 0.6, { h: 15, body: FC.walnut, top: "#e8e2d6", drawers: false, doors: 7 }) +
-        tipJar(X + 0.95, Y + 1.85, 15) +
+        cakeDome(X + 0.82, Y + 1.85, 15) + tipJar(X + 1.2, Y + 2.08, 15) + cookieJar(X + 2.28, Y + 1.85, 15) +
         smallBox(X + 1.4, Y + 1.75, 15, 0.34, 0.28, 4, FC.charcoal, (L) => rect(1, 1, L - 2, 2, "#8cc8f0")) + cups(X + 1.95, Y + 1.85, 15, 2) +
-        [[2.6, "#c98b4f"], [2.9, "#f06292"], [3.2, "#f6c945"], [3.45, "#c98b4f"]].map(([dx, col]) => box(X + dx, Y + 1.75, 0.2, 0.2, 1.5, pal(col), 15.8)).join("") +
+        cakeStand(X + 2.75, Y + 1.82, 15.4, 0.16) + cakeSlice(X + 3.1, Y + 1.8, 15.4) + cakeSlice(X + 3.35, Y + 1.8, 15.4, "#fbf3dc", "#f6c945") + cakeSlice(X + 3.6, Y + 1.8, 15.4, "#6b3a22", "#3a2014") +
         box(X + 2.58, Y + 1.96, 1.12, 0.17, 0.4, pal("#d8d2c4"), 15.4) + // a tray of brownies at the front, stacked two high
         [2.62, 2.9, 3.18, 3.46].map((dx) => box(X + dx, Y + 1.98, 0.24, 0.14, 1.3, pal("#3a2014"), 15.8) + box(X + dx + 0.02, Y + 1.99, 0.2, 0.12, 1.3, pal("#4a2a1a"), 17.1)).join("") +
         box(X + 2.5, Y + 1.65, 1.25, 0.5, 7, GLASS, 15));
@@ -382,15 +439,15 @@ const ROOMS = [
       CAFE.seats.forEach((s) => add(s.depth, `<g class="seat"></g>`));
       [["customerA", GREEN], ["customerB", "#ff4fd8"]].forEach(([look, col], i) => { const s = CAFE.seats[i];
         add(s.depth, person(look, ["sit"], s.at[0], s.at[1], { dy: s.dy, cls: "walker", walker: true, top: bbox(col), glance: true })); });
-      add(X + Y + 7.6, roundTable(X + 6.0, Y + 1.6) + cups(X + 5.9, Y + 1.55, 12, 1) + bookStack(X + 6.05, Y + 1.5, 12, 2));
-      add(X + Y + 8.95, roundTable(X + 7.35, Y + 1.6) + cups(X + 7.5, Y + 1.75, 12, 1));
+      add(X + Y + 7.6, roundTable(X + 6.0, Y + 1.6) + cups(X + 5.9, Y + 1.55, 12, 1) + bookStack(X + 6.05, Y + 1.5, 12, 2) + onFloor(X + 6.15, Y + 1.75, 12, "flowerR"));
+      add(X + Y + 8.95, roundTable(X + 7.35, Y + 1.6) + cups(X + 7.5, Y + 1.75, 12, 1) + cakeSlice(X + 7.55, Y + 1.5, 12, "#6b3a22", "#3a2014"));
       add(X + Y + 8.96, `<g class="cafe-laptop" style="visibility:hidden">${laptop3(X + 7.12, Y + 1.42, 12)}</g>`); // (out of a backpack, see sitDown)
       // a table for four in the middle, a table for two by the entrance hall
-      add(X + Y + 7.6, chairF(X + 4.3, Y + 3.1, "down", { wood: FC.walnut, seat: FC.red }) + chairF(X + 4.9, Y + 3.1, "down", { wood: FC.walnut, seat: FC.red }));
+      add(X + Y + 7.6, chairF(X + 4.3, Y + 3.1, "down", { wood: FC.walnut, seat: FC.teal }) + chairF(X + 4.9, Y + 3.1, "down", { wood: FC.walnut, seat: FC.teal }));
       add(X + Y + 8.8, tableF(X + 4.2, Y + 3.6, 1.2, 0.8, { wood: FC.walnut }) + cups(X + 4.4, Y + 3.8, 12, 2) + onFloor(X + 5.05, Y + 4.05, 12, "vaseFlowers"));
-      add(X + Y + 9.5, chairF(X + 4.3, Y + 4.45, "up", { wood: FC.walnut, seat: FC.red }) + chairF(X + 4.9, Y + 4.45, "up", { wood: FC.walnut, seat: FC.red }));
-      add(X + Y + 6.0, chairF(X + 0.75, Y + 4.5, "right", { wood: FC.walnut, seat: FC.red })); // (apart from its table: someone sits between them)
-      add(X + Y + 6.6, tableF(X + 1.3, Y + 4.4, 0.6, 0.6, { wood: FC.walnut }) + cups(X + 1.45, Y + 4.6, 12, 2) + chairF(X + 2.0, Y + 4.5, "left", { wood: FC.walnut, seat: FC.red }));
+      add(X + Y + 9.5, chairF(X + 4.3, Y + 4.45, "up", { wood: FC.walnut, seat: FC.teal }) + chairF(X + 4.9, Y + 4.45, "up", { wood: FC.walnut, seat: FC.teal }));
+      add(X + Y + 6.0, chairF(X + 0.75, Y + 4.5, "right", { wood: FC.walnut, seat: FC.teal })); // (apart from its table: someone sits between them)
+      add(X + Y + 6.6, tableF(X + 1.3, Y + 4.4, 0.6, 0.6, { wood: FC.walnut }) + cups(X + 1.4, Y + 4.55, 12, 1) + cakeSlice(X + 1.65, Y + 4.8, 12) + onFloor(X + 1.75, Y + 4.55, 12, "flowerP") + chairF(X + 2.0, Y + 4.5, "left", { wood: FC.walnut, seat: FC.teal }));
       add(X + Y + 11.0, disc(X + 7.5, Y + 3.3, 0.18, 0, 1, FC.iron) + box(X + 7.47, Y + 3.27, 0.06, 0.06, 18, CASE) + box(X + 7.3, Y + 3.27, 0.4, 0.06, 1, pal(FC.oak), 18) + critter("parrot", ["parrot"], X + 7.5, Y + 3.3, { z: 19 }));
       add(X + Y + 15.0, onFloor(X + 7.5, Y + 7.45, 0, "palm"));
       add(X + Y + 10.3, easel3(X + 2.3, Y + 7.55));
@@ -753,7 +810,13 @@ function sortedFlat(list) {
   const flush = () => {
     if (!run.length) return;
     probe.innerHTML = run.map((t) => t.svg).join("");
-    const b = probe.getBBox(), x = Math.floor(b.x - 3), y = Math.floor(b.y - 3), w = Math.ceil(b.x + b.width + 3) - x, h = Math.ceil(b.y + b.height + 3) - y;
+    // (the outline, counting the shared prop images too: the browser leaves out a <use> of an image kept elsewhere)
+    const bb = probe.getBBox(), box = [bb.x, bb.y, bb.x + bb.width, bb.y + bb.height];
+    for (const [, id, ux, uy] of probe.innerHTML.matchAll(/<use href="#(img\d+)" x="([^"]*)" y="([^"]*)"/g)) {
+      const im = document.getElementById(id), x0 = +ux, y0 = +uy;
+      box[0] = Math.min(box[0], x0); box[1] = Math.min(box[1], y0); box[2] = Math.max(box[2], x0 + +im.getAttribute("width")); box[3] = Math.max(box[3], y0 + +im.getAttribute("height"));
+    }
+    const x = Math.floor(box[0] - 3), y = Math.floor(box[1] - 3), w = Math.ceil(box[2] + 3) - x, h = Math.ceil(box[3] + 3) - y;
     out += `<g data-depth="${run[run.length - 1].depth}"><image href="${asImage(probe.innerHTML, [x, y, w, h])}" x="${x}" y="${y}" width="${w}" height="${h}" pointer-events="none"/></g>`;
     run = [];
   };
@@ -776,7 +839,9 @@ const staticURLs = [], imageMarkup = new Map();
 function asImage(inner, [vx, vy, vw, vh]) {
   const defs = [...document.querySelectorAll("#img-defs > :not(image)")].map((e) => e.outerHTML).join("");
   const markup = (id) => imageMarkup.get(id) || (imageMarkup.set(id, document.getElementById(id).outerHTML), imageMarkup.get(id));
-  const body = inner.replace(/<use href="#(img\d+)" x="([^"]*)" y="([^"]*)"\/>/g, (_, id, x, y) => markup(id).replace("<image ", `<image x="${x}" y="${y}" `));
+  // (props are <use>s of images kept in the page, which a picture can't reach: copy each image in. As markup they are
+  // "<use .../>"; read back from the page, "<use ...></use>")
+  const body = inner.replace(/<use href="#(img\d+)" x="([^"]*)" y="([^"]*)"(?:\/>|><\/use>)/g, (_, id, x, y) => markup(id).replace("<image ", `<image x="${x}" y="${y}" `));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw * 2}" height="${vh * 2}" shape-rendering="crispEdges"><defs>${defs}</defs>${body}</svg>`;
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   staticURLs.push(url);
