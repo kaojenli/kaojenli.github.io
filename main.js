@@ -142,7 +142,7 @@ const project = (p) => `<article class="proj" id="project-${p.slug}">
     <h4>${p.title}</h4>
     <p class="meta">${p.org} · ${p.date}</p>
     <p>${p.bullets[0]}</p>
-    ${p.bullets.length > 1 || p.image ? `<details><summary>Details</summary>${p.image ? `<figure><img src="${p.image.src}" alt="${p.image.alt}" loading="lazy"></figure>` : ""}${list(p.bullets.slice(1))}</details>` : ""}
+    ${p.bullets.length > 1 ? `<details><summary>Details</summary>${list(p.bullets.slice(1))}</details>` : ""}
     ${tags(p.tags)}
     ${p.links.length ? `<p class="links">${p.links.map(link).join("")}</p>` : ""}
   </div>

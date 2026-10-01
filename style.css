@@ -170,8 +170,6 @@ details[open] > summary::after { content: "−"; }
 .bullets { margin: 8px 0; padding-left: 18px; }
 .bullets li { margin-bottom: 6px; }
 figure { margin: 12px 0; }
-.proj figure { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.proj figure img { display: block; width: 100%; height: auto; }
 
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 16px; font-size: 15px; }
 .facts dt { color: var(--muted); font: 500 12px/2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }

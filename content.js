@@ -137,10 +137,10 @@ const CONTENT = {
         "Conducted a comparative study on breast cancer classification using the mammogram dataset.",
         "Built SVM models with GLCM features and compared them with CNN and ResNet-based models.",
         "Applied image preprocessing (normalization, contrast, augmentation) to improve accuracy.",
+        "Workflow: dataset split, preprocessing, GLCM features, normalization, then an SVM with an RBF kernel, tuned with cross-validation.",
       ],
       tags: ["GLCM", "SVM", "CNN", "ResNet"],
       links: [{ label: "GitHub", url: "https://github.com/xoumyax/Breast-Cancer-Classification" }],
-      image: { src: "assets/mammo-workflow.png", alt: "Workflow: dataset split, preprocessing, GLCM features, normalization, SVM with RBF kernel, cross-validation" },
     },
     {
       slug: "metagenomic",

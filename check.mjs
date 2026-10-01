@@ -29,7 +29,6 @@ for (const e of C.experience) if (e.project && !slugs.has(e.project)) fail(`expe
 for (const p of C.projects) {
   if (!p.title || !p.bullets?.length) fail(`project "${p.slug}" needs a title and bullets`);
   if (!C.projectGroups.includes(p.cat)) fail(`project "${p.slug}" has unknown group "${p.cat}"`);
-  if (p.image && !existsSync(p.image.src)) fail(`project "${p.slug}" image missing: ${p.image.src}`);
 }
 const urls = [...JSON.stringify(C).matchAll(/"url":"([^"]+)"/g)].map((m) => m[1]);
 for (const u of urls) if (!/^(https:\/\/|mailto:)/.test(u)) fail(`link is not https/mailto: ${u}`);

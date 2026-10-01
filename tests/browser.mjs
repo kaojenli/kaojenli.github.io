@@ -35,7 +35,7 @@ for (const id of ["about", "projects", "experience", "education", "papers", "ski
 await p.ev(reveal("#project-mammo summary")); await p.sleep(200);
 await p.click(...(await p.ev(center("#project-mammo summary"))));
 await p.sleep(600);
-ok(await p.ev(`document.querySelector('#project-mammo details').open && document.querySelector('#project-mammo figure img').naturalWidth > 0`), "Details opens and the workflow image loads");
+ok(await p.ev(`document.querySelector('#project-mammo details').open && document.querySelectorAll('#project-mammo details li').length === CONTENT.projects.find((p) => p.slug === "mammo").bullets.length - 1 && !document.querySelector('.proj details img')`), "Details opens: the rest of the bullets as text, no pictures");
 await p.ev(reveal("#experience summary")); await p.sleep(200);
 await p.click(...(await p.ev(center("#experience summary"))));
 ok(await p.ev(`document.querySelector('#experience details').open`), "an experience row opens");
