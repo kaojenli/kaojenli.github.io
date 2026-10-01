@@ -4,11 +4,11 @@
 // security room) along a railed gallery. Each project has its own room (customer tracking has the café and the hacker
 // room next to it). Draws the hero overview (speech bubbles; a coffee drinker, a cat and a dog who wander through
 // doorways) and a close-up of each project's room(s) for the project list.
-const OX = 248, OY = 186, NX = 20, NY = 15;          // ground grid NX×NY tiles
+const OX = 264, OY = 186, NX = 20, NY = 16;          // ground grid NX×NY tiles
 // The floors: the ground floor's rooms run from its back wall (y = 5) to y = 13; the loft sits behind it, y = 0..5.
 const FLOORS = [{ level: 0, y0: 5, depth: 8 }, { level: 1, y0: 0, depth: 5 }];
 const H = 64, SLAB = 6, WALL = H - SLAB, LOW = 12;   // storey height, floor slab, wall height, low partitions
-const VW = 576, VH = 480;                            // overview viewBox
+const VW = 592, VH = 488;                            // overview viewBox
 const lift = (level, inner) => (level ? `<g transform="translate(0 ${-level * H})">${inner}</g>` : inner);
 const INK = "#161616"; // Habbo furni: black outlines
 const iso = (x, y) => [OX + (x - y) * 16, OY + (x + y) * 8];
@@ -321,8 +321,8 @@ const SIT_DO = {
   coffee: ["sit:3000", "sitDrink:2200", "sit:2600", "sitDrink:2000"],
 };
 const CAFE = {
-  edges: [{ tiles: [[10, 14], [9, 14]], out: ([x]) => [x + 0.5, 15.4], inFace: "backR", outFace: "frontL" },
-    { tiles: [[0, 14], [0, 13]], out: ([, y]) => [-0.9, y + 0.5], inFace: "front", outFace: "back" }],
+  edges: [{ tiles: [[10, 15], [9, 15]], out: ([x]) => [x + 0.5, 16.4], inFace: "backR", outFace: "frontL" },
+    { tiles: [[0, 14], [0, 13], [0, 15]], out: ([, y]) => [-0.9, y + 0.5], inFace: "front", outFace: "back" }],
   door: [10, 13], counter: [9, 8], window: [12, 13], lookIn: [7, 13], // (by the line; and where people out for a stroll stop to look in,
   // between the two ends of the sidewalk, so a party never has to turn back through itself)
   queue: [[11, 14], [12, 14], [13, 14], [14, 14]],
@@ -494,10 +494,10 @@ const ROOMS = [
     },
   },
   {
-    key: "street", level: 0, rect: [0, 13, 15, 2], label: "Sidewalk", outdoor: true, tex: "paving", floor: ["#c9c4bb", "#bfb9ae"],
-    blocked: [[8, 1], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]], // (two lanes all along: people walk past in front of the planters and the bench)
+    key: "street", level: 0, rect: [0, 13, 15, 3], label: "Sidewalk", outdoor: true, tex: "paving", floor: ["#c9c4bb", "#bfb9ae"],
+    blocked: [[8, 2], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]], // (three rows: the line in the middle, a lane either side of it)
     // the curb, and a patch of snow under Snow girl
-    rug: (X, Y) => rect(X, Y + 1.88, 15, 0.12, "#8d8d8d") + `<ellipse cx="${X + 8.4}" cy="${Y + 1.45}" rx="0.5" ry="0.38" fill="#f2f6fa"/><ellipse cx="${X + 8.15}" cy="${Y + 1.66}" rx="0.3" ry="0.16" fill="#f2f6fa"/>`,
+    rug: (X, Y) => rect(X, Y + 2.88, 15, 0.12, "#8d8d8d") + `<ellipse cx="${X + 8.4}" cy="${Y + 2.45}" rx="0.5" ry="0.38" fill="#f2f6fa"/><ellipse cx="${X + 8.15}" cy="${Y + 2.66}" rx="0.3" ry="0.16" fill="#f2f6fa"/>`,
     draw(add, X, Y) {
       // the line outside the café door, each person tracked with a box; two more are out of sight for now, at the curb
       ["q1", "q2", "q3", "q4", "q5", "q6"].forEach((look, k) => { const [tx, ty] = CAFE.queue[k] || CAFE.edges[0].tiles[0];
@@ -505,18 +505,18 @@ const ROOMS = [
       // out for a stroll (out of sight to begin with): a lady walking her little dog; a family, the child in the middle
       [["lady"], ["pup"], ["mom"], ["kid", 0.72], ["dad"]].forEach(([look, scale]) => add(X + Y + 2, look === "pup" ? critter(look, ["pup", "pupB"], X + 0.5, Y + 1.5, { cls: "walker" })
         : person(look, ["stand"], X + 0.5, Y + 1.5, { cls: "walker", walker: true, glance: true, scale })));
-      add(X + Y + 3.2, tree(X + 0.3, Y + 1.85)); // (at the corner of the curb: the sidewalk is open, two wide, to its end)
+      add(X + Y + 4.2, tree(X + 0.3, Y + 2.85)); // (at the corner of the curb: the sidewalk is open, two wide, to its end)
       add(X + Y + 1.5, box(X + 0.95, Y + 0.1, 1.6, 0.36, 6, pal("#8a5634", "wood")) + [1.2, 1.55, 1.9, 2.25].map((x, k) => onFloor(X + x, Y + 0.28, 6, k % 2 ? "flowerR" : "flowerP")).join(""));
       add(X + Y + 2.5, legs(X + 2.85, Y + 0.18, 0.95, 0.28, 5, pal(FC.iron), 0.06) + box(X + 2.8, Y + 0.12, 1.05, 0.36, 1.5, pal(FC.oak, "wood"), 5) + box(X + 2.8, Y + 0.1, 1.05, 0.08, 8, pal(FC.oak, "wood"), 6.5));
       add(X + Y + 4.6, lantern3(X + 4.55, Y + 0.08)); // (against the wall: two can pass here)
-      add(X + Y + 6.4, lamp(X + 4.5, Y + 1.82)); // (at the curb; drawn in front of whoever walks past behind it)
-      add(X + Y + 9.3, mailbox3(X + 7.5, Y + 1.75));
-      add(X + Y + 9.9, critter("snowgirl", ["snowGirl"], X + 8.4, Y + 1.45));
-      add(X + Y + 11.4, lamp(X + 9.2, Y + 1.82)); // (at the curb too)
+      add(X + Y + 7.4, lamp(X + 4.5, Y + 2.82)); // (at the curb; drawn in front of whoever walks past behind it)
+      add(X + Y + 10.3, mailbox3(X + 7.5, Y + 2.75));
+      add(X + Y + 10.9, critter("snowgirl", ["snowGirl"], X + 8.4, Y + 2.45));
+      add(X + Y + 12.4, lamp(X + 9.2, Y + 2.82)); // (at the curb too)
     },
   },
   {
-    key: "yard", level: 0, rect: [15, 9, 5, 6], label: "Practice field", href: "#project-pitching", slug: "pitching", outdoor: true, tex: "field", floor: ["#62b444", "#6cbd4a"],
+    key: "yard", level: 0, rect: [15, 9, 5, 7], label: "Practice field", href: "#project-pitching", slug: "pitching", outdoor: true, tex: "field", floor: ["#62b444", "#6cbd4a"],
     blocked: [[1, 0], [3, 0], [0, 2], [4, 1], [4, 2], [4, 3], [4, 4], [0, 5], [1, 5], [2, 5], [3, 5], [4, 5]],
     rug: (X, Y) => `<ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.6" ry="0.6" fill="#b9834a"/><ellipse cx="${X + 0.9}" cy="${Y + 2.8}" rx="0.45" ry="0.45" fill="#c9955a"/>` + rect(X + 0.85, Y + 2.65, 0.08, 0.3, "#fff") +
       `<ellipse cx="${X + 4.3}" cy="${Y + 3.1}" rx="0.5" ry="0.5" fill="#b9834a"/>` + `<polygon points="${X + 4.2},${Y + 3.0} ${X + 4.4},${Y + 3.0} ${X + 4.45},${Y + 3.15} ${X + 4.3},${Y + 3.25} ${X + 4.15},${Y + 3.15}" fill="#fff"/>` +

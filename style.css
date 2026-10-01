@@ -81,7 +81,7 @@ h1, h2, h3, h4 { color: var(--ink); }
 .stage { margin: 0; }
 .room-scroll { overflow: hidden; } /* no box: the cabin stands on the page like a diorama */
 /* the whole cabin fits in the first screen: no taller than the window leaves below the intro (--fit, set by main.js) */
-.room { position: relative; width: 100%; max-width: min(1152px, var(--fit, 9999px) * 1.2); aspect-ratio: 576 / 480; margin: 0 auto; }
+.room { position: relative; width: 100%; max-width: min(1184px, var(--fit, 9999px) * 1.213); aspect-ratio: 592 / 488; margin: 0 auto; }
 #scene { display: block; width: 100%; height: 100%; }
 .stage figcaption { margin-top: 12px; color: var(--muted); font-size: 14px; }
 
@@ -249,7 +249,7 @@ figure { margin: 12px 0; }
   .rail-left { grid-area: left; }
   .rail-right { grid-area: right; }
   /* the cabin no taller than the left card column (about 650px) on wider screens */
-  .room { max-width: min(780px, var(--fit, 9999px) * 1.2); }
+  .room { max-width: min(788px, var(--fit, 9999px) * 1.213); }
 }
 
 /* ---------- narrow screens */
