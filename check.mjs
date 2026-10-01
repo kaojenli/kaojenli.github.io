@@ -48,7 +48,7 @@ for (const u of urls) if (!/^(https:\/\/|mailto:)/.test(u)) fail(`link is not ht
   for (const look of Object.keys(AVATAR_LOOKS)) for (const pose of Object.keys(POSES)) {
     for (const back of [false, true]) try { inspect(`avatar ${look}/${pose}${back ? " (back)" : ""}`, drawAvatar(AVATAR_LOOKS[look], pose, { back })); } catch (e) { fail(`avatar ${look}/${pose} throws: ${e.message}`); }
   }
-  const SPRITE = { sam: "turtle", snowgirl: "snowGirl" }; // (critters whose sprite has another name, see cabin.js)
+  const SPRITE = { sam: "turtle", snowgirl: "snowGirl", pup: "pup" }; // (critters whose sprite has another name, see cabin.js)
   for (const k of Object.keys(C.npcs)) if (!AVATAR_LOOKS[k] && !PROPS[SPRITE[k] || k]) fail(`npc "${k}" has no avatar look (avatar.js) or prop (props.js)`);
 }
 

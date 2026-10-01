@@ -139,6 +139,7 @@ const POSES = {
   sitPhone: { ...SIT, armL: [[6, 33], [8, 45], [14, 41]], phone: true },
   sitTypeA: { ...SIT, armL: [[6, 33], [9, 43], [16, 47]], armR: [[26, 33], [28, 42], [31, 47]] },
   sitTypeB: { ...SIT, armL: [[6, 33], [9, 42], [15, 46]], armR: [[26, 33], [28, 43], [31, 48]] },
+  sitReach: { ...SIT, armL: [[6, 33], [3, 44], [2, 55]] }, // down for the backpack beside the seat
 };
 
 // An in-between pose, t of the way from pose a to pose b: every joint and foot moved part way (named "a>b@t", made once).
@@ -333,6 +334,8 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   };
   if (bKind === "skirt" && !dress) skirt(bottom, 57, 11);
   if (dress) skirt(top, 51, 17);
+  const pack = extras.includes("backpack") ? ramp(look.bagColor || "#3b5b7a") : null;
+  if (pack && !back) c.part(polyS([[5, 31.5], [8, 31], [8, 53], [0.5, 52], [0, 37], [2, 33]]), (x, y) => (y > 45 && y < 47 ? pack[2] : x < 2 ? pack[1] : pack[0])); // a backpack, seen past the back
   c.part(polyS([[9.5, 30.5], [20.5, 29.5], [26.5, 32.5], [27.6, 45], [27.6, (dress ? 45 : hemAt(27.6)) + 0.5], [10, (dress ? 54 : hem) + 0.5], [4, (dress ? 51 : hemAt(4)) + 0.5], [4, 45], [4.5, 33]]),
     (x, y) => (kind === "stripe" && y % 4 < 2 ? side(ramp(look.stripe))(x) : side(top)(x)));
   if (kind === "sweater") { for (let x = 5; x < 27; x += 2) for (let d = 1; d < 3.5; d++) c.set(x, Math.round(hemAt(x) - d), top[2]); for (let x = 11; x < 20; x++) c.set(x, 31, top[2]); }
@@ -368,6 +371,18 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   if (extras.includes("necklace") && front) [[12, 33], [13, 34], [14, 35], [15, 35.5 | 0], [16, 35], [17, 34], [18, 33]].forEach(([x, y]) => c.set(x, y, "#d9a441"));
   // the near arm in front of the body (a raised one waits until after the head)
   if (!raised(pose.armL) && !reachesAway) nearHand = arm(pose.armL, true);
+  if (pack && back) { c.part(polyS([[7.5, 33], [24.5, 32], [25, 52], [7, 53]]), (x, y) => (y > 44 && y < 46 ? pack[3] : x < 10 ? pack[2] : pack[1])); c.part(rectS(10, 46.5, 22, 51.5), () => pack[2]); }
+  if (pack && front) c.part(limb([[10, 31], [11, 45]], 1.6), () => pack[1]); // the near strap
+  const handFree = !pose.seat && !pose.phone && !pose.cupNear && !pose.snack && !pose.book && nearHand;
+  if (extras.includes("purse") && handFree) { // a small handbag on the near hand
+    const [hx, hy] = nearHand, pu = ramp(look.purseColor || "#2b2b2b");
+    c.part(limb([[hx - 2, hy + 2], [hx, hy - 0.5], [hx + 2, hy + 2]], 0.8), () => pu[3]);
+    c.part(polyS([[hx - 3.5, hy + 1.5], [hx + 3.5, hy + 1.5], [hx + 4, hy + 7], [hx - 4, hy + 7]]), (x, y) => (y < hy + 3 ? pu[0] : x < hx - 1 ? pu[2] : pu[1]));
+  }
+  if (extras.includes("book") && handFree && front) { // a closed book carried at the side
+    const [hx, hy] = nearHand, bk = ramp(look.bookColor || "#8a3b3b");
+    c.part(rectS(hx - 2.5, hy - 5, hx + 3, hy + 5), (x) => (x > hx + 1.8 ? "#f4efe2" : x < hx - 1 ? bk[2] : bk[1]));
+  }
   if (extras.includes("bag") && front) { c.part(limb([[7, 32], [23, 50]], 1.6), () => "#4e5a29", null); c.part(polyS([[18, 48], [27, 47], [27.5, 55], [18.5, 56]]), bodyShade(ramp("#6b7a3a"), 18, 28, 0.25)); }
   if (extras.includes("paper") && front) { c.part(polyS([[10, 40], [22, 39], [22, 51], [10, 52]]), () => "#fbfbf6"); for (const y of [43, 46, 49]) for (let x = 12; x < 20; x++) c.set(x, y, "#9aa4b1"); }
 
@@ -435,6 +450,12 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
     for (const t of [hair.tie, ...(hair.ties || [])].filter(Boolean)) c.part(rectS(t[0] - 1.5, t[1] - 1, t[0] + 1.5, t[1] + 1.5), () => look.tieColor || "#e0584f");
   }
   if (back) ear();
+  if (extras.includes("sunhat")) { // a wide-brimmed sun hat with a ribbon
+    const hc = ramp(look.hatColor || "#efe2c4");
+    c.part(ellipse(15, 10, 16, 4.2), (x, y) => (y > 10 ? hc[2] : hc[1]));
+    c.part(ellipse(15, 5.5, 9.5, 6.5), (x) => (x < 9 ? hc[2] : hc[1]));
+    c.part(rectS(5.8, 7.5, 24.3, 9.5), () => look.ribbon || "#c8453c");
+  }
   if (hair.beanie) {
     const b = ramp(look.capColor || "#6b7a8f");
     c.part(ellipse(15, 11.5, 13.6, 10), (x, y) => (x < 7 ? b[2] : (x % 3 === 0 ? b[2] : b[1])));
@@ -558,14 +579,19 @@ const AVATAR_LOOKS = {
   labB: { skin: "#e8b996", hair: ["buzz", "#1f1714"], top: ["coat", "#f2f4f6"], bottom: ["pants", "#6b7a3a"], shoes: "#2b2b2b", extras: ["glasses"], frames: "#3b82c4", face: { beard: "goatee", nose: "long", brows: "thick" } },
   analyst: { skin: "#8d5a3b", hair: ["afro", "#1f1714"], top: ["hoodie", "#5b3f8f"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea", face: { eyes: "sleepy", earrings: "#d9a441", mouth: "smile" } },
   tech: { skin: "#f1c29b", hair: ["bun", "#d9b25a"], top: ["tee", "#3fa3a3"], bottom: ["pants", "#3fa3a3"], shoes: "#f4f1ea", face: { freckles: true, eyes: "round", brows: "thin" } },
-  customerA: { skin: "#f1c29b", hair: ["wavy", "#b5562b"], top: ["stripe", "#f4f1ea"], stripe: "#e05a7a", bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", extras: ["necklace"], face: { eyes: "lash", lips: "#c0504a" } },
-  customerB: { skin: "#d9a77c", hair: ["sidepart", "#2a2a2a"], top: ["polo", "#f2c94c"], bottom: ["pants", "#b8a47a"], shoes: "#6f4a2f", face: { brows: "arched", mouth: "flat", nose: "long" } },
+  customerA: { skin: "#f1c29b", hair: ["wavy", "#b5562b"], top: ["stripe", "#f4f1ea"], stripe: "#e05a7a", bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", extras: ["necklace", "book"], face: { eyes: "lash", lips: "#c0504a" } },
+  customerB: { skin: "#d9a77c", hair: ["sidepart", "#2a2a2a"], top: ["polo", "#f2c94c"], bottom: ["pants", "#b8a47a"], shoes: "#6f4a2f", extras: ["backpack"], bagColor: "#7a5a3a", face: { brows: "arched", mouth: "flat", nose: "long" } },
   barista: { skin: "#e6b08a", hair: ["bun", "#3a2a24"], top: ["shirt", "#1e6b52"], bottom: ["pants", "#2d2d3a"], shoes: "#2b2b2b", extras: ["apron"], face: { eyes: "narrow", mouth: "smile", earrings: "#c9cdd3" } },
   hacker: { skin: "#e9c9a8", hair: ["hood", "#2b2f3a"], top: ["hoodie", "#2b2f3a"], bottom: ["pants", "#1f222a"], shoes: "#2b2b2b", extras: ["visor"], face: { mouth: "flat", beard: "stubble" } },
-  q1: { skin: "#f1c29b", hair: ["pigtails", "#6b4226"], top: ["hoodie", "#f06292"], bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#f06292", face: { eyes: "wide", freckles: true, mouth: "grin" } },
-  q2: { skin: "#f1c29b", hair: ["messy", "#d9b25a"], top: ["jacket", "#4a6fa5"], inner: "#f4f1ea", bottom: ["pants", "#2d2d3a"], shoes: "#2b2b2b", face: { beard: "stubble", brows: "angled", mouth: "smirk" } },
-  q3: { skin: "#7a4a30", hair: ["braid", "#1f1714"], top: ["turtleneck", "#e0a82e"], bottom: ["skirt", "#6b4a2e"], tights: "#3a2a24", shoes: "#2b2b2b", shoeStyle: "boots", face: { eyes: "lash", lips: "#8a3a3a", earrings: "#d9a441" } },
+  q1: { skin: "#f1c29b", hair: ["pigtails", "#6b4226"], top: ["hoodie", "#f06292"], bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#f06292", extras: ["backpack"], bagColor: "#4a6fa5", face: { eyes: "wide", freckles: true, mouth: "grin" } },
+  q2: { skin: "#f1c29b", hair: ["messy", "#d9b25a"], top: ["jacket", "#4a6fa5"], inner: "#f4f1ea", bottom: ["pants", "#2d2d3a"], shoes: "#2b2b2b", extras: ["backpack"], bagColor: "#3b4a5a", face: { beard: "stubble", brows: "angled", mouth: "smirk" } },
+  q3: { skin: "#7a4a30", hair: ["braid", "#1f1714"], top: ["turtleneck", "#e0a82e"], bottom: ["skirt", "#6b4a2e"], tights: "#3a2a24", shoes: "#2b2b2b", shoeStyle: "boots", extras: ["book"], bookColor: "#2f5a99", face: { eyes: "lash", lips: "#8a3a3a", earrings: "#d9a441" } },
   q4: { skin: "#f1c29b", hair: ["beanie", "#9aa0a6"], capColor: "#8a5a3a", top: ["shirt", "#b5533a"], bottom: ["jeans", "#2d3a5c"], shoes: "#6f4a2f", shoeStyle: "boots", face: { beard: "beard", brows: "thick", eyes: "sleepy" }, beardColor: "#b9bec6" },
   q5: { skin: "#e6b08a", hair: ["bald", "#3a2a24"], top: ["tee", "#e0584f"], bottom: ["cargo", "#3d4a66"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#3b82c4", extras: ["glasses"], frames: "#2b2e35", face: { beard: "mustache", mouth: "smile" } },
-  q6: { skin: "#d9a77c", hair: ["bob", "#2a2a2a"], top: ["dress", "#8e44ad"], bottom: ["pants", "#2a2a2a"], tights: "#2b2e35", shoes: "#2b2b2b", extras: ["headband"], bandColor: "#f6c945", face: { eyes: "lash", lips: "#9a3050", brows: "arched" } },
+  q6: { skin: "#d9a77c", hair: ["bob", "#2a2a2a"], top: ["dress", "#8e44ad"], bottom: ["pants", "#2a2a2a"], tights: "#2b2e35", shoes: "#2b2b2b", extras: ["headband", "purse"], bandColor: "#f6c945", purseColor: "#e0a82e", face: { eyes: "lash", lips: "#9a3050", brows: "arched" } },
+  // people out for a stroll: an elegant lady (walking her little dog), and a family, the child drawn smaller (cabin.js)
+  lady: { skin: "#f1d1b5", hair: ["bun", "#3a2a24"], top: ["dress", "#7a3b69"], bottom: ["pants", "#2a2a2a"], tights: "#e8cdb8", shoes: "#2b2b2b", extras: ["necklace", "purse", "sunhat"], purseColor: "#2b2b2b", hatColor: "#efe2c4", ribbon: "#7a3b69", face: { eyes: "lash", lips: "#a8324a", brows: "arched" } },
+  mom: { skin: "#f1c29b", hair: ["long", "#4a3020"], top: ["cardigan", "#7fa88a"], inner: "#f4f1ea", bottom: ["jeans", "#2f5a99"], shoes: "#f4f1ea", extras: ["purse"], purseColor: "#b5533a", face: { eyes: "lash", lips: "#c0504a", mouth: "smile" } },
+  kid: { skin: "#f1c29b", hair: ["pigtails", "#4a3020"], top: ["tee", "#f6c945"], bottom: ["shorts", "#4a6fa5"], shoes: "#e0584f", shoeStyle: "sneakers", stripe: "#e0584f", extras: ["backpack"], bagColor: "#e0584f", face: { eyes: "wide", mouth: "grin", freckles: true } },
+  dad: { skin: "#e6b08a", hair: ["sidepart", "#3a2a24"], top: ["shirt", "#4a6fa5"], bottom: ["pants", "#b8a47a"], shoes: "#6f4a2f", extras: ["backpack"], bagColor: "#2f4f3a", face: { beard: "stubble", mouth: "smile" } },
 };

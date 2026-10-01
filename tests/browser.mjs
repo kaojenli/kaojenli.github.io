@@ -98,7 +98,7 @@ await p.key("Enter");
 ok(await p.ev(`!!document.querySelector('.bubble[data-for="dancer"]')`), "Enter on a focused NPC makes it talk");
 // walkers: wanderers roam, people with a route walk between their stations; never onto furniture or each other,
 // only through doors; the cat stays indoors, the dog outdoors
-const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.filter((w) => !w.patron).map((w) => [w.look, w.route ? "route" : "wander"])))`));
+const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.filter((w) => !w.patron && !w.party).map((w) => [w.look, w.route ? "route" : "wander"])))`));
 const patrons = JSON.parse(await p.ev(`JSON.stringify(WALKERS.filter((w) => w.patron).map((w) => w.look))`)), seen = { seated: new Set(), off: new Set(), line: new Set(), back: new Set() };
 // record every step as it is taken (stepTo is the one place walkers move)
 await p.ev(`(() => { window.STEPS = []; const orig = stepTo; stepTo = (wk, to, done) => { STEPS.push({ look: wk.look, from: wk.tile.slice(), to: to.slice(), ok: walkable(wk, wk.tile, to) && onFloorOK(wk, to), taken: takenBy(wk, to) }); return orig(wk, to, done); }; })()`);
@@ -123,6 +123,9 @@ const cafeLog = JSON.parse(await p.ev(`JSON.stringify(CAFE_LOG)`)), n = (what) =
 ok(n("order") >= 2 && n("join") >= 1, `the café line moves: the front goes in to order, newcomers join the back (${n("order")} orders, ${n("join")} joined)`);
 ok(n("sit") >= 2, `café customers sit down after ordering (${n("sit")} sat)`);
 ok(n("leave") >= 1 && n("turnup") >= 1, `café customers leave the picture and new ones turn up (${n("leave")} left, ${n("turnup")} turned up)`);
+ok(n("stroll") >= 1 && n("follow") >= 1, `people out for a stroll walk the sidewalk, the child or the little dog following (${n("stroll")} strolls, ${n("follow")} followed)`);
+// the laptop on the café table is out only while someone with a backpack sits there
+ok(await p.ev(`(() => { const s = seatOf.get(1), shown = scene.querySelector(".cafe-laptop").style.visibility !== "hidden"; return !s ? !shown : hasExtra(s, "backpack"); })()`), "the café laptop: out of a backpack, only while its owner sits there");
 ok(bad.length === 0 && steps.every((s) => !s.taken), "walkers stay off furniture and each other; cat indoors, dog outdoors" + (bad.length ? ": " + bad.slice(0, 3).join("; ") : ""));
 const through = steps.filter((s) => Math.abs(s.from[0] - s.to[0]) + Math.abs(s.from[1] - s.to[1]) !== 1 || !s.ok).length;
 ok(through === 0, "every step goes to a neighbouring tile through a door, never through a wall");

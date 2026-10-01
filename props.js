@@ -250,20 +250,20 @@ const PROPS = {
     c.part(ellipse(18.5, 8.5, 4.3, 3.8), sphere(fur, 18.5, 8.5, 4.3, 3.8));
     c.set(17, 8, O); c.set(20, 8, O); c.set(18, 10, "#f06292"); c.set(19, 10, "#f06292"); c.set(18, 11, "#f8d9b8"); c.set(19, 11, "#f8d9b8");
   } }])),
-  ...Object.fromEntries(["dog", "dogB"].map((name, f) => [name, { w: 28, h: 18, draw(c) {
-    const fur = ramp("#b07a45");
+  ...Object.fromEntries([["dog", "#b07a45", "#c8453c", "#6f4a2f"], ["pup", "#f3eee4", "#e86a9a", "#e2c7b0"]].flatMap(([base, coat, collar, ears]) => [base, base + "B"].map((name, f) => [name, { w: 28, h: 18, draw(c) {
+    const fur = ramp(coat);
     c.part(limb([[6, 8], [3, 3]], 2.4), bands(fur, 2, 6));
     const far = f ? [[8, 12, 7, 16.5], [17, 13, 18, 17]] : [[8, 12, 9, 16.5], [17, 13, 16, 17]], near = f ? [[11, 13, 12, 17], [15, 14, 14, 17.5]] : [[11, 13, 10, 17], [15, 14, 16, 17.5]];
     far.forEach(([x0, y0, x1, y1]) => c.part(limb([[x0, y0], [x1, y1]], 2.6), () => fur[2]));
     c.part(union(ellipse(10, 9, 6, 4), ellipse(15.5, 11, 5.5, 3.8)), sphere(fur, 12.5, 10, 8, 5));
     c.part(ellipse(15, 12.5, 3, 1.8), () => "#f1e3cf", null);
     near.forEach(([x0, y0, x1, y1]) => c.part(limb([[x0, y0], [x1, y1]], 2.8), bands(fur, x0 - 1, x0 + 2)));
-    c.part(limb([[18, 9.5], [22, 11]], 1.6), () => "#c8453c");
+    c.part(limb([[18, 9.5], [22, 11]], 1.6), () => collar);
     c.part(ellipse(21.5, 7.5, 4.8, 4.2), sphere(fur, 21.5, 7.5, 4.8, 4.2));
     c.part(ellipse(23.5, 10.5, 2.8, 2), () => "#e7c9a0");
-    c.part(polyS([[16.5, 5], [18.5, 4], [18.5, 11], [16.5, 10]]), () => "#6f4a2f"); c.part(polyS([[25, 4], [27, 5], [27, 10], [25, 11]]), () => "#6f4a2f");
+    c.part(polyS([[16.5, 5], [18.5, 4], [18.5, 11], [16.5, 10]]), () => ears); c.part(polyS([[25, 4], [27, 5], [27, 10], [25, 11]]), () => ears);
     c.set(20, 7, O); c.set(23, 7, O); c.set(24, 10, O); c.set(23, 10, O);
-  } }])),
+  } }]))),
   // Sam the turtle (aqua blue), walking to the right: a domed shell with its plates marked out and a pale rim, head on a stretched
   // neck, the legs stepping in turn (two frames).
   ...Object.fromEntries(["turtle", "turtleB"].map((name, f) => [name, { w: 24, h: 13, draw(c) {
