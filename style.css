@@ -151,7 +151,7 @@ h1, h2, h3, h4 { color: var(--ink); }
 
 /* ---------- sections: a label column and a content column */
 .sections { max-width: var(--read); margin: 0 auto; padding: 0 24px; }
-.section { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 32px; padding: 56px 0; border-top: 1px solid var(--line); }
+.section { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 32px; padding: 56px 0; border-top: 1px solid var(--line); }
 .section-head h2 { margin: 6px 0 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
 .section-body > :first-child { margin-top: 0; }
 .section-body p { margin: 0 0 12px; }
@@ -177,7 +177,7 @@ figure { margin: 12px 0; }
 .facts dt { color: var(--muted); font: 500 12px/2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
 .facts dd { margin: 0; }
 
-.proj { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+.proj { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 40px; padding: 24px 0; border-bottom: 1px solid var(--line); }
 .proj:last-child { border-bottom: 0; }
 .proj h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; line-height: 1.35; }
 .meta { color: var(--muted); font-size: 14px; }
