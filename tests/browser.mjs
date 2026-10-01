@@ -75,9 +75,9 @@ ok(await p.ev(`(() => { const st = [...STATES.values()].find((s) => s.look === "
   return Object.values(ROUTINES.jen).every(([, make]) => make().every((s) => { const v = s.face && faceBack(s.face) ? "back" : "front";
     return st.body.keys.has((s.pose || "stand") + "|" + v) && (v === "back" || st.head.keys.has("front|" + (s.eyes || "open") + "|" + (s.mouth || "closed"))); })); })()`), "Jen's routine: every pose, turn and wink it uses is drawn");
 // when someone talks, the people near them turn their heads to look
-await p.ev(`say(document.querySelector('.who[data-look="customerA"]'), "hello there everyone")`);
+await p.ev(`say(document.querySelector('.who[data-look="labA"]'), "hello there everyone")`);
 await p.sleep(50); // check at once, before a random chat nearby can turn heads elsewhere
-ok(await p.ev(`(() => { const b = stateOf(document.querySelector('.who[data-look="customerB"]')); return performance.now() < b.lookUntil && b.lookRight === false; })()`), "people near a speaker turn their heads toward them");
+ok(await p.ev(`(() => { const b = stateOf(document.querySelector('.who[data-look="radar"]')); return performance.now() < b.lookUntil && b.lookRight === false; })()`), "people near a speaker turn their heads toward them");
 // NPCs talk
 await p.ev("scrollTo(0, 0)"); await p.sleep(400);
 await p.ev(reveal('.who[data-look="pitcher"] .hit')); await p.sleep(300);
@@ -90,20 +90,25 @@ const unclickable = await p.ev(`[...document.querySelectorAll('#scene .who:not(.
   return ![[0.5, 0.3], [0.5, 0.45], [0.5, 0.6], [0.35, 0.5], [0.65, 0.5]].some(([fx, fy]) => { const hit = document.elementFromPoint(r.x + r.width * fx, r.y + r.height * fy); return hit && hit.closest('.who') === el; });
 }).map((el) => el.dataset.look).join(",")`);
 ok(unclickable === "", "every person and animal takes clicks" + (unclickable ? ": not " + unclickable : ""));
-await p.ev(reveal('.who[data-look="q2"] .hit')); await p.sleep(300);
-await p.click(...(await p.ev(center('.who[data-look="q2"] .hit'))));
-ok(await p.ev(`document.querySelector('.who[data-look="q2"]').classList.contains('acting') && stateOf(document.querySelector('.who[data-look="q2"]')).gesture.kind === "wave"`), "a clicked person waves");
+await p.ev(reveal('.who[data-look="student"] .hit')); await p.sleep(300);
+await p.click(...(await p.ev(center('.who[data-look="student"] .hit'))));
+ok(await p.ev(`document.querySelector('.who[data-look="student"]').classList.contains('acting') && stateOf(document.querySelector('.who[data-look="student"]')).gesture.kind === "wave"`), "a clicked person waves");
 await p.ev(`document.querySelector('.who[data-look="dancer"]').focus()`);
 await p.key("Enter");
 ok(await p.ev(`!!document.querySelector('.bubble[data-for="dancer"]')`), "Enter on a focused NPC makes it talk");
 // walkers: wanderers roam, people with a route walk between their stations; never onto furniture or each other,
 // only through doors; the cat stays indoors, the dog outdoors
-const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.map((w) => [w.look, w.route ? "route" : "wander"])))`));
+const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.filter((w) => !w.patron).map((w) => [w.look, w.route ? "route" : "wander"])))`));
+const patrons = JSON.parse(await p.ev(`JSON.stringify(WALKERS.filter((w) => w.patron).map((w) => w.look))`)), seen = { seated: new Set(), off: new Set(), line: new Set(), back: new Set() };
 // record every step as it is taken (stepTo is the one place walkers move)
 await p.ev(`(() => { window.STEPS = []; const orig = stepTo; stepTo = (wk, to, done) => { STEPS.push({ look: wk.look, from: wk.tile.slice(), to: to.slice(), ok: walkable(wk, wk.tile, to) && onFloorOK(wk, to), taken: takenBy(wk, to) }); return orig(wk, to, done); }; })()`);
 const bad = [];
 for (let i = 0; i < 35; i++) {
-  const snap = JSON.parse(await p.ev(`JSON.stringify(WALKERS.map((w) => ({ look: w.look, level: w.level, tile: w.tile, outdoor: !!roomAt(w.level, ...w.tile).outdoor })))`));
+  const snap = JSON.parse(await p.ev(`JSON.stringify(WALKERS.filter((w) => !w.off).map((w) => ({ look: w.look, level: w.level, tile: w.tile, outdoor: !!roomAt(w.level, ...w.tile).outdoor })))`));
+  const cafe = JSON.parse(await p.ev(`JSON.stringify({ line: cafeLine.map((w) => w.look), seated: [...seatOf.values()].map((w) => w.look), off: PATRONS.filter((w) => w.off).map((w) => w.look) })`));
+  if (!seen.first) seen.first = cafe.line; else if (cafe.line.join() !== seen.first.join()) seen.lineChanged = true;
+  cafe.seated.forEach((l) => seen.seated.add(l)); cafe.line.forEach((l) => seen.line.add(l));
+  cafe.off.forEach((l) => seen.off.add(l)); patrons.filter((l) => seen.off.has(l) && !cafe.off.includes(l)).forEach((l) => seen.back.add(l));
   for (const w of snap) {
     if (w.look === "cat" && w.outdoor) bad.push(`cat outdoors at ${w.tile}`);
     if (w.look === "dog" && !w.outdoor) bad.push(`dog indoors at ${w.tile}`);
@@ -113,6 +118,11 @@ for (let i = 0; i < 35; i++) {
 }
 const steps = JSON.parse(await p.ev(`JSON.stringify(STEPS)`));
 for (const look of Object.keys(kinds)) { const n = steps.filter((s) => s.look === look).length; ok(n > 2, `${look} ${kinds[look] === "route" ? "walks between stations" : "wanders"} (${n} steps)`); }
+// the café: the line moves (someone leaves it to order, someone new joins it), people sit, leave and turn up again
+const cafeLog = JSON.parse(await p.ev(`JSON.stringify(CAFE_LOG)`)), n = (what) => cafeLog.filter((e) => e.startsWith(what + " ")).length;
+ok(n("order") >= 2 && n("join") >= 1, `the café line moves: the front goes in to order, newcomers join the back (${n("order")} orders, ${n("join")} joined)`);
+ok(n("sit") >= 2, `café customers sit down after ordering (${n("sit")} sat)`);
+ok(n("leave") >= 1 && n("turnup") >= 1, `café customers leave the picture and new ones turn up (${n("leave")} left, ${n("turnup")} turned up)`);
 ok(bad.length === 0 && steps.every((s) => !s.taken), "walkers stay off furniture and each other; cat indoors, dog outdoors" + (bad.length ? ": " + bad.slice(0, 3).join("; ") : ""));
 const through = steps.filter((s) => Math.abs(s.from[0] - s.to[0]) + Math.abs(s.from[1] - s.to[1]) !== 1 || !s.ok).length;
 ok(through === 0, "every step goes to a neighbouring tile through a door, never through a wall");

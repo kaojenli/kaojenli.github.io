@@ -251,6 +251,29 @@ const stairs = (X, Y) => (add) => {
 const tumorMap = Array.from({ length: 20 }, (_, i) => { const x = i % 5, y = Math.floor(i / 5), d = Math.hypot(x - 2.6, y - 1.6); return rect(1.5 + x * 2.6, 1.5 + y * 1.8, 2.6, 1.8, d < 0.8 ? "#c8102e" : d < 1.6 ? "#f7a21b" : d < 2.4 ? "#3fa34d" : "#2c5892"); }).join("");
 const cups = (x, y, z, n = 2) => Array.from({ length: n }, (_, i) => cup3(x + 0.05 + i * 0.16, y + 0.05, z)).join("");
 const FLOOR_WOOD = ["#7a4a30", "#7a4a30"];
+// The café's customers (see "the café's customers come and go" below). Tiles are whole-house coordinates.
+// `edge`: the curb in front of the door, where people step in from the edge of the picture and out of it again.
+// `queue`: the line along the curb, front first, facing the door (the door tile itself stays free, for the way out).
+// `seats`: where each one sits (`at`, lifted `dy`), the tile they walk to first, which way they face, where they are
+// drawn among the furniture (`depth`, between the seat and what stands in front of it), and what they do there.
+const SIT_DO = {
+  read: ["sitRead:7000", "sitDrink:1800", "sitRead:6000", "sit:1500"],
+  laptop: [...Array.from({ length: 24 }, (_, i) => (i % 2 ? "sitTypeB" : "sitTypeA")), "sit:1400", "sitDrink:1800"],
+  phone: ["sitPhone:5000", "sit:1500", "sitDrink:1800", "sitPhone:4000"],
+  coffee: ["sit:3000", "sitDrink:2200", "sit:2600", "sitDrink:2000"],
+};
+const CAFE = {
+  edge: [10, 14], door: [10, 13], counter: [9, 8],
+  queue: [[11, 14], [12, 14], [13, 14], [14, 14]],
+  seats: [
+    { tile: [12, 6], at: [12.9, 5.95], dy: 1, face: "frontL", depth: 19.2, does: ["read", "coffee", "phone"] },  // the banquette, by the window
+    { tile: [14, 6], at: [14.3, 5.95], dy: 1, face: "frontL", depth: 20.3, does: ["laptop"] },                   // the banquette, at the laptop
+    { tile: [11, 7], at: [11.51, 8.31], dy: 0, face: "frontL", depth: 19.9, does: ["read", "phone", "coffee"] }, // the table for four
+    { tile: [12, 7], at: [12.11, 8.31], dy: 0, face: "frontL", depth: 19.9, does: ["coffee", "read"] },
+    { tile: [7, 10], at: [7.96, 9.71], dy: 0, face: "front", depth: 18.3, does: ["phone", "read"] },             // the table for two
+    { tile: [8, 8], at: [8.1, 7.5], dy: -3, face: "backR", depth: 16.9, does: ["coffee", "phone"] },             // a stool at the counter
+  ],
+};
 const ROOMS = [
   // --- ground floor: living room, stairs and entrance hall, café, hacker room; the sidewalk and the practice field outside
   {
@@ -341,15 +364,19 @@ const ROOMS = [
       add(X + Y + 4.7, stool(X + 1.1, Y + 2.5, { h: 12 }) + stool(X + 2.1, Y + 2.5, { h: 12 }) + stool(X + 3.1, Y + 2.5, { h: 12 }));
       // banquette under the window with two customers, their tables in front
       add(X + Y + 7.1, sofa(X + 5.3, Y + 0.05, 2.6, "down", { col: FC.teal, cushion: "#56a8a0", pillows: [[0.3], [1.2], [2.1]] }));
-      add(X + Y + 7.2, person("customerA", ["sit:6000", "sitDrink:2200"], X + 5.9, Y + 0.95, { dy: 1, top: bbox(GREEN), face: "frontL", glance: true }));
-      add(X + Y + 8.3, person("customerB", ["sit:4500", "sitDrink:2200", "sit:3000"], X + 7.3, Y + 0.95, { dy: 1, top: bbox("#ff4fd8"), face: "frontL", glance: true }));
+      // the café's customers, two of them seated to begin with (see CAFE); a marker at each seat's depth keeps the
+      // furniture behind a seat and in front of it in separate pictures, so whoever sits there is drawn between them
+      CAFE.seats.forEach((s) => add(s.depth, `<g class="seat"></g>`));
+      [["customerA", GREEN], ["customerB", "#ff4fd8"]].forEach(([look, col], i) => { const s = CAFE.seats[i];
+        add(s.depth, person(look, ["sit"], s.at[0], s.at[1], { dy: s.dy, cls: "walker", walker: true, top: bbox(col), glance: true })); });
       add(X + Y + 7.6, roundTable(X + 6.0, Y + 1.6) + cups(X + 5.9, Y + 1.55, 12, 1) + bookStack(X + 6.05, Y + 1.5, 12, 2));
-      add(X + Y + 8.95, roundTable(X + 7.35, Y + 1.6) + cups(X + 7.25, Y + 1.55, 12, 2));
+      add(X + Y + 8.95, roundTable(X + 7.35, Y + 1.6) + laptop3(X + 7.12, Y + 1.42, 12) + cups(X + 7.5, Y + 1.75, 12, 1));
       // a table for four in the middle, a table for two by the entrance hall
       add(X + Y + 7.6, chairF(X + 4.3, Y + 3.1, "down", { wood: FC.walnut, seat: FC.red }) + chairF(X + 4.9, Y + 3.1, "down", { wood: FC.walnut, seat: FC.red }));
       add(X + Y + 8.8, tableF(X + 4.2, Y + 3.6, 1.2, 0.8, { wood: FC.walnut }) + cups(X + 4.4, Y + 3.8, 12, 2) + onFloor(X + 5.05, Y + 4.05, 12, "vaseFlowers"));
       add(X + Y + 9.5, chairF(X + 4.3, Y + 4.45, "up", { wood: FC.walnut, seat: FC.red }) + chairF(X + 4.9, Y + 4.45, "up", { wood: FC.walnut, seat: FC.red }));
-      add(X + Y + 6.6, chairF(X + 0.75, Y + 4.5, "right", { wood: FC.walnut, seat: FC.red }) + tableF(X + 1.3, Y + 4.4, 0.6, 0.6, { wood: FC.walnut }) + cups(X + 1.45, Y + 4.6, 12, 2) + chairF(X + 2.0, Y + 4.5, "left", { wood: FC.walnut, seat: FC.red }));
+      add(X + Y + 6.0, chairF(X + 0.75, Y + 4.5, "right", { wood: FC.walnut, seat: FC.red })); // (apart from its table: someone sits between them)
+      add(X + Y + 6.6, tableF(X + 1.3, Y + 4.4, 0.6, 0.6, { wood: FC.walnut }) + cups(X + 1.45, Y + 4.6, 12, 2) + chairF(X + 2.0, Y + 4.5, "left", { wood: FC.walnut, seat: FC.red }));
       add(X + Y + 11.0, disc(X + 7.5, Y + 3.3, 0.18, 0, 1, FC.iron) + box(X + 7.47, Y + 3.27, 0.06, 0.06, 18, CASE) + box(X + 7.3, Y + 3.27, 0.4, 0.06, 1, pal(FC.oak), 18) + critter("parrot", ["parrot"], X + 7.5, Y + 3.3, { z: 19 }));
       add(X + Y + 15.0, onFloor(X + 7.5, Y + 7.45, 0, "palm"));
       add(X + Y + 10.3, easel3(X + 2.3, Y + 7.55));
@@ -397,12 +424,9 @@ const ROOMS = [
     // the curb, and a patch of snow under Snow girl
     rug: (X, Y) => rect(X, Y + 1.88, 15, 0.12, "#8d8d8d") + `<ellipse cx="${X + 8.4}" cy="${Y + 1.45}" rx="0.5" ry="0.38" fill="#f2f6fa"/><ellipse cx="${X + 8.15}" cy="${Y + 1.66}" rx="0.3" ry="0.16" fill="#f2f6fa"/>`,
     draw(add, X, Y) {
-      // the queue outside the café door, each person tracked with a box
-      // the first in line goes in to order (see ROUTES) and comes back; the rest wait facing the door, glancing about
-      add(X + Y + 24, person("q1", ["stand"], X + 10.5, Y + 0.5, { cls: "walker", walker: true, top: bbox(GREEN) }));
-      [[11.3, 1.3, "back", ["stand"]], [12.15, 1.3, "frontL", ["phone"]], [13.0, 1.3, "back", ["stand:6000", "shift:4000"]], [13.85, 1.3, "back", ["phone"]], [14.7, 1.3, "backR", ["stand"]]].forEach(([u, v, face, idle], k) => {
-        add(X + u + Y + v, person(`q${k + 2}`, idle, X + u, Y + v, { face, glance: true, top: bbox(["#ff4fd8", "#3bb8ff", "#ffb800", GREEN, "#ff4fd8"][k]) }));
-      });
+      // the line outside the café door, each person tracked with a box; two more are out of sight for now, at the curb
+      ["q1", "q2", "q3", "q4", "q5", "q6"].forEach((look, k) => { const [tx, ty] = CAFE.queue[k] || CAFE.edge;
+        add(tx + ty + 1, person(look, ["stand"], tx + 0.5, ty + 0.5, { cls: "walker", walker: true, glance: true, top: bbox([GREEN, "#ff4fd8", "#3bb8ff", "#ffb800", GREEN, "#ff4fd8"][k]) })); });
       add(X + Y + 1.9, tree(X + 0.5, Y + 1.4));
       add(X + Y + 2.6, box(X + 0.95, Y + 0.1, 1.6, 0.36, 6, pal("#8a5634", "wood")) + [1.2, 1.55, 1.9, 2.25].map((x, k) => onFloor(X + x, Y + 0.28, 6, k % 2 ? "flowerR" : "flowerP")).join(""));
       add(X + Y + 3.6, legs(X + 2.85, Y + 0.18, 0.95, 0.28, 5, pal(FC.iron), 0.06) + box(X + 2.8, Y + 0.12, 1.05, 0.36, 1.5, pal(FC.oak, "wood"), 5) + box(X + 2.8, Y + 0.1, 1.05, 0.08, 8, pal(FC.oak, "wood"), 6.5));
@@ -963,6 +987,7 @@ function framesNeeded(st) {
   const seq = (list) => { list.forEach((p) => poses.add(p.pose)); pairs.push(...loopPairs(list).map(([a, b]) => [a.pose, b.pose, b.ms])); };
   seq(st.idle);
   if (st.cfg.walker) { WALK8.forEach((p) => poses.add(p)); poses.add("stand"); (ROUTES[st.look]?.stops || []).forEach((s) => seq(s.poses.map(parsePose))); }
+  if (st.wk?.patron) ["shift", "phone", "talk1", "talk2", ...Object.values(SIT_DO).flat().map((p) => parsePose(p).pose)].forEach((p) => poses.add(p));
   else if (bodyKind(st)) {
     const rest = st.idle[0];
     Object.entries(GESTURES).forEach(([kind, g]) => {
@@ -1042,6 +1067,7 @@ function draw(st, now) {
 }
 
 function say(el, text) {
+  if (STATES.get(el)?.wk?.off) return;
   room.querySelector(`.bubble[data-for="${el.dataset.look}"]`)?.remove();
   const r = el.querySelector(".hit").getBoundingClientRect(), R = room.getBoundingClientRect(); // the person's own box (their layers hold whole strips)
   const b = document.createElement("div");
@@ -1069,7 +1095,11 @@ function say(el, text) {
 const people = [...scene.querySelectorAll(".who")];
 const npcOf = (el) => CONTENT.npcs[el.dataset.look];
 const chatty = people.filter((el) => npcOf(el).lines.length);
-const randomChat = () => { const el = pick(chatty); say(el, pick(npcOf(el).lines)); };
+const randomChat = () => {
+  const el = pick(chatty), st = STATES.get(el);
+  if (!st?.wk?.patron) return say(el, pick(npcOf(el).lines));
+  if (!st.wk.off && !st.walking) say(el, pick(seated(st.wk) ? CONTENT.cafe.seated : npcOf(el).lines)); // (café customers: what fits where they are)
+};
 scene.addEventListener("click", (e) => { const el = e.target.closest(".who"); if (el) { act(el); say(el, pick(npcOf(el).click)); } });
 scene.addEventListener("keydown", (e) => {
   const el = e.target.closest(".who");
@@ -1088,17 +1118,14 @@ const ROUTES = {
     { tile: [8, 6], face: "backR", poses: [...T(12), "reach:1000", "reach:800"], wait: 5200 }, // pulling shots at the machine
     { tile: [9, 6], face: "frontL", poses: ["reach:1000", "stand:900", "talk1", "stand:700", "talk2"], wait: 4400 }, // serving at the counter
   ] },
-  q1: { level: 0, also: ["10,13"], stops: [
-    { tile: [10, 13], face: "backR", poses: ["phone", "shift"], wait: 4000 },                     // first in line
-    { tile: [9, 8], face: "backR", poses: ["stand:900", "talk1", "talk2", "stand:1200"], wait: 4800, order: true }, // ordering at the counter
-  ] },
   labB: { level: 1, stops: [
     { tile: [1, 3], face: "back", poses: ["reach:1100", "stand:900", "reach:1100", "think:1500"], wait: 5200 }, // checking on the mice
     { tile: [2, 4], face: "backR", poses: T(20), wait: 4800 },                                                  // reading the scan at the console
   ] },
 };
 // the stations are kept for their people: wanderers never stop (or get stuck) on them
-const STATIONS = new Set(Object.values(ROUTES).flatMap((r) => r.stops.map((s) => `${r.level}:${s.tile}`)));
+const CAFE_TILES = [CAFE.edge, CAFE.door, [10, 12], CAFE.counter, ...CAFE.queue, ...CAFE.seats.map((s) => s.tile)];
+const STATIONS = new Set([...Object.values(ROUTES).flatMap((r) => r.stops.map((s) => `${r.level}:${s.tile}`)), ...CAFE_TILES.map((t) => `0:${t}`)]);
 const onFloorOK = (wk, [x, y]) => !!roomAt(wk.level, x, y) && (!BLOCKED.has(`${wk.level}:${x},${y}`) || wk.also.has(`${x},${y}`)) && wk.allowed([x, y]) &&
   (!!wk.route || wk.through || !STATIONS.has(`${wk.level}:${x},${y}`));
 const walkable = (wk, from, to) => onFloorOK(wk, to) && !isWall(wk.level, from, to);
@@ -1109,6 +1136,9 @@ const WALKERS = [
   // a turtle: slow, and free to crawl anywhere downstairs, in and out by the café door (never stopping in it)
   { look: "sam", level: 0, tile: [17, 10], stepMs: 1400, allowed: () => true, through: true, also: ["10,13"] },
   ...Object.entries(ROUTES).map(([look, r]) => ({ look, level: r.level, tile: r.stops[0].tile, route: r, stopAt: 0, allowed: () => true })),
+  // the café's customers: through any station, onto the café's own tiles
+  ...["q1", "q2", "q3", "q4", "q5", "q6", "customerA", "customerB"].map((look, k) => ({ look, level: 0, patron: true, through: true, allowed: () => true, trip: 0,
+    tile: k < 4 ? CAFE.queue[k] : k < 6 ? [-10 - k, -10] : CAFE.seats[k - 6].tile, also: CAFE_TILES.map(String) })),
 ].map((w) => ({ ...w, also: new Set(w.also || w.route?.also || []), el: scene.querySelector(`.walker[data-look="${w.look}"]`), heading: [1, 0] }));
 // where each walker is drawn (scene px), read from where the scene put them
 WALKERS.forEach((wk) => (wk.xy = wk.el.style.transform.match(/-?[\d.]+/g).map(Number)));
@@ -1116,8 +1146,9 @@ WALKERS.forEach((wk) => (wk.xy = wk.el.style.transform.match(/-?[\d.]+/g).map(Nu
 function moveWalkers(now) {
   for (const wk of WALKERS) {
     if (!wk.move) continue;
-    const { from, to, t0 } = wk.move, t = Math.min(1, (now - t0) / (wk.stepMs || 500)), xy = from.map((a, i) => Math.round(a + (to[i] - a) * t));
+    const { from, to, t0, ms, fade } = wk.move, t = Math.min(1, (now - t0) / (ms || wk.stepMs || 500)), xy = from.map((a, i) => Math.round(a + (to[i] - a) * t));
     if (xy[0] !== wk.xy[0] || xy[1] !== wk.xy[1]) { wk.xy = xy; wk.el.style.transform = `translate(${xy[0]}px,${xy[1]}px)`; }
+    if (fade) wk.el.style.opacity = fade[0] + (fade[1] - fade[0]) * Math.max(0, t);
     if (t === 1) wk.move = null;
   }
 }
@@ -1158,12 +1189,12 @@ function stepTo(wk, [nx, ny], done) {
   }, ms);
 }
 // Shortest path over free tiles (ignoring the other walkers, who are waited for), as a list of tiles after the start.
-function pathTo(wk, goal) {
+function pathTo(wk, goal, avoid = false) {
   const key = ([x, y]) => `${x},${y}`, prev = new Map([[key(wk.tile), null]]), queue = [wk.tile];
   while (queue.length) {
     const t = queue.shift();
     if (key(t) === key(goal)) break;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = [t[0] + dx, t[1] + dy]; if (!prev.has(key(n)) && walkable(wk, t, n)) { prev.set(key(n), t); queue.push(n); } }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = [t[0] + dx, t[1] + dy]; if (!prev.has(key(n)) && walkable(wk, t, n) && !(avoid && takenBy(wk, n))) { prev.set(key(n), t); queue.push(n); } }
   }
   if (!prev.has(key(goal))) return null;
   const path = [];
@@ -1205,17 +1236,136 @@ function arrive(wk) {
 }
 function route(wk) {
   arrive(wk);
-  // at the counter: order (a line from content.js), and the barista answers a moment later
-  if (wk.route.stops[wk.stopAt].order) {
-    say(wk.el, pick(npcOf(wk.el).order));
-    const barista = WALKERS.find((w) => w.look === "barista").el;
-    setTimeout(() => say(barista, pick(npcOf(barista).serve)), 1600);
-  }
   setTimeout(() => {
     wk.stopAt = (wk.stopAt + 1) % wk.route.stops.length;
     walkPath(wk, wk.route.stops[wk.stopAt].tile, () => route(wk));
   }, wk.route.stops[wk.stopAt].wait * (0.8 + Math.random() * 0.4));
 }
+// ---------- the café's customers come and go. Each one turns up at the curb (stepping in from the edge of the picture),
+// joins the back of the line, moves up as the line does, goes in to order at the counter (the barista answers), sits
+// down somewhere free to read, work on a laptop, scroll their phone or just have their coffee, and after a while
+// leaves: out of the door, off the curb and out of the picture, to turn up again a little later as someone new. Now and
+// then someone only walks past, or finds the line too long and goes away again.
+const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+const cafeLine = [], seatOf = new Map(); // the line, front first; who sits on each seat (seat index → customer)
+const CAFE_LOG = []; // what happened, in order ("join q5", "order q1", "sit q1", "leave q1", "turnup q5"), for the tests
+let atCounter = null;
+const doIdle = (wk, poses) => { const st = STATES.get(wk.el); st.idle = poses.map(parsePose); st.idleI = 0; st.idleNext = performance.now() + st.idle[0].ms; };
+const spotXY = (wk, [x, y], dy = 0) => { const [px, py] = at(x, y, +wk.el.dataset.w, +wk.el.dataset.h); return [px, py + dy]; };
+const seated = (wk) => [...seatOf.values()].includes(wk);
+// Walk to a tile, waiting for (or going round) anyone in the way; a newer trip calls this one off. Kept waiting (in the
+// doorway, say, by someone waiting for us), step aside to a free tile next to us and try again.
+function goTo(wk, goal, done) {
+  const trip = ++wk.trip;
+  let waits = 0;
+  (function next() {
+    if (trip !== wk.trip) return;
+    if (same(wk.tile, goal)) return done();
+    let path = pathTo(wk, goal);
+    if (path && takenBy(wk, path[0])) path = pathTo(wk, goal, true) || path;
+    if (!path || takenBy(wk, path[0])) {
+      if (++waits > 4) {
+        const aside = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [wk.tile[0] + dx, wk.tile[1] + dy])
+          .filter((n) => walkable(wk, wk.tile, n) && !takenBy(wk, n) && !(path && same(n, path[0])));
+        if (aside.length) { waits = 0; return stepTo(wk, pick(aside), () => setTimeout(next, 300 + Math.random() * 600)); }
+      }
+      return setTimeout(next, 500);
+    }
+    waits = 0;
+    stepTo(wk, path[0], next);
+  })();
+}
+// A short walk off the tile grid (onto a seat, off the curb), fading in or out if asked.
+function slide(wk, to, ms, done, fade) {
+  const st = STATES.get(wk.el), now = performance.now();
+  st.walking = true; st.walkT0 = now;
+  wk.move = { from: wk.xy, to, t0: now, ms, fade };
+  setTimeout(() => { st.walking = false; done(); }, ms);
+}
+function toPlaceInLine(wk) {
+  const i = cafeLine.indexOf(wk);
+  goTo(wk, CAFE.queue[i], () => {
+    faceTo(wk, "back"); // facing the door
+    doIdle(wk, pick([["stand:4000", "shift:2500"], ["phone:6000", "stand:2000"], ["stand:3000", "phone:5000"]]));
+    if (i === 0) nextOrder();
+  });
+}
+function nextOrder() {
+  const wk = cafeLine[0];
+  if (atCounter || !wk || !same(wk.tile, CAFE.queue[0])) return;
+  atCounter = wk;
+  setTimeout(() => {
+    cafeLine.shift();
+    cafeLine.forEach(toPlaceInLine); // everyone moves up
+    goTo(wk, CAFE.counter, () => {
+      faceTo(wk, "backR");
+      doIdle(wk, ["stand:900", "talk1", "talk2", "stand:1500"]);
+      say(wk.el, pick(CONTENT.cafe.order)); CAFE_LOG.push(`order ${wk.look}`);
+      const barista = WALKERS.find((w) => w.look === "barista").el;
+      setTimeout(() => say(barista, pick(CONTENT.cafe.serve)), 1600);
+      setTimeout(() => { atCounter = null; nextOrder(); sitDown(wk); }, 4200);
+    });
+  }, 1500 + Math.random() * 2000);
+}
+function sitDown(wk) {
+  const free = CAFE.seats.map((s, i) => i).filter((i) => !seatOf.has(i));
+  if (!free.length) { say(wk.el, pick(CONTENT.cafe.takeaway)); return leave(wk); }
+  const i = pick(free), seat = CAFE.seats[i];
+  seatOf.set(i, wk);
+  goTo(wk, seat.tile, () => {
+    faceTo(wk, seat.face);
+    setDepth(wk.el, seat.depth);
+    slide(wk, spotXY(wk, seat.at, seat.dy), 800, () => { doIdle(wk, SIT_DO[pick(seat.does)]); CAFE_LOG.push(`sit ${wk.look}`); });
+    setTimeout(() => standUp(wk, i), 30000 + Math.random() * 30000);
+  });
+}
+function standUp(wk, i) {
+  const seat = CAFE.seats[i];
+  slide(wk, spotXY(wk, [seat.tile[0] + 0.5, seat.tile[1] + 0.5]), 700, () => { setDepth(wk.el, seat.tile[0] + seat.tile[1] + 1); seatOf.delete(i); leave(wk); });
+}
+// out of the door, off the curb toward the viewer, fading away; back a while later
+function leave(wk) {
+  doIdle(wk, ["stand"]);
+  goTo(wk, CAFE.edge, () => {
+    faceTo(wk, "frontL");
+    slide(wk, spotXY(wk, [CAFE.edge[0] + 0.5, CAFE.edge[1] + 1.4]), 900, () => {
+      wk.off = true; wk.el.style.visibility = "hidden"; wk.tile = [-10 - WALKERS.indexOf(wk), -10]; CAFE_LOG.push(`leave ${wk.look}`);
+      setTimeout(() => turnUp(wk), 4000 + Math.random() * 10000);
+    }, [1, 0]);
+  });
+}
+function turnUp(wk) {
+  if (WALKERS.some((o) => o !== wk && (same(o.tile, CAFE.edge) || same(o.tile, CAFE.door)))) return setTimeout(() => turnUp(wk), 1000); // (the way in clear)
+  const out = scene.querySelector("#things-out");
+  if (wk.el.parentElement.parentElement !== out) out.appendChild(wk.el.parentElement);
+  setDepth(wk.el, CAFE.edge[0] + CAFE.edge[1] + 1);
+  wk.tile = CAFE.edge.slice(); wk.off = false;
+  wk.xy = spotXY(wk, [CAFE.edge[0] + 0.5, CAFE.edge[1] + 1.4]);
+  wk.el.style.opacity = 0; wk.el.style.visibility = "";
+  faceTo(wk, "backR");
+  slide(wk, spotXY(wk, [CAFE.edge[0] + 0.5, CAFE.edge[1] + 0.5]), 900, () => {
+    CAFE_LOG.push(`turnup ${wk.look}`);
+    if (cafeLine.length < CAFE.queue.length && Math.random() < 0.85) { cafeLine.push(wk); toPlaceInLine(wk); CAFE_LOG.push(`join ${wk.look}`); }
+    else passBy(wk);
+  }, [0, 1]);
+}
+// a passer-by: along the café front and back again (saying so if the line was too long to join)
+function passBy(wk) {
+  const full = cafeLine.length >= CAFE.queue.length;
+  goTo(wk, [14, 13], () => {
+    faceTo(wk, "frontL"); doIdle(wk, ["phone:2500", "stand:1500"]);
+    if (full) say(wk.el, pick(CONTENT.cafe.tooLong));
+    setTimeout(() => leave(wk), 3500);
+  });
+}
+// to begin with: four in line, two seated, two out of sight
+const PATRONS = WALKERS.filter((wk) => wk.patron);
+PATRONS.forEach((wk, k) => {
+  if (k < 4) { cafeLine.push(wk); faceTo(wk, "back"); doIdle(wk, k % 2 ? ["phone:6000", "stand:2000"] : ["stand:4000", "shift:2500"]); }
+  else if (k < 6) { wk.off = true; wk.el.style.visibility = "hidden"; wk.el.style.opacity = 0; }
+  else { const seat = CAFE.seats[k - 6]; seatOf.set(k - 6, wk); faceTo(wk, seat.face); doIdle(wk, SIT_DO[seat.does[0]]); }
+});
+
 // Now and then someone standing or sitting still turns their head to look the other way for a moment.
 const glancers = [...STATES.values()].filter((st) => st.human && st.cfg.glance);
 function glance() {
@@ -1251,7 +1401,8 @@ if (!reduceMotion) {
     }
     requestAnimationFrame(tick);
   })();
-  WALKERS.forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
+  WALKERS.filter((wk) => !wk.patron).forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
+  PATRONS.forEach((wk, k) => setTimeout(() => (k < 4 ? k === 0 && nextOrder() : k < 6 ? turnUp(wk) : standUp(wk, k - 6)), k < 4 ? 2000 : k < 6 ? 3000 + (k - 4) * 6000 : 8000 + (k - 6) * 9000 + Math.random() * 4000));
   setTimeout(glance, 2000);
   STATES.forEach((st) => ROUTINES[st.look] && setTimeout(() => routine(st), 4000)); // (after the greeting)
   (function chatter() { setTimeout(() => { randomChat(); chatter(); }, 2500 + Math.random() * 2500); })();

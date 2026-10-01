@@ -134,6 +134,11 @@ const POSES = {
   sit: { ...SIT },
   sitDrink: { ...SIT, armL: [[6, 33], [10, 43], [16, 31]], cupNear: true },
   sitWave: { ...SIT, armL: [[6, 33], [1, 25], [2, 14]] },
+  // café customers at their seats: a book held open, a phone, typing on a laptop on the table (two frames)
+  sitRead: { ...SIT, armL: [[6, 33], [9, 43], [15, 42]], armR: [[26, 33], [27, 43], [23, 43]], book: true },
+  sitPhone: { ...SIT, armL: [[6, 33], [8, 45], [14, 41]], phone: true },
+  sitTypeA: { ...SIT, armL: [[6, 33], [9, 43], [16, 47]], armR: [[26, 33], [28, 42], [31, 47]] },
+  sitTypeB: { ...SIT, armL: [[6, 33], [9, 42], [15, 46]], armR: [[26, 33], [28, 43], [31, 48]] },
 };
 
 // An in-between pose, t of the way from pose a to pose b: every joint and foot moved part way (named "a>b@t", made once).
@@ -143,7 +148,7 @@ function tweenPose(a, b, t) {
   if (!POSES[name]) {
     const A = POSES[a], B = POSES[b], near = t < 0.5 ? A : B, box = (p, q) => p.map((v, i) => v + (q[i] - v) * t);
     POSES[name] = { armL: lerpPts(A.armL, B.armL, t), armR: lerpPts(A.armR, B.armR, t), legL: lerpPts(A.legL, B.legL, t), legR: lerpPts(A.legR, B.legR, t),
-      footL: box(A.footL, B.footL), footR: box(A.footR, B.footR), seat: near.seat, phone: near.phone, cupNear: near.cupNear, snack: near.snack, bob: A.bob && B.bob };
+      footL: box(A.footL, B.footL), footR: box(A.footR, B.footR), seat: near.seat, phone: near.phone, cupNear: near.cupNear, snack: near.snack, book: near.book, bob: A.bob && B.bob };
   }
   return name;
 }
@@ -454,6 +459,10 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
     c.part(minus(ellipse(hx + 0.5, hy - 2, 2.8, 2.6), ellipse(hx + 3, hy - 4.5, 1.4, 1.4)), (x, y) => ((x * 3 + y * 5) % 7 === 0 ? "#5a3a22" : y < hy - 2.5 ? "#dca25e" : "#c98b4f"));
   }
   if (pose.phone && !back) { const [hx, hy] = nearHand; c.part(rectS(hx - 1.5, hy - 5, hx + 2, hy + 1), () => "#2b2e35"); c.set(Math.round(hx), Math.round(hy - 4), "#8cc8f0"); }
+  if (pose.book && !back) { // an open book: two pages either side of the spine, a line of text on each
+    const [hx, hy] = nearHand;
+    c.part(rectS(hx - 5, hy - 5.5, hx + 5, hy + 0.5), (x, y) => (Math.abs(x + 0.5 - hx) < 0.6 ? "#b9ae98" : y === Math.round(hy - 2.5) && Math.abs(x + 0.5 - hx) > 1.5 ? "#9a9a9a" : x < hx ? "#efe8d8" : "#fbf7ee"));
+  }
   // things worn on the face
   cur = "head";
   if (!back) {
@@ -502,7 +511,7 @@ function toImage(px, W, Ht) {
 // A drawn picture placed at (x, y) in units.
 const imageTag = ({ id }, x, y) => `<use href="#${id}" x="${x}" y="${y}"/>`;
 // Whether a pose has anything in the "over" layer (a raised near arm, a cup at the mouth, a phone).
-const hasOver = (poseName) => { const p = POSES[poseName]; return p.armL[2][1] < 36 || !!p.cupNear || !!p.phone || !!p.snack; };
+const hasOver = (poseName) => { const p = POSES[poseName]; return p.armL[2][1] < 36 || !!p.cupNear || !!p.phone || !!p.snack || !!p.book; };
 // Frames side by side in one picture (a sprite strip): showing another frame only moves the window onto the strip, so
 // nothing new has to load and nothing can blink out. frames: [{ pose, back, eyes, mouth, layer }].
 function joinFrames(list, W, Ht) {
