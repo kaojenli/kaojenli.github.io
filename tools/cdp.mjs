@@ -1,17 +1,24 @@
 // Tiny Chrome DevTools Protocol driver for local checks (uses the installed Google Chrome, no npm packages).
 import { spawn } from "node:child_process";
-import { writeFileSync, mkdtempSync, readFileSync } from "node:fs";
+import { writeFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const SITE = new URL("../index.html", import.meta.url).href;
+// each Chrome gets a throwaway profile folder, removed when Chrome exits; Chromes still running when the script ends
+// (e.g. a check threw before close()) are killed, so no headless Chrome or profile is left behind
+const running = new Map(); // Chrome process → its profile folder
+const drop = (dir) => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 3 }); } catch {} };
+process.on("exit", () => running.forEach((dir, proc) => { proc.kill("SIGKILL"); drop(dir); }));
 
 export async function open(url, { width = 1440, height = 900, mobile = false, reducedMotion = false } = {}) {
   // Chrome picks a free port and writes it into its profile folder, so we always talk to the Chrome we started
   const dir = mkdtempSync(join(tmpdir(), "cdp-"));
   const proc = spawn(CHROME, ["--headless=new", "--disable-gpu", "--hide-scrollbars", "--remote-debugging-port=0",
     `--user-data-dir=${dir}`, `--window-size=${width},${height}`, "about:blank"], { stdio: "ignore" });
+  running.set(proc, dir);
+  proc.on("exit", () => { running.delete(proc); drop(dir); });
   let page;
   for (let i = 0; i < 50 && !page; i++) {
     await sleep(200);

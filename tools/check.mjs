@@ -1,8 +1,11 @@
-// Offline checks:  node check.mjs          Also hit every external link:  node check.mjs --links
+// Offline checks:  node tools/check.mjs          Also hit every external link:  node tools/check.mjs --links
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import vm from "node:vm";
+import { fileURLToPath } from "node:url";
+
+process.chdir(fileURLToPath(new URL("..", import.meta.url))); // paths below are from the repo root
 
 const load = (file, expr) => vm.runInNewContext(readFileSync(file, "utf8") + `;${expr}`, {});
 const errors = [];
@@ -10,18 +13,18 @@ const fail = (msg) => errors.push(msg);
 
 // --- cache busting: index.html asks for the stylesheet and scripts with ?v=<hash of their contents>, so a browser never
 // pairs a new page with an old cached stylesheet (Pages lets each file be cached for 10 minutes on its own).
-// `node check.mjs --stamp` writes the current hash in; run it before every commit that touches these files.
-const ASSETS = ["style.css", "content.js", "avatar.js", "props.js", "furni.js", "cabin.js", "main.js"];
+// `node tools/check.mjs --stamp` writes the current hash in; run it before every commit that touches these files.
+const ASSETS = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "main"].map((f) => `js/${f}.js`)];
 const ver = createHash("sha1").update(ASSETS.map((f) => readFileSync(f, "utf8")).join("")).digest("hex").slice(0, 8);
 let html = readFileSync("index.html", "utf8");
 if (process.argv.includes("--stamp")) {
-  html = html.replace(/(href|src)="([\w-]+\.(?:css|js))(?:\?v=\w+)?"/g, (m, attr, f) => (ASSETS.includes(f) ? `${attr}="${f}?v=${ver}"` : m));
+  html = html.replace(/(href|src)="([\w/-]+\.(?:css|js))(?:\?v=\w+)?"/g, (m, attr, f) => (ASSETS.includes(f) ? `${attr}="${f}?v=${ver}"` : m));
   writeFileSync("index.html", html);
 }
-for (const f of ASSETS) if (!html.includes(`"${f}?v=${ver}"`)) fail(`index.html loads ${f} without ?v=${ver} (run: node check.mjs --stamp)`);
+for (const f of ASSETS) if (!html.includes(`"${f}?v=${ver}"`)) fail(`index.html loads ${f} without ?v=${ver} (run: node tools/check.mjs --stamp)`);
 
 // --- content wiring
-const C = load("content.js", "CONTENT");
+const C = load("js/content.js", "CONTENT");
 const slugs = new Set(C.projects.map((p) => p.slug));
 const ids = C.sections.map((x) => x.id);
 if (new Set(ids).size !== ids.length) fail(`duplicate section ids: ${ids}`);
@@ -35,7 +38,7 @@ for (const u of urls) if (!/^(https:\/\/|mailto:)/.test(u)) fail(`link is not ht
 
 // --- pictures: every prop and every avatar pose draws, with no unset (undefined) colours, and every NPC has a picture
 {
-  const src = readFileSync("avatar.js", "utf8") + readFileSync("props.js", "utf8");
+  const src = readFileSync("js/avatar.js", "utf8") + readFileSync("js/props.js", "utf8");
   const { PROPS, makeCanvas, drawAvatar, AVATAR_LOOKS, POSES } = vm.runInNewContext(src + ";({ PROPS, makeCanvas, drawAvatar, AVATAR_LOOKS, POSES })", {});
   const inspect = (what, px) => {
     if (px.some((c) => c === undefined)) fail(`${what} has pixels with no colour (a shade returned undefined)`);

@@ -1,4 +1,4 @@
-// Browser checks for the page:  node tests/browser.mjs   (needs Google Chrome; exits 1 on any failure)
+// Browser checks for the page:  node tools/browser.mjs   (needs Google Chrome; exits 1 on any failure)
 import { open, SITE } from "./cdp.mjs";
 let failed = 0;
 const ok = (cond, msg) => { console.log((cond ? "✓ " : "✗ ") + msg); if (!cond) failed++; };

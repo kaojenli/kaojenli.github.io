@@ -1,4 +1,4 @@
-// Screenshot the page or one element:  [THEME=light|dark] node tests/shot.mjs out.png [selector] [scale] [width] [height]
+// Screenshot the page or one element:  [THEME=light|dark] node tools/shot.mjs out.png [selector] [scale] [width] [height]
 import { open, SITE } from "./cdp.mjs";
 const [, , out, sel = "", scale = 1, w = 1440, h = 900] = process.argv;
 const p = await open(SITE, { width: +w, height: +h, mobile: +w < 700 });
