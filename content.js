@@ -283,7 +283,6 @@ const CONTENT = {
   // Speech bubbles. `lines` pop up on their own; `click` when you click the NPC.
   npcs: {
     jen: { name: "Jen", lines: [], click: ["Hi, I'm Jen. Welcome in.", "Every room here is one of my projects.", "Click around, everyone's busy with something."] },
-    dancer: { name: "Dancer", lines: ["one more song!", "dance break", "training converged!"], click: ["join me!"] },
     pitcher: { name: "Pitcher", lines: ["keypoints: 17/17", "one more rep!", "fastball incoming"], click: ["relax, my elbow is tracked in 3D"] },
     barista: { name: "Barista", lines: ["one latte, coming up!", "next, please!", "oat milk?", "fresh brownies today!"], click: ["this one's on the house"] },
     hacker: { name: "Hacker", lines: ["re-ID: same person on camera 2", "heatmap updated", "the queue is growing!"], click: ["watching the foot traffic in real time"] },

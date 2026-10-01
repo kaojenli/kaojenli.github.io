@@ -174,7 +174,7 @@ const WALK = ["walkA", "passA", "walkB", "passB"], EXTRA = {}, PEOPLE = new Map(
 // The walk cycle in eight frames (62.5 ms each, two steps a tile): each key pose, then halfway to the next.
 const WALK8 = WALK.flatMap((p, i) => [p, tweenPose(p, WALK[(i + 1) % 4], 0.5)]);
 const POSE_MS = { stand: 1800, shift: 1500, phone: 2200, think: 1800, reach: 900, typeA: 150, typeB: 150, talk1: 380, talk2: 380, drink: 1300,
-  sit: 2200, sitDrink: 1500, sitWave: 300, wave1: 260, wave2: 260, armsUp: 260, danceL: 260, danceMix: 260, danceR: 260, pSet: 700, pLift: 380, pCock: 320, pRelease: 480 };
+  sit: 2200, sitDrink: 1500, sitWave: 300, wave1: 260, wave2: 260, armsUp: 260, pSet: 700, pLift: 380, pCock: 320, pRelease: 480 };
 const parsePose = (s) => { const [pose, ms] = s.split(":"); return { pose, ms: +ms || POSE_MS[pose] || 1200 }; };
 const MIRROR = `translate(${AW / 2} 0) scale(-1 1)`, HEAD_MIRROR = "translate(15 0) scale(-1 1)"; // the head turns about its own middle (x = 15 px = 7.5 units)
 const faceBack = (face) => face.startsWith("back"), faceMirror = (face) => face === "frontL" || face === "backR";
@@ -265,7 +265,8 @@ const SIT_DO = {
   coffee: ["sit:3000", "sitDrink:2200", "sit:2600", "sitDrink:2000"],
 };
 const CAFE = {
-  edges: [{ tile: [10, 14], out: [10.5, 15.4], inFace: "backR", outFace: "frontL" }, { tile: [0, 14], out: [-0.9, 14.5], inFace: "front", outFace: "back" }],
+  edges: [{ tiles: [[10, 14], [9, 14]], out: ([x]) => [x + 0.5, 15.4], inFace: "backR", outFace: "frontL" },
+    { tiles: [[0, 14], [0, 13]], out: ([, y]) => [-0.9, y + 0.5], inFace: "front", outFace: "back" }],
   door: [10, 13], counter: [9, 8], window: [12, 13], lookIn: [7, 13], // (by the line; and where people out for a stroll stop to look in,
   // between the two ends of the sidewalk, so a party never has to turn back through itself)
   queue: [[11, 14], [12, 14], [13, 14], [14, 14]],
@@ -324,7 +325,6 @@ const ROOMS = [
       add(X + Y + 5.2, sofa(X + 1.1, Y + 2.65, 2.2, "up", { col: FC.cream, cushion: "#f3ead8" }));
       add(X + Y + 7.1, person("jen", ["stand"], X + 2.5, Y + 4.55, { glance: true }));
       add(X + Y + 5.2, recordPlayer(X + 0.1, Y + 4.4));
-      add(X + Y + 7.2, person("dancer", ["armsUp", "danceL", "danceMix", "danceR"], X + 1.5, Y + 5.7, {}));
       add(X + Y + 7.9, onFloor(X + 0.45, Y + 7.45, 0, "monstera"));
     },
   },
@@ -425,17 +425,17 @@ const ROOMS = [
   },
   {
     key: "street", level: 0, rect: [0, 13, 15, 2], label: "Sidewalk", outdoor: true, tex: "paving", floor: ["#c9c4bb", "#bfb9ae"],
-    blocked: [[0, 0], [8, 1], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]], // (two lanes all along: people walk past in front of the planters and the bench)
+    blocked: [[8, 1], [10, 0], [11, 1], [12, 1], [13, 1], [14, 1]], // (two lanes all along: people walk past in front of the planters and the bench)
     // the curb, and a patch of snow under Snow girl
     rug: (X, Y) => rect(X, Y + 1.88, 15, 0.12, "#8d8d8d") + `<ellipse cx="${X + 8.4}" cy="${Y + 1.45}" rx="0.5" ry="0.38" fill="#f2f6fa"/><ellipse cx="${X + 8.15}" cy="${Y + 1.66}" rx="0.3" ry="0.16" fill="#f2f6fa"/>`,
     draw(add, X, Y) {
       // the line outside the café door, each person tracked with a box; two more are out of sight for now, at the curb
-      ["q1", "q2", "q3", "q4", "q5", "q6"].forEach((look, k) => { const [tx, ty] = CAFE.queue[k] || CAFE.edges[0].tile;
+      ["q1", "q2", "q3", "q4", "q5", "q6"].forEach((look, k) => { const [tx, ty] = CAFE.queue[k] || CAFE.edges[0].tiles[0];
         add(tx + ty + 1, person(look, ["stand"], tx + 0.5, ty + 0.5, { cls: "walker", walker: true, glance: true, top: bbox([GREEN, "#ff4fd8", "#3bb8ff", "#ffb800", GREEN, "#ff4fd8"][k]) })); });
       // out for a stroll (out of sight to begin with): a lady walking her little dog; a family, the child in the middle
       [["lady"], ["pup"], ["mom"], ["kid", 0.72], ["dad"]].forEach(([look, scale]) => add(X + Y + 2, look === "pup" ? critter(look, ["pup", "pupB"], X + 0.5, Y + 1.5, { cls: "walker" })
         : person(look, ["stand"], X + 0.5, Y + 1.5, { cls: "walker", walker: true, glance: true, scale })));
-      add(X + Y + 0.95, tree(X + 0.45, Y + 0.45)); // (in the corner, by the wall: the sidewalk is open to its end)
+      add(X + Y + 3.2, tree(X + 0.3, Y + 1.85)); // (at the corner of the curb: the sidewalk is open, two wide, to its end)
       add(X + Y + 1.5, box(X + 0.95, Y + 0.1, 1.6, 0.36, 6, pal("#8a5634", "wood")) + [1.2, 1.55, 1.9, 2.25].map((x, k) => onFloor(X + x, Y + 0.28, 6, k % 2 ? "flowerR" : "flowerP")).join(""));
       add(X + Y + 2.5, legs(X + 2.85, Y + 0.18, 0.95, 0.28, 5, pal(FC.iron), 0.06) + box(X + 2.8, Y + 0.12, 1.05, 0.36, 1.5, pal(FC.oak, "wood"), 5) + box(X + 2.8, Y + 0.1, 1.05, 0.08, 8, pal(FC.oak, "wood"), 6.5));
       add(X + Y + 4.6, lantern3(X + 4.55, Y + 0.08)); // (against the wall: two can pass here)
@@ -1132,7 +1132,7 @@ const ROUTES = {
   ] },
 };
 // the stations are kept for their people: wanderers never stop (or get stuck) on them
-const CAFE_TILES = [...CAFE.edges.map((e) => e.tile), CAFE.door, [10, 12], CAFE.counter, [10, 8], ...CAFE.queue, ...CAFE.seats.map((s) => s.tile)];
+const CAFE_TILES = [...CAFE.edges.flatMap((e) => e.tiles), CAFE.door, [10, 12], CAFE.counter, [10, 8], ...CAFE.queue, ...CAFE.seats.map((s) => s.tile)];
 const STATIONS = new Set([...Object.values(ROUTES).flatMap((r) => r.stops.map((s) => `${r.level}:${s.tile}`)), ...CAFE_TILES.map((t) => `0:${t}`)]);
 const onFloorOK = (wk, [x, y]) => !!roomAt(wk.level, x, y) && (!BLOCKED.has(`${wk.level}:${x},${y}`) || wk.also.has(`${x},${y}`)) && wk.allowed([x, y]) &&
   (!!wk.route || wk.through || !STATIONS.has(`${wk.level}:${x},${y}`));
@@ -1275,7 +1275,7 @@ const spotXY = (wk, [x, y], dy = 0) => { const [px, py] = at(x, y, +wk.el.datase
 const seated = (wk) => [...seatOf.values()].includes(wk);
 // Walk to a tile, waiting for (or going round) anyone in the way; a newer trip calls this one off. Kept waiting (in the
 // doorway, say, by someone waiting for us), step aside to a free tile next to us and try again.
-function goTo(wk, goal, done) {
+function goTo(wk, goal, done, besideOk = false) {
   const trip = ++wk.trip;
   let waits = 0;
   (function next() {
@@ -1289,7 +1289,8 @@ function goTo(wk, goal, done) {
       // leader kept waiting long makes do: next to a stop someone stands on is near enough; otherwise they step aside too.
       const party = path && WALKERS.find((o) => o.party && same(o.tile, path[0]));
       waits++;
-      if (wk.followers && path && same(path[0], goal) && waits > 12 && !CAFE.edges.some((e) => same(e.tile, goal))) return done();
+      if (wk.followers && path && same(path[0], goal) && waits > 12 && !CAFE.edges.some((e) => e.tiles.some((t) => same(t, goal)))) return done();
+      if (besideOk && path && same(path[0], goal) && waits > 2) return done(); // (out of the picture from beside the edge, then)
       if (same(goal, CAFE.counter) && path && same(path[0], goal) && waits > 6) return done(); // (order from beside it, then)
       if (wk.followers ? waits > 20 : waits > (party ? 1 : 4)) {
         const aside = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [wk.tile[0] + dx, wk.tile[1] + dy])
@@ -1358,32 +1359,38 @@ function standUp(wk, i) {
   setTimeout(() => slide(wk, spotXY(wk, [seat.tile[0] + 0.5, seat.tile[1] + 0.5]), 700, () => { setDepth(wk.el, seat.tile[0] + seat.tile[1] + 1); seatOf.delete(i); leave(wk); }), packUp ? 1300 : 0);
 }
 // Into the picture at one of its edges (once the way in is clear), fading in as they step onto the sidewalk ...
-function appearAt(wk, edge, then, wanted = () => true) {
+function appearAt(wk, edge, then, wanted = () => true, only = null) {
   if (!wanted()) return; // (no longer: the rest of the party has gone)
-  if (WALKERS.some((o) => o !== wk && (same(o.tile, edge.tile) || (edge === CAFE.edges[0] && same(o.tile, CAFE.door))))) return setTimeout(() => appearAt(wk, edge, then, wanted), 1000);
+  const tile = (only ? [only] : edge.tiles).find((t) => !WALKERS.some((o) => o !== wk && same(o.tile, t)));
+  if (!tile || (edge === CAFE.edges[0] && WALKERS.some((o) => o !== wk && same(o.tile, CAFE.door)))) return setTimeout(() => appearAt(wk, edge, then, wanted, only), 1000);
   const out = scene.querySelector("#things-out");
   if (wk.el.parentElement.parentElement !== out) out.appendChild(wk.el.parentElement);
-  setDepth(wk.el, edge.tile[0] + edge.tile[1] + 1);
-  wk.tile = edge.tile.slice(); wk.off = false; wk.edgeIn = edge;
-  wk.xy = spotXY(wk, edge.out);
+  setDepth(wk.el, tile[0] + tile[1] + 1);
+  wk.tile = tile.slice(); wk.off = false; wk.edgeIn = edge; wk.edgeTile = tile;
+  wk.xy = spotXY(wk, edge.out(tile));
   wk.el.style.opacity = 0; wk.el.style.visibility = "";
   faceTo(wk, edge.inFace);
-  slide(wk, spotXY(wk, [edge.tile[0] + 0.5, edge.tile[1] + 0.5]), wk.stepMs ? wk.stepMs * 1.6 : 900, then, [0, 1]);
+  slide(wk, spotXY(wk, [tile[0] + 0.5, tile[1] + 0.5]), wk.stepMs ? wk.stepMs * 1.6 : 900, then, [0, 1]);
 }
 // ... and out of it again, fading away beyond the edge.
 function vanish(wk, edge, then) {
   faceTo(wk, edge.outFace);
-  slide(wk, spotXY(wk, edge.out), wk.stepMs ? wk.stepMs * 1.6 : 900, () => {
+  slide(wk, spotXY(wk, edge.out(wk.tile)), wk.stepMs ? wk.stepMs * 1.6 : 900, () => {
     wk.off = true; wk.el.style.visibility = "hidden"; wk.tile = [-10 - WALKERS.indexOf(wk), -10];
     then();
   }, [1, 0]);
 }
 const otherEdge = (edge) => CAFE.edges.find((e) => e !== edge);
+// to the nearest free tile of an edge (out of the picture from beside it, if someone stands on it too long)
+function toEdge(wk, edge, then) {
+  const d = (t) => Math.abs(t[0] - wk.tile[0]) + Math.abs(t[1] - wk.tile[1]) + (WALKERS.some((o) => o !== wk && same(o.tile, t)) ? 3 : 0);
+  goTo(wk, [...edge.tiles].sort((a, b) => d(a) - d(b))[0], then, true);
+}
 // a café customer leaves: out of the door, to either end of the sidewalk, and out of the picture; back a while later
 function leave(wk) {
   doIdle(wk, ["stand"]);
   const edge = pick(CAFE.edges);
-  goTo(wk, edge.tile, () => vanish(wk, edge, () => { CAFE_LOG.push(`leave ${wk.look}`); setTimeout(() => turnUp(wk), 4000 + Math.random() * 10000); }));
+  toEdge(wk, edge, () => vanish(wk, edge, () => { CAFE_LOG.push(`leave ${wk.look}`); setTimeout(() => turnUp(wk), 4000 + Math.random() * 10000); }));
 }
 function turnUp(wk) {
   appearAt(wk, pick(CAFE.edges), () => {
@@ -1398,7 +1405,7 @@ function passBy(wk) {
   goTo(wk, CAFE.window, () => {
     faceTo(wk, "backR"); doIdle(wk, ["stand:1500"]);
     if (full) say(wk.el, pick(CONTENT.cafe.tooLong));
-    setTimeout(() => goTo(wk, edge.tile, () => vanish(wk, edge, () => { CAFE_LOG.push(`leave ${wk.look}`); setTimeout(() => turnUp(wk), 4000 + Math.random() * 10000); })), 1800);
+    setTimeout(() => toEdge(wk, edge, () => vanish(wk, edge, () => { CAFE_LOG.push(`leave ${wk.look}`); setTimeout(() => turnUp(wk), 4000 + Math.random() * 10000); })), 1800);
   });
 }
 // People out for a stroll: from one end of the sidewalk to the other, stopping to look in at the café, the others in
@@ -1408,9 +1415,9 @@ function followOn(leader, target) {
   for (const f of leader.followers) {
     const was = f.tile;
     if (f.off) { // still out of sight: step in at the edge once the one ahead has moved on from it
-      if (!f.entering && same(target, leader.edgeIn.tile)) {
+      if (!f.entering && same(target, leader.edgeTile)) {
         f.entering = true; f.edgeIn = leader.edgeIn;
-        appearAt(f, leader.edgeIn, () => { f.entering = false; }, () => !leader.off || ((f.entering = false), false));
+        appearAt(f, leader.edgeIn, () => { f.entering = false; }, () => !leader.off || ((f.entering = false), false), leader.edgeTile);
         CAFE_LOG.push(`follow ${f.look}`);
       }
       return;
@@ -1430,14 +1437,14 @@ function stroll(leader) {
     goTo(leader, CAFE.lookIn, () => {
       faceTo(leader, "backR"); doIdle(leader, ["stand:2600"]);
       if (Math.random() < 0.7) { const who = pick(party).el; say(who, pick(npcOf(who).lines)); }
-      setTimeout(() => goTo(leader, to.tile, () => {
+      setTimeout(() => toEdge(leader, to, () => {
         // out at the far end, one after the other
         let k = 0;
         (function next() {
           if (k === party.length) return setTimeout(() => stroll(leader), 10000 + Math.random() * 15000);
           const m = party[k++];
           if (m.off) return next();
-          goTo(m, to.tile, () => vanish(m, to, next));
+          toEdge(m, to, () => vanish(m, to, next));
         })();
       }), 2800);
     });
@@ -1491,6 +1498,25 @@ if (!reduceMotion) {
   WALKERS.filter((wk) => !wk.patron && !wk.party).forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
   PATRONS.forEach((wk, k) => setTimeout(() => (k < 4 ? k === 0 && nextOrder() : k < 6 ? turnUp(wk) : standUp(wk, k - 6)), k < 4 ? 2000 : k < 6 ? 3000 + (k - 4) * 6000 : 8000 + (k - 6) * 9000 + Math.random() * 4000));
   STROLLERS.forEach((wk, k) => setTimeout(() => stroll(wk), 4000 + k * 9000));
+  // Failsafe: anyone out walking (a customer, a party) who hasn't got anywhere in 20 s, in a jam nobody could solve, fades
+  // away where they stand and comes back later as someone new. ponytail: blunt; a real fix would reserve paths ahead.
+  const lastMove = new Map();
+  setInterval(() => {
+    const now = performance.now();
+    for (const wk of WALKERS.filter((w) => (w.patron || w.followers) && !w.off)) {
+      const k = String(wk.tile), m = lastMove.get(wk);
+      if (!m || m.k !== k) { lastMove.set(wk, { k, t: now }); continue; }
+      if (now - m.t < 20000 || !wk.going || seated(wk) || cafeLine.includes(wk)) continue;
+      lastMove.delete(wk);
+      if (atCounter === wk) { atCounter = null; setTimeout(nextOrder, 1000); } // (the next in line goes in instead)
+      (wk.followers ? [wk, ...wk.followers] : [wk]).filter((o) => !o.off).forEach((o) => {
+        o.trip++; o.going = null;
+        slide(o, o.xy, 900, () => { o.off = true; o.el.style.visibility = "hidden"; o.tile = [-10 - WALKERS.indexOf(o), -10]; }, [1, 0]);
+      });
+      CAFE_LOG.push(`gaveup ${wk.look}`);
+      setTimeout(() => (wk.followers ? stroll(wk) : turnUp(wk)), 12000);
+    }
+  }, 3000);
   setTimeout(glance, 2000);
   STATES.forEach((st) => ROUTINES[st.look] && setTimeout(() => routine(st), 4000)); // (after the greeting)
   (function chatter() { setTimeout(() => { randomChat(); chatter(); }, 2500 + Math.random() * 2500); })();

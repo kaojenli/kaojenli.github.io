@@ -123,9 +123,6 @@ const POSES = {
   drink: posed({ armL: [[6, 33], [10, 43], [16, 31]], cupNear: true }),
   holdCup: posed({ armL: [[6, 33], [9, 44], [14, 42]], cupNear: true }),   // the cup held in front, between sips
   snack: posed({ armL: [[6, 33], [10, 43], [15, 31]], snack: true }),      // a cookie to the mouth
-  danceL: posed({ armL: [[6, 33], [1, 26], [1, 16]], armR: [[26, 33], [21, 25], [17, 17]], legL: [[12, 54], [9, 65], [7, 75]], footL: [1, 74, 13, 81], legR: [[20, 54], [22, 65], [24, 74]], footR: [20, 72, 31, 79] }),
-  danceMix: posed({ armL: [[6, 33], [2, 24], [2, 13]], armR: [[26, 33], [30, 40], [31, 47]], legL: [[12, 54], [15, 64], [13, 74]], footL: [8, 73, 20, 80] }),
-  danceR: posed({ armL: [[6, 33], [11, 40], [18, 38]], armR: [[26, 33], [30, 23], [29, 13]], legL: [[12, 54], [14, 65], [17, 75]], footL: [12, 74, 24, 81], legR: [[20, 54], [20, 65], [19, 74]], footR: [13, 72, 25, 79] }),
   // the pitcher's wind-up: set, leg lift, arm cocked, release
   pSet: posed({ armL: [[6, 33], [9, 44], [15, 41]], armR: [[26, 33], [25, 43], [18, 41]] }),
   pLift: posed({ armL: [[6, 33], [10, 42], [16, 38]], armR: [[26, 33], [25, 41], [19, 38]], legL: [[12, 54], [20, 57.5], [16, 69]], footL: [10, 68, 22, 74] }),
@@ -179,12 +176,18 @@ const hairCut = (shape) => minus(shape, faceWindow);
 // Pointed tips hanging off a fringe or a nape: [x, y] where the tip points, drawn as small triangles.
 const tips = (list, down = 3) => union(...list.map(([x, y]) => polyS([[x - 2, y - down], [x + 2.2, y - down], [x - 0.3, y + 0.6]])));
 const FRINGE = [[11.5, 21.5], [15.5, 18], [20, 14.5], [24.5, 12]];
+// From behind, the hair covers the back of the head down to a natural hairline: high behind the ears, dipping at the
+// middle of the nape, with a few soft tips (not cut straight across). Long hair adds its own `backFall` down the back.
+const NAPE = union(minus(headShape, polyS([[0, 24.5], [4.5, 25], [9, 27.5], [15.5, 30], [22, 27.5], [26.5, 25], [32, 24.5], [32, 90], [0, 90]])),
+  tips([[12, 29.5], [15.5, 31.5], [19, 29.5]], 2.5));
 const HAIR = {
   long: () => ({
     back: polyS([[3, 14], [14, 3], [26, 8], [28, 20], [26, 46], [21, 49], [17, 46], [13, 50], [8, 46], [4, 49], [2, 38]]),
     front: union(hairCut(union(ellipse(15, 12, 13.8, 10.5), tips(FRINGE))), polyS([[1.5, 12], [8.5, 14], [9.5, 38], [6, 44], [1.5, 38]])),
+    backFall: union(polyS([[2.5, 18], [29, 18], [29.5, 44], [2.5, 44]]), tips([[5, 46], [10, 46.5], [15.5, 46], [21, 46.5], [26.5, 46]], 3)),
   }),
-  bob: () => ({ front: union(hairCut(union(ellipse(15, 12.5, 14, 11), tips(FRINGE))), polyS([[1.2, 13], [8.5, 16], [9.5, 30], [6, 33.5], [1.2, 30]]), tips([[3.5, 34], [7, 33.5]])) }),
+  bob: () => ({ front: union(hairCut(union(ellipse(15, 12.5, 14, 11), tips(FRINGE))), polyS([[1.2, 13], [8.5, 16], [9.5, 30], [6, 33.5], [1.2, 30]]), tips([[3.5, 34], [7, 33.5]])),
+    backFall: polyS([[1.5, 18], [29.5, 18], [29.5, 30.5], [27, 33.5], [15.5, 34.5], [4, 33.5], [1.5, 30.5]]) }),
   spiky: () => ({ front: union(hairCut(union(ellipse(15, 12, 13.2, 9.8), polyS([[3, 11], [4, 2], [8, 6], [10, 0], [14, 5], [17, 0], [19, 5], [23, 0.5], [24, 7], [28.5, 4], [28, 13]]), tips(FRINGE, 3.5))),
     polyS([[5, 13], [9, 15], [9, 21], [6.5, 21]])) }),
   bun: () => ({ front: union(hairCut(union(ellipse(15, 12.5, 13.5, 10.2), tips(FRINGE))), ellipse(10, 4.5, 5, 4), polyS([[4, 13], [9, 15], [9, 22], [6, 22]])) }),
@@ -192,7 +195,7 @@ const HAIR = {
   cap: () => ({ front: union(hairCut(ellipse(15, 13, 13, 9.5)), polyS([[4, 13], [9, 15], [9, 23], [6, 23]])), cap: true }),
   hood: () => ({ front: minus(ellipse(15.5, 18, 15.5, 17.5), polyS([[10, 17], [16, 12.5], [26, 10], [29.5, 11], [29.5, 36], [9, 36]])), hood: true }),
   // a high ponytail swinging behind the head, tied with a band
-  ponytail: () => ({ back: polyS([[3, 9], [8, 7], [7, 14], [5, 26], [3.5, 40], [1, 34], [0.5, 22]]), front: union(hairCut(union(ellipse(15, 12.3, 13.5, 10.2), tips(FRINGE))), polyS([[4, 13], [9, 15], [9, 21], [6, 21]])), tie: [4, 11] }),
+  ponytail: () => ({ backFall: union(ellipse(15.5, 9, 3, 2.5), polyS([[13, 10], [18.5, 10], [19, 24], [17.5, 38], [14, 38], [12.5, 24]])), back: polyS([[3, 9], [8, 7], [7, 14], [5, 26], [3.5, 40], [1, 34], [0.5, 22]]), front: union(hairCut(union(ellipse(15, 12.3, 13.5, 10.2), tips(FRINGE))), polyS([[4, 13], [9, 15], [9, 21], [6, 21]])), tie: [4, 11] }),
   // a big round afro, wider than the head
   afro: () => ({ front: hairCut(union(ellipse(15, 11, 15.8, 12), ellipse(4, 18, 4.8, 7), ellipse(26.5, 7, 4.5, 5))), texture: "curl" }),
   // clipped close to the skull, the hairline high
@@ -201,9 +204,9 @@ const HAIR = {
   sidepart: () => ({ front: union(hairCut(union(ellipse(15, 11.5, 13.6, 10.2), polyS([[11, 4], [28, 7], [29, 12.5], [24, 12], [18, 15.5], [12, 19]]), tips([[13, 20], [18, 16.5], [23, 13.5], [27.5, 12]]))),
     polyS([[4, 12], [9, 14], [9, 21], [6, 21]])), part: [[11, 3], [11, 4], [12, 5], [12, 6], [13, 7]] }),
   // two bunches low behind the ears
-  pigtails: () => ({ back: union(ellipse(3, 30, 3.2, 6.5), ellipse(27.5, 28, 2.6, 6)), front: union(hairCut(union(ellipse(15, 12.5, 13.8, 10.8), tips(FRINGE))), polyS([[1.5, 13], [8.5, 16], [9, 26], [2, 26]])), ties: [[3, 23], [27, 21]] }),
+  pigtails: () => ({ backFall: union(ellipse(3, 31, 3.3, 6.5), ellipse(28, 31, 3.3, 6.5)), back: union(ellipse(3, 30, 3.2, 6.5), ellipse(27.5, 28, 2.6, 6)), front: union(hairCut(union(ellipse(15, 12.5, 13.8, 10.8), tips(FRINGE))), polyS([[1.5, 13], [8.5, 16], [9, 26], [2, 26]])), ties: [[3, 23], [27, 21]] }),
   // one long braid down the back
-  braid: () => ({ back: union(...[0, 1, 2, 3, 4, 5].map((k) => ellipse(k % 2 ? 3.5 : 2.5, 26 + k * 4.5, 2.8, 2.6))), front: union(hairCut(union(ellipse(15, 12.3, 13.6, 10.4), tips(FRINGE))), polyS([[1.5, 12], [8.5, 15], [9, 25], [4, 27], [1.5, 22]])), tie: [3, 50] }),
+  braid: () => ({ backFall: union(...[0, 1, 2, 3, 4].map((k) => ellipse(k % 2 ? 16.5 : 14.5, 30 + k * 4.2, 2.8, 2.6))), back: union(...[0, 1, 2, 3, 4, 5].map((k) => ellipse(k % 2 ? 3.5 : 2.5, 26 + k * 4.5, 2.8, 2.6))), front: union(hairCut(union(ellipse(15, 12.3, 13.6, 10.4), tips(FRINGE))), polyS([[1.5, 12], [8.5, 15], [9, 25], [4, 27], [1.5, 22]])), tie: [3, 50] }),
   // a knitted beanie with a folded brim; a little hair at the back
   beanie: () => ({ front: union(hairCut(ellipse(15, 13, 13.3, 10)), polyS([[3, 14], [9, 16], [8.5, 24], [4, 24]])), beanie: true }),
   // no hair
@@ -211,6 +214,7 @@ const HAIR = {
   // long and wavy, the ends in soft points
   wavy: () => ({
     back: union(polyS([[3, 14], [14, 3], [26, 8], [28, 20], [27, 40], [3, 40], [1.5, 30]]), tips([[4, 44], [9, 45], [14, 44], [19, 45], [24, 43]], 5)),
+    backFall: union(polyS([...[20, 24, 28, 32, 36, 40].map((y) => [2.5 + Math.sin(y / 2.4), y]), [5, 42], [27, 42], ...[40, 36, 32, 28, 24, 20].map((y) => [29.5 - Math.sin(y / 2.4), y])]), tips([[5, 45], [10, 46], [15.5, 45.5], [21, 46], [26, 45]], 4)),
     front: union(hairCut(union(ellipse(15, 12, 14, 10.8), tips(FRINGE))), polyS([[1, 12], [9, 14], [9.5, 34], [7, 38], [1, 36]]), tips([[3, 40], [7.5, 41]], 4)),
   }),
   // Jen's: parted just off the middle, falling past the shoulders on both sides in loose natural waves, fuller toward
@@ -300,7 +304,7 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   const cupAt = ([hx, hy]) => { c.part(rectS(hx - 2, hy - 5, hx + 2.5, hy + 1), (x, y) => (y < hy - 3.5 ? "#6f4a2f" : y > hy - 2 && y < hy - 0.5 ? "#c8453c" : "#fbfbf6")); };
 
   const hairT = hairRamp(look.hair[1]);
-  if (hair.back) c.part(hair.back, hairTone(hairT, hair.texture, hair.crown));
+  if (hair.back && !(back && hair.backFall)) c.part(hair.back, hairTone(hairT, hair.texture, hair.crown)); // (from behind: the fall down the back instead)
   if (hoodie) c.part(polyS([[6, 29], [23, 28.5], [25, 34], [5, 35]]), bodyShade(top, 5, 25));   // the hood lying behind the neck
   // the far arm, behind the body (a raised one behind the head too). Seen from behind, a near arm reaching forward
   // (toward what the person faces) also goes behind the body.
@@ -438,7 +442,7 @@ function drawAvatar(look, poseName, { eyes = "open", mouth = "closed", back = fa
   }
   if (face.earrings) { c.set(5, 24, face.earrings); c.set(5, 25, OUTLINE); }
   // hair (and cap / hood); from behind the hair covers the whole head
-  const hairShape = back ? union(hair.front, minus(headShape, rectS(0, 29, AW, AH)), ...(hair.backFall ? [hair.backFall] : [])) : hair.front;
+  const hairShape = back ? union(hair.front, ...(look.hair[0] === "bald" ? [] : [NAPE]), ...(hair.backFall ? [hair.backFall] : [])) : hair.front;
   if (hair.hood) c.part(back ? ellipse(15.5, 18, 15.5, 17.5) : hair.front, bodyShade(hoodC, 0, 31, 0.4));
   else {
     c.part(hairShape, hairTone(hairT, hair.texture, hair.crown, !hair.shine || back)); // (bangs with their own shine skip the crown's)
@@ -570,7 +574,6 @@ function avatarImage(look, pose, opts = {}) {
 // Everyone's look.
 const AVATAR_LOOKS = {
   jen: { skin: "#f1c29b", hair: ["jen", "#26201c"], top: ["sweater", "#2b3a66"], bottom: ["jeans", "#9dbad6"], shoes: "#f4f1ea", face: { eyes: "lash", mouth: "small", brows: "arched" } },
-  dancer: { skin: "#e6b08a", hair: ["ponytail", "#e0569b"], top: ["tank", "#8e44ad"], bottom: ["pants", "#2d2d3a"], shoes: "#f4f1ea", shoeStyle: "sneakers", stripe: "#e0569b", face: { eyes: "lash", mouth: "grin", brows: "arched" }, tieColor: "#f6c945" },
   pitcher: { skin: "#d9a77c", hair: ["cap", "#3a2a24"], top: ["jersey", "#f2f2f2"], bottom: ["pants", "#c9cdd3"], shoes: "#2b2b2b", capColor: "#c8102e", face: { brows: "angled", mouth: "flat", beard: "stubble" } },
   radar: { skin: "#f1c29b", hair: ["sidepart", "#6b4426"], top: ["shirt", "#9fc4e8"], bottom: ["cargo", "#5a6048"], shoes: "#6f4a2f", extras: ["headphones"], face: { eyes: "narrow", nose: "button", mouth: "smirk" } },
   student: { skin: "#f1c29b", hair: ["bun", "#2a2a2a"], top: ["cardigan", "#c9b48a"], inner: "#f4f1ea", bottom: ["skirt", "#34507f"], tights: "#3a3d44", shoes: "#6f4a2f", extras: ["glasses", "paper"], face: { eyes: "wide", freckles: true, mouth: "small" } },

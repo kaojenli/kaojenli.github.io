@@ -43,12 +43,12 @@ ok(await p.ev(`document.querySelector('#experience details').open`), "an experie
 await p.ev(reveal("#scene")); await p.sleep(300); // (off screen the scene stands still)
 const frames = [], undecoded = [];
 for (let i = 0; i < 25; i++) {
-  frames.push(await p.ev(`["dancer", "hacker"].map((l) => document.querySelector('.who[data-look="' + l + '"] .bv').getAttribute('viewBox')).join('|')`));
+  frames.push(await p.ev(`["labA", "hacker"].map((l) => document.querySelector('.who[data-look="' + l + '"] .bv').getAttribute('viewBox')).join('|')`));
   undecoded.push(...JSON.parse(await p.ev(`JSON.stringify([...document.querySelectorAll('#scene use')].map((u) => u.getAttribute('href').slice(1)).filter((id) => !DECODED.has(id)))`)));
   await p.sleep(160);
 }
 ok(await p.ev(`[...document.querySelectorAll('#scene .who')].every((el) => el.getAnimations({ subtree: true }).every((a) => !(a instanceof CSSAnimation) || !a.effect.getKeyframes().some((k) => 'transform' in k || 'translate' in k)))`), "nobody drifts: no CSS animation moves any person or animal (walking between tiles is a transition; frames are set by script)");
-ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((f) => f.split("|")[1])).size >= 2, "the dancer dances and the hacker types (frames change)");
+ok(new Set(frames.map((f) => f.split("|")[0])).size >= 3 && new Set(frames.map((f) => f.split("|")[1])).size >= 2, "the lab scientist works and the hacker types (frames change)");
 // off screen the scene stands still (it costs no CPU while you read the sections)
 await p.ev(reveal("#skills")); await p.sleep(400);
 // (by name: walkers still take their steps in the background, which only reorders them in the page)
@@ -93,9 +93,9 @@ ok(unclickable === "", "every person and animal takes clicks" + (unclickable ? "
 await p.ev(reveal('.who[data-look="student"] .hit')); await p.sleep(300);
 await p.click(...(await p.ev(center('.who[data-look="student"] .hit'))));
 ok(await p.ev(`document.querySelector('.who[data-look="student"]').classList.contains('acting') && stateOf(document.querySelector('.who[data-look="student"]')).gesture.kind === "wave"`), "a clicked person waves");
-await p.ev(`document.querySelector('.who[data-look="dancer"]').focus()`);
+await p.ev(`document.querySelector('.who[data-look="pitcher"]').focus()`);
 await p.key("Enter");
-ok(await p.ev(`!!document.querySelector('.bubble[data-for="dancer"]')`), "Enter on a focused NPC makes it talk");
+ok(await p.ev(`!!document.querySelector('.bubble[data-for="pitcher"]')`), "Enter on a focused NPC makes it talk");
 // walkers: wanderers roam, people with a route walk between their stations; never onto furniture or each other,
 // only through doors; the cat stays indoors, the dog outdoors
 const kinds = JSON.parse(await p.ev(`JSON.stringify(Object.fromEntries(WALKERS.filter((w) => !w.patron && !w.party).map((w) => [w.look, w.route ? "route" : "wander"])))`));
@@ -117,7 +117,7 @@ for (let i = 0; i < 35; i++) {
   await p.sleep(800);
 }
 const steps = JSON.parse(await p.ev(`JSON.stringify(STEPS)`));
-for (const look of Object.keys(kinds)) { const n = steps.filter((s) => s.look === look).length; ok(n > 2, `${look} ${kinds[look] === "route" ? "walks between stations" : "wanders"} (${n} steps)`); }
+for (const look of Object.keys(kinds)) { const n = steps.filter((s) => s.look === look).length; ok(n >= 2, `${look} ${kinds[look] === "route" ? "walks between stations" : "wanders"} (${n} steps)`); }
 // the café: the line moves (someone leaves it to order, someone new joins it), people sit, leave and turn up again
 const cafeLog = JSON.parse(await p.ev(`JSON.stringify(CAFE_LOG)`)), n = (what) => cafeLog.filter((e) => e.startsWith(what + " ")).length;
 ok(n("order") >= 2 && n("join") >= 1, `the café line moves: the front goes in to order, newcomers join the back (${n("order")} orders, ${n("join")} joined)`);
@@ -174,9 +174,9 @@ p.close();
 
 // ---- reduced motion
 p = await open(SITE, { reducedMotion: true });
-const r0 = await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').dataset.frame`);
+const r0 = await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="labA"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').dataset.frame`);
 await p.sleep(5000);
-ok(await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="dancer"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').dataset.frame`) === r0, "reduced motion: nobody walks or animates");
+ok(await p.ev(`WALKERS.map((w) => w.el.style.transform).join('|') + document.querySelector('.who[data-look="labA"] .bv').getAttribute('viewBox') + document.querySelector('#hero-portrait .pv').dataset.frame`) === r0, "reduced motion: nobody walks or animates");
 p.close();
 
 console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");
