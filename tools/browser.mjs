@@ -123,6 +123,10 @@ const cafeLog = JSON.parse(await p.ev(`JSON.stringify(CAFE_LOG)`)), n = (what) =
 ok(n("order") >= 2 && n("join") >= 1, `the café line moves: the front goes in to order, newcomers join the back (${n("order")} orders, ${n("join")} joined)`);
 ok(n("sit") >= 2, `café customers sit down after ordering (${n("sit")} sat)`);
 ok(n("leave") >= 1 && n("turnup") >= 1, `café customers leave the picture and new ones turn up (${n("leave")} left, ${n("turnup")} turned up)`);
+// the cameras track only who is inside the café; the hacker's dashboard counts the same people and the same line
+ok(await p.ev(`PATRONS.filter((w) => !w.off).every((w) => (w.el.querySelector(".bbox").style.display !== "none") === (roomAt(0, ...w.tile)?.key === "cafe"))`), "tracking boxes only on customers inside the café");
+ok(await p.ev(`(() => { cafeDash(); const d = document.getElementById("cafe-dash"), inside = PATRONS.filter((w) => !w.off && roomAt(0, ...w.tile)?.key === "cafe").length;
+  return d.textContent.includes("IN " + inside) && [...d.querySelectorAll("rect")].filter((r) => r.getAttribute("y") === "30.6" && r.getAttribute("fill") !== "#1b2a22").length === cafeLine.length; })()`), "the hacker's dashboard shows the café as it is: who is in, how long the line is");
 ok(n("stroll") >= 1 && n("follow") >= 1, `people out for a stroll walk the sidewalk, the child or the little dog following (${n("stroll")} strolls, ${n("follow")} followed)`);
 // the laptop on the café table is out only while someone with a backpack sits there
 ok(await p.ev(`(() => { const s = seatOf.get(1), shown = scene.querySelector(".cafe-laptop").style.visibility !== "hidden"; return !s ? !shown : hasExtra(s, "backpack"); })()`), "the café laptop: out of a backpack, only while its owner sits there");

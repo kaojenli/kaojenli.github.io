@@ -323,6 +323,7 @@ const SIT_DO = {
 const CAFE = {
   edges: [{ tiles: [[10, 15], [9, 15]], out: ([x]) => [x + 0.5, 16.4], inFace: "backR", outFace: "frontL" },
     { tiles: [[0, 14], [0, 13], [0, 15]], out: ([, y]) => [-0.9, y + 0.5], inFace: "front", outFace: "back" }],
+  gender: { q1: "f", q2: "m", q3: "f", q4: "m", q5: "m", q6: "f", customerA: "f", customerB: "m" }, // (for the hacker's dashboard)
   door: [10, 13], counter: [9, 8], window: [12, 13], lookIn: [7, 13], // (by the line; and where people out for a stroll stop to look in,
   // between the two ends of the sidewalk, so a party never has to turn back through itself)
   queue: [[11, 14], [12, 14], [13, 14], [14, 14]],
@@ -464,13 +465,11 @@ const ROOMS = [
     blocked: [[0, 0], [1, 1], [2, 1], [3, 1], [2, 2], [3, 0], [4, 0], [4, 2], [3, 3]],
     rug: (X, Y) => furRug(X + 4.35, Y + 2.95, 0.62, 0.48, "#4a3d6e") + rect(X + 0.6, Y + 1.9, 3.2, 1.7, "#2e3440") + rect(X + 0.7, Y + 2.0, 3.0, 1.5, "none", ` stroke="${GREEN}" stroke-width="0.03"`) +
       `<polyline points="${X + 3.7},${Y + 0.8} ${X + 3.3},${Y + 1.9} ${X + 2.4},${Y + 1.8}" fill="none" stroke="#111" stroke-width="0.05"/><polyline points="${X + 4.4},${Y + 0.8} ${X + 4.1},${Y + 2.2} ${X + 3.4},${Y + 2.9}" fill="none" stroke="#3b82c4" stroke-width="0.04"/>`,
-    // wall screen: bird's-eye floor plan of the café, heat, and people moving as dots; an LED strip and a neon sign
+    // wall screen: a live dashboard of the café next door (drawn by cafeDash, below); an LED strip and a neon sign
     right: rect(0, 2, 80, 0.8, "#b14cff") + rect(0, 2.8, 80, 0.4, "rgba(177,76,255,.35)") +
-      slab3(6, 20, 56, 32, 2.5, "#1b1f2a", rect(2, 2, 52, 28, "#07140c") + rect(5, 5, 30, 22, "none", ` stroke="#9aa4b1" stroke-width="0.5"`) +
-        rect(7, 7, 10, 8, "rgba(200,16,46,.45)") + rect(15, 13, 12, 9, "rgba(246,201,69,.4)") + rect(21, 21, 10, 5, "rgba(59,130,196,.4)") +
-        [0, 1, 2, 3, 4].map((k) => rect(40 + k * 2.4, 5, 1.6, 4 + ((k * 7) % 11), ["#3fa34d", "#f6c945", "#f7a21b", "#e0584f", "#3bb8ff"][k])).join("")) +
+      slab3(6, 20, 56, 32, 2.5, "#1b1f2a", rect(2, 2, 52, 28, "#07140c")) +
       slab3(66, 30, 12, 8, 1.5, "#2f3542", rect(1, 1, 10, 6, "#f06292") + rect(3, 3, 6, 2, "#1b1f2a")),
-    live: [[11.5, 26.5, "dot"], [21.5, 32.5, "dot dot2"], [27.5, 40.5, "dot dot3"], [15.5, 36.5, "dot dot4"]].map(([u, v, c]) => rect(u, v, 1.5, 1.5, GREEN, ` class="${c}"`)).join(""),
+    live: `<g id="cafe-dash"></g>`,
     draw(add, X, Y) {
       const heat = Array.from({ length: 15 }, (_, i) => rect(1.5 + (i % 5) * 1.6, 2.5 + Math.floor(i / 5) * 2, 1.4, 1.8, pickSeeded(["#2c5892", "#3fa34d", "#f6c945", "#f7a21b", "#c8102e"]))).join("");
       const paths = `<polyline points="2,3 4,6 6,4 9,7" fill="none" stroke="#ff4fd8" stroke-width="0.6"/><polyline points="2,7 5,4 7,5 9,3" fill="none" stroke="${GREEN}" stroke-width="0.6"/>`;
@@ -1282,6 +1281,7 @@ function stepTo(wk, [nx, ny], done) {
   wk.heading = [nx - x, ny - y];
   wk.tile = [nx, ny]; // claim the tile now so nobody else steps onto it
   if (wk.followers) followOn(wk, [x, y]); // the rest of the party: each into the tile the one ahead just left
+  if (wk.patron) trackBox(wk);
   const d = nx + ny + 1, forward = d > x + y + 1, group = scene.querySelector(roomAt(wk.level, nx, ny).outdoor ? "#things-out" : `#things-${wk.level}`);
   if (wk.el.parentElement.parentElement !== group) { group.appendChild(wk.el.parentElement); setDepth(wk.el, d); }
   else if (forward) setDepth(wk.el, d); // stepping toward the viewer: draw in front before moving
@@ -1459,6 +1459,7 @@ function appearAt(wk, edge, then, wanted = () => true, only = null) {
   if (wk.el.parentElement.parentElement !== out) out.appendChild(wk.el.parentElement);
   setDepth(wk.el, tile[0] + tile[1] + 1);
   wk.tile = tile.slice(); wk.off = false; wk.edgeIn = edge; wk.edgeTile = tile;
+  if (wk.patron) trackBox(wk);
   wk.xy = spotXY(wk, edge.out(tile));
   wk.el.style.opacity = 0; wk.el.style.visibility = "";
   faceTo(wk, edge.inFace);
@@ -1552,6 +1553,44 @@ PATRONS.forEach((wk, k) => {
 });
 WALKERS.filter((wk) => wk.party).forEach(hide);
 
+// The café's cameras only track people inside it: a customer's tracking box shows from the step through the door.
+function trackBox(wk) { const b = wk.el.querySelector(".bbox"); if (b) b.style.display = roomAt(0, ...wk.tile)?.key === "cafe" ? "" : "none"; }
+PATRONS.forEach(trackBox);
+// The hacker's wall screen, live: the café from above (where people spend time builds up as heat, everyone inside a
+// dot, pink for women and blue for men, the hottest spot boxed), how many women and men are in, how long the line is
+// (red and flashing when it's long), and how full the café has been lately. In wall units, v up, inside the screen.
+const CAFE_ROOM = ROOMS.find((r) => r.key === "cafe"), HEAT = new Float32Array(64), OCC = [];
+const HEAT_RAMP = ["#0f2a1c", "#1f5a3a", "#3fa34d", "#c9d93a", "#f6c945", "#f7a21b", "#e0584f"];
+const dashText = (u, v, t, col, size = 3) => `<text transform="translate(${u} ${v}) scale(1 -1)" font-family="JetBrains Mono, ui-monospace, monospace" font-size="${size}" font-weight="700" fill="${col}">${t}</text>`;
+let dashFlash = false;
+function cafeDash() {
+  const [CX, CY] = CAFE_ROOM.rect, inside = PATRONS.filter((w) => !w.off && roomAt(0, ...w.tile)?.key === "cafe");
+  for (let k = 0; k < 64; k++) HEAT[k] *= 0.985;
+  inside.forEach((w) => (HEAT[(w.tile[1] - CY) * 8 + (w.tile[0] - CX)] += 1));
+  OCC.push(inside.length); if (OCC.length > 24) OCC.shift();
+  const max = Math.max(1, ...HEAT), hot = HEAT.indexOf(Math.max(...HEAT)), cell = 2.75, U = 7.5, V = 45.2; // (cell (i, j): u from U, v down from V)
+  let s = rect(U - 0.6, V - 8 * cell - 0.4, 8 * cell + 1.2, 8 * cell + 1.2, "none", ` stroke="#9aa4b1" stroke-width="0.4"`);
+  for (let k = 0; k < 64; k++) { const i = k % 8, j = Math.floor(k / 8), h = HEAT[k] / max;
+    s += rect(U + i * cell, V - (j + 1) * cell, cell - 0.35, cell - 0.35, h < 0.04 ? "#0b1a12" : HEAT_RAMP[Math.min(6, Math.floor(h * 6.99))]); }
+  if (HEAT[hot] > 2) s += rect(U + (hot % 8) * cell - 0.3, V - (Math.floor(hot / 8) + 1) * cell - 0.3, cell + 0.25, cell + 0.25, "none", ` stroke="#ffffff" stroke-width="0.45"`);
+  s += rect(U + 3 * cell, V - 8 * cell - 0.9, cell, 0.6, "#9aa4b1"); // (the door)
+  inside.forEach((w) => (s += rect(U + (w.tile[0] - CX) * cell + 0.6, V - (w.tile[1] - CY + 1) * cell + 0.6, 1.3, 1.3, CAFE.gender[w.look] === "f" ? "#ff4fd8" : "#3bb8ff")));
+  // women and men in, as bars
+  const f = inside.filter((w) => CAFE.gender[w.look] === "f").length, m = inside.length - f;
+  s += dashText(32, 42, "F", "#ff4fd8") + rect(35, 41.6, 1 + f * 2.3, 2.2, "#ff4fd8") + dashText(37.5 + f * 2.3, 42, f, "#e9eef2", 2.6);
+  s += dashText(32, 37.6, "M", "#3bb8ff") + rect(35, 37.2, 1 + m * 2.3, 2.2, "#3bb8ff") + dashText(37.5 + m * 2.3, 37.6, m, "#e9eef2", 2.6);
+  // the line outside: a slot per place, filling up; red (and flashing) when it's long
+  const n = cafeLine.length, lc = n >= 3 ? "#e0584f" : n === 2 ? "#f6c945" : "#39ff88";
+  dashFlash = !dashFlash;
+  s += dashText(32, 31, "LINE", n >= 3 && dashFlash ? "#ffffff" : lc, 2.6);
+  for (let k = 0; k < CAFE.queue.length; k++) s += rect(41 + k * 3.6, 30.6, 3, 2.6, k < n ? lc : "#1b2a22");
+  // how full the café has been: the last two dozen readings
+  s += dashText(32, 26, `IN ${inside.length}`, "#9aa4b1", 2.4);
+  s += `<polyline points="${OCC.map((c, k) => `${42 + k * 0.6},${21.5 + c * 0.7}`).join(" ")}" fill="none" stroke="#39ff88" stroke-width="0.5"/>`;
+  document.getElementById("cafe-dash").innerHTML = s;
+}
+cafeDash();
+
 // Now and then someone standing or sitting still turns their head to look the other way for a moment.
 const glancers = [...STATES.values()].filter((st) => st.human && st.cfg.glance);
 function glance() {
@@ -1590,6 +1629,7 @@ if (!reduceMotion) {
   WALKERS.filter((wk) => !wk.patron && !wk.party).forEach((wk, i) => setTimeout(() => (wk.route ? route(wk) : wander(wk)), 1200 + i * 500));
   PATRONS.forEach((wk, k) => setTimeout(() => (k < 4 ? k === 0 && nextOrder() : k < 6 ? turnUp(wk) : standUp(wk, k - 6)), k < 4 ? 2000 : k < 6 ? 3000 + (k - 4) * 6000 : 8000 + (k - 6) * 9000 + Math.random() * 4000));
   STROLLERS.forEach((wk, k) => setTimeout(() => stroll(wk), 4000 + k * 9000));
+  setInterval(() => onScreen && cafeDash(), 1000);
   // Failsafe: anyone out walking (a customer, a party) who hasn't got anywhere in 20 s, in a jam nobody could solve, fades
   // away where they stand and comes back later as someone new. ponytail: blunt; a real fix would reserve paths ahead.
   const lastMove = new Map();

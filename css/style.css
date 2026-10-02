@@ -120,11 +120,6 @@ h1, h2, h3, h4 { color: var(--ink); }
 @keyframes flicker { 50% { transform: translateY(1px); opacity: 0.75; } }
 .glow { opacity: 0.85; }
 /* people moving on the hacker room's floor-plan screen */
-.dot { animation: dotmove 6s steps(6) infinite alternate; }
-.dot2 { animation-duration: 7s; animation-delay: -2s; }
-.dot3 { animation-duration: 5s; animation-delay: -4s; }
-.dot4 { animation-duration: 8s; animation-delay: -1s; }
-@keyframes dotmove { 50% { transform: translate(6px, 3px); } 100% { transform: translate(11px, -2px); } }
 
 /* speech: a small dark see-through label like a tracker's, the speaker's name in tracker green; long lines wrap */
 .bubble {
