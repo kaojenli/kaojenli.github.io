@@ -47,15 +47,29 @@ const PROPS = {
   } },
   tree: { w: 60, h: 80, draw: treeDraw(1) },
   treeSmall: { w: 48, h: 64, draw: treeDraw(0.8) },
-  // Pines for the forest behind the building: tiers painted bottom to top so each keeps its outline.
-  ...Object.fromEntries([["pine", 1], ["pineSmall", 0.75]].map(([name, k]) => [name, { w: Math.round(32 * k), h: Math.round(64 * k), draw(c) {
-    const S = (v) => v * k, g = ramp("#2f7a45");
+  // Snowy firs for the forest behind the building, in four sizes and two greens (name + "B": the bluer one). Tiers are
+  // painted bottom to top so each keeps its outline: drooping sides, a ragged hem, dark where the tier above overhangs
+  // it; snow lies in clumps along the upper slopes (more on the lit left) and on the tip.
+  ...Object.fromEntries([["pineL", 1.25], ["pine", 1], ["pineS", 0.75], ["pineXS", 0.55]].flatMap(([name, k]) => [["", "#2f7a45"], ["B", "#2a6a58"]].map(([tint, green]) => [name + tint, { w: Math.round(32 * k), h: Math.round(64 * k), draw(c) {
+    const S = (v) => v * k, g = ramp(green), m = S(16), tiers = [[26, 56, 15], [16, 44, 12], [7, 32, 9], [1, 18, 6]];
+    const clump = (x, y, r) => c.part(ellipse(x, y, r, r * 0.65), (px, py) => (py < y - r * 0.15 ? "#ffffff" : "#d8e4ee"), "#6f8296");
     c.part(rectS(S(14), S(52), S(18), S(64)), bands(ramp("#6b4426"), S(14), S(18)));
-    for (const [y0, y1, hw] of [[26, 56, 15], [16, 44, 12], [7, 32, 9], [1, 18, 6]]) {
-      const [a, b, w, m] = [S(y0), S(y1), S(hw), S(16)];
-      c.part(polyS([[m, a], [m + w, b], [m + w * 0.45, b - S(3)], [m, b], [m - w * 0.45, b - S(3)], [m - w, b]]), bands(g, m - w, m + w, b - S(3)));
-    }
-  } }])),
+    tiers.forEach(([y0, y1, hw], i) => {
+      const [a, b, w] = [S(y0), S(y1), S(hw)], over = tiers[i + 1] ? S(tiers[i + 1][1]) + S(2.5) : -1, n = 4, hem = [];
+      for (let j = 0; j <= 2 * n; j++) hem.push([m - w + (w * j) / n, b - (j % 2 ? S(3) : j && j < 2 * n ? S(1) : 0)]);
+      c.part(polyS([[m, a], [m - w * 0.42, a + (b - a) * 0.52], ...hem, [m + w * 0.42, a + (b - a) * 0.52]]),
+        (x, y) => (y < over ? g[2] : bands(g, m - w, m + w, b - S(2.5))(x, y)));
+      const on = (side, t) => [m + side * w * t, a + (b - a) * t - S(1)]; // a point on the upper slope, t from the top
+      [0.62, 0.86].forEach((t) => clump(...on(-1, t), S(2.4)));
+      clump(...on(1, 0.84), S(1.8));
+    });
+    c.part(polyS([[m, S(0.2)], [m + S(2.2), S(4.5)], [m, S(3.6)], [m - S(2.2), S(4.5)]]), () => "#ffffff", "#6f8296");
+  } }]))),
+  // a boulder half under snow, for the open ground at the forest's foot
+  rockSnow: { w: 22, h: 14, draw(c) {
+    c.part(union(ellipse(8, 9, 7.5, 5), ellipse(14.5, 10, 6.5, 4)), sphere(ramp("#8d949c"), 9, 8, 11, 6));
+    c.part(union(ellipse(8, 6, 6, 2.6), ellipse(14, 7.5, 4.5, 2)), (x, y) => (y < 5.5 ? "#ffffff" : "#d8e4ee"), "#6f8296");
+  } },
   // ---- plants in pots
   palm: { w: 44, h: 74, draw(c) {
     const g = ramp("#4f9a3c");

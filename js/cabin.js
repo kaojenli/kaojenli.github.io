@@ -880,30 +880,55 @@ function rooftop(add) {
 }
 
 // Scenery behind the building, painted on two panels along its back edges (x = -0.25 and y = -0.25), like a Habbo
-// room's backdrop: a far and a near mountain range, then pines along the building's stepped outline.
-const MTN = [["#8aa6c6", "#7089ad", "#a9c0da"], ["#4f729f", "#38567f", "#6c8fb8"]], SNOW = ["#f6fafd", "#cddcea"];
-// One mountain on a panel (u along, v up): lit left flank with a light ridge, shaded right flank, jagged snow cap.
-const mountain = ([u, v, hw], [lit, shade, ridge]) => {
-  const f = 0.26, cap = v - f * (v + 12), P = (a, b) => [u + hw * a, v + (v + 12) * b];
-  return poly([[u - hw, -12], [u, v], [u + hw * 0.15, -12]], lit, "none") + poly([[u, v], [u + hw, -12], [u + hw * 0.15, -12]], shade, "none") +
-    poly([[u, v], P(-0.35, -0.55), P(-0.3, -0.62), P(-0.05, -0.2)], ridge, "none") + poly([[u, v], P(0.45, -0.7), P(0.35, -0.75), P(0.12, -0.3)], lit, "none") +
-    poly([[u, v], [u + hw * f, cap], [u + hw * f * 0.5, cap + 4], [u + hw * f * 0.1, cap - 3], [u - hw * f * 0.4, cap + 5], [u - hw * f, cap]], SNOW[0], "none") +
-    poly([[u, v], [u + hw * f, cap], [u + hw * f * 0.5, cap + 4], [u + hw * 0.04, cap + 2]], SNOW[1], "none");
+// room's backdrop: a far and a near mountain range, then snowy firs and rocks along the building's stepped outline.
+// Each range has four tones, lit to deep shade; the far one paler, as if through more air.
+const MTN = [["#a3b8d2", "#8199bb", "#6881a7", "#566e94"], ["#6385ad", "#4a6991", "#365176", "#283f5e"]], SNOW = ["#f6fafd", "#cfdcea"];
+const mix = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+// One mountain on a panel (u along, v up): the summit and two shoulders, with ridges running down from them that cut the
+// flanks into faces, each shaded by the way it turns from the light (up left); a few darker crags; a snow cap with
+// tongues down the gullies and streaks along the shoulders.
+const mountain = ([u, v, hw], T) => {
+  const B = -12, r = (k) => hsh(u * 7.1 + v * 3.3 + k), at = (a, b) => [u + hw * a, B + (v - B) * b]; // a: -1 … 1 across, b: 0 … 1 up
+  const S = [u, v], Ls = at(-0.5 - r(1) * 0.15, 0.48 + r(2) * 0.16), Rs = at(0.42 + r(3) * 0.16, 0.42 + r(4) * 0.2);
+  const b = [-1, -0.62, -0.16, 0.14, 0.56, 1].map((a) => at(a, 0)), face = (p, k) => poly(p, T[k], "none");
+  let s = face([b[0], Ls, S, Rs, b[5]], 1) +
+    face([b[0], Ls, b[1]], 1) + face([b[1], Ls, S, b[2]], 0) + face([b[2], S, b[3]], 1) + face([b[3], S, Rs, b[4]], 2) + face([b[4], Rs, b[5]], 3);
+  for (let i = 0; i < 8; i++) { // crags: small dark wedges inside the faces, a shade down from the face they sit on
+    const a = -0.6 + r(10 + i) * 1.15, h = 0.08 + r(20 + i) * 0.55, [x, y] = at(a * (1 - h), h), w = 3 + r(30 + i) * 6;
+    s += face([[x, y], [x + w, y + 1 + w * 0.3], [x + w * 0.35, y + 3 + w * 0.5]], a < -0.1 ? 2 : 3);
+  }
+  const L1 = mix(S, Ls, 0.3 + r(5) * 0.12), R1 = mix(S, Rs, 0.26 + r(6) * 0.1), G2 = mix(S, b[2], 0.27 + r(7) * 0.08), G3 = mix(S, b[3], 0.22 + r(8) * 0.06);
+  const dip = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2 + (v - B) * 0.05]; // the hem of the cap rises between the tongues
+  s += poly([S, R1, dip(R1, G3), G3, dip(G3, G2), G2, dip(G2, L1), L1], SNOW[0], "none") + poly([S, R1, dip(R1, G3), G3], SNOW[1], "none");
+  const streak = (p, q, t0, t1, wide, k) => poly([mix(p, q, t0), mix(p, q, t1), [mix(p, q, t1)[0] + wide, mix(p, q, t1)[1] + 2], [mix(p, q, t0)[0] + wide, mix(p, q, t0)[1] + 1]], SNOW[k], "none");
+  return s + streak(S, Ls, 0.3, 0.55, 2, 0) + streak(S, b[2], 0.26, 0.4, -1.5, 0) + streak(S, Rs, 0.25, 0.45, -1.5, 1) + streak(Ls, b[1], 0, 0.12, 1.5, 0);
 };
 function backdrop() {
   const L = iso(-0.25, NY), C = iso(-0.25, -0.25);
   const panel = (id, origin, dir, len, far, near) => `<clipPath id="${id}"><rect x="0" y="-12" width="${len}" height="400"/></clipPath>` +
     plane(origin, dir, `<g clip-path="url(#${id})">${far.map((m) => mountain(m, MTN[0])).join("")}${near.map((m) => mountain(m, MTN[1])).join("")}</g>`);
-  // Pines on the panels in two rows along the building's outline (the left panel's outline steps down floor by floor).
-  const pines = [], at = ([ox, oy], dir, u, v, small) => pines.push([ox + u, oy + dir * u - v, small]);
+  // Firs on the panels in three loose rows along the building's outline (the left panel's outline steps down floor by
+  // floor): small ones further up the slope, big ones in front dipping behind the walls; uneven gaps, mixed sizes and
+  // greens. Where there's no building (beside the street) the trees stand on open ground, with snowy rocks between.
+  const props = [], at = ([ox, oy], dir, u, v, name) => props.push([ox + u, oy + dir * u - v, name]);
   const top = (y) => (y > 13 ? 0 : y > 5 ? WALL + 2 : H + WALL + 2), outlineL = (u) => top(NY + 0.25 - u / 16);
-  for (let u = 3; u < (NY + 0.25) * 16 - 4; u += 8) at(L, -0.5, u, (outlineL(u) ? outlineL(u) + 2 : 14) + ((u * 5) % 7), true);          // back row, small
-  for (let u = 6; u < (NY + 0.25) * 16 - 4; u += 9) at(L, -0.5, u, outlineL(u) ? outlineL(u) - 16 + ((u * 7) % 9) : (u * 3) % 5, false); // front row
-  for (let u = 4; u < (NX + 0.25) * 16; u += 8) at(C, 0.5, u, H + WALL + 6 + ((u * 5) % 9), true);
-  for (let u = 8; u < (NX + 0.25) * 16; u += 10) at(C, 0.5, u, H + WALL - 16 + ((u * 7) % 11), false);
+  const rows = [{ onTop: 4, open: 15, jit: 10, gap: [4, 8], sizes: ["pineXS", "pineS"] },
+    { onTop: -6, open: 7, jit: 7, gap: [6, 11], sizes: ["pineS", "pine"] },
+    { onTop: -18, open: 0, jit: 6, gap: [9, 15], sizes: ["pine", "pineL"] }];
+  const plant = (origin, dir, len, outline, seed) => rows.forEach((row, i) => {
+    for (let u = 2 + hsh(seed + i) * row.gap[0], n = 0; u < len - 3; n++) {
+      const q = hsh(seed * 13 + i * 31 + n * 7.3), t = outline(u);
+      at(origin, dir, u, (t ? t + row.onTop : row.open) + q * row.jit, row.sizes[q < 0.65 ? 0 : 1] + (hsh(q * 99) < 0.4 ? "B" : ""));
+      if (!t && i === 2 && hsh(q * 71) < 0.6) at(origin, dir, u + 5, 1 + q * 3, "rockSnow");
+      u += row.gap[0] + hsh(q * 57) * (row.gap[1] - row.gap[0]);
+    }
+  });
+  plant(L, -0.5, (NY + 0.25) * 16, outlineL, 1);
+  plant(C, 0.5, (NX + 0.25) * 16, () => H + WALL + 2, 2);
+  props.sort((p, q) => p[1] - q[1]); // the lower a tree stands on the panel, the nearer it is: painted later, in front
   return panel("bd-l", L, -0.5, (NY + 0.25) * 16, [[20, 150, 110], [110, 200, 120], [200, 185, 100]], [[60, 110, 80], [150, 150, 90], [230, 160, 70]]) +
     panel("bd-r", C, 0.5, (NX + 0.25) * 16, [[25, 180, 110], [120, 230, 130], [230, 270, 120], [310, 280, 100]], [[70, 200, 80], [175, 225, 95], [280, 250, 80]]) +
-    pines.map(([x, y, small]) => { const name = small ? "pineSmall" : "pine", { w, h } = propImage(name); return propImg(name, Math.round(x - w / 2), Math.round(y - h)); }).join("");
+    props.map(([x, y, name]) => { const { w, h } = propImage(name); return propImg(name, Math.round(x - w / 2), Math.round(y - h)); }).join("");
 }
 
 // ---------- the overview: the scenery and the building's side, then each floor from the ground up, then everything outdoors
