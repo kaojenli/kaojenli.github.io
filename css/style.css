@@ -1,11 +1,11 @@
 /* A calm personal site around one piece of pixel art: the cabin (cabin.js), with a room for each project. */
 :root {
-  --bg: #f6f4ef;
-  --surface: #ffffff;
+  --bg: #ece8e0;
+  --surface: #f6f3ed;
   --ink: #1d1f23;
   --text: #3a3e45;
-  --muted: #71767d;
-  --line: #e2ddd3;
+  --muted: #62666d;
+  --line: #d3ccbf;
   --accent: #a4502b;
   --sky: #bcdcec;
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -83,6 +83,8 @@ h1, h2, h3, h4 { color: var(--ink); }
 /* the whole cabin fits in the first screen: no taller than the window leaves below the intro (--fit, set by main.js) */
 .room { position: relative; width: 100%; max-width: min(1184px, var(--fit, 9999px) * 1.213); aspect-ratio: 592 / 488; margin: 0 auto; }
 #scene { display: block; width: 100%; height: 100%; }
+/* at night the daylit cabin is dimmed a little, so its snow and white rooms don't glare against the dark page */
+[data-theme="dark"] #scene { filter: brightness(.82); }
 .stage figcaption { margin-top: 12px; color: var(--muted); font-size: 14px; }
 
 /* ---------- people in the room */
