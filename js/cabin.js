@@ -887,9 +887,9 @@ function rooftop(add) {
 // cut into five flat tones with a little ordered dither between them, as pixel art is. Snow lies high up on the faces
 // that catch the light and runs down the gullies. A dark line runs along each range's top.
 const RANGES = [
-  { tones: ["#b8c9de", "#a0b4cf", "#889dbe", "#7288ab", "#5f7598"], line: "#52668a", peaks: [[70, 36, 125], [262, 4, 155], [482, 14, 140]] },
-  { tones: ["#94aac9", "#7a93b8", "#627ca4", "#4f688f", "#3f5679"], line: "#2f4263", peaks: [[22, 98, 80], [385, 70, 92], [568, 94, 72]] },
-  { tones: ["#7690b4", "#5b77a0", "#47618a", "#374e73", "#293d5c"], line: "#1c2a43", peaks: [[112, 150, 66], [505, 134, 54]] },
+  { tones: ["#c4d3e5", "#adbfd7", "#96a9c8", "#8095b6", "#6d83a5"], line: "#5d7296", peaks: [[70, 36, 125], [168, 50, 78], [262, 4, 155], [372, 30, 82], [482, 14, 140]] },
+  { tones: ["#a4b8d3", "#8ba2c3", "#738bb1", "#5f789e", "#4e668a"], line: "#3d5274", peaks: [[22, 98, 80], [385, 70, 92], [568, 94, 72]] },
+  { tones: ["#87a1c3", "#6d88af", "#59739b", "#476086", "#384e70"], line: "#283a58", peaks: [[112, 150, 66], [505, 134, 54]] },
 ];
 const SNOWT = ["#f6fafd", "#dce6f1", "#b9cadd"];
 const ihash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
