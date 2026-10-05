@@ -15,14 +15,14 @@
   --frame-shadow: rgba(40, 24, 8, .28);
   color-scheme: light;
 }
-/* dark: a gallery at night, in charcoal grey (the theme is picked before the page draws, in index.html; the toggle is in main.js) */
+/* dark: a gallery at night (the theme is picked before the page draws, in index.html; the toggle is in main.js) */
 :root[data-theme="dark"] {
-  --bg: #1c1c1e;
-  --surface: #252528;
+  --bg: #121110;
+  --surface: #1b1a18;
   --ink: #f1ece4;
   --text: #c9c3b9;
-  --muted: #9c968c;
-  --line: #343438;
+  --muted: #8f897f;
+  --line: #2d2a26;
   --accent: #e0925f;
   --sky: #2c3d4c;
   --frame-shadow: rgba(0, 0, 0, .7);
