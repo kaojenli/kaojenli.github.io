@@ -879,34 +879,68 @@ function rooftop(add) {
   add(99, box(9.45, 0.15, 0.08, 0.08, 30, CASE, WALL) + rect(...up(iso(9.5, 0.2), WALL + 32), 1.5, 1.5, "#ff3b3b", ' class="blink"'));
 }
 
-// Scenery behind the building, painted on two panels along its back edges (x = -0.25 and y = -0.25), like a Habbo
-// room's backdrop: a far and a near mountain range, then snowy firs and rocks along the building's stepped outline.
-// Each range has four tones, lit to deep shade; the far one paler, as if through more air.
-const MTN = [["#a3b8d2", "#8199bb", "#6881a7", "#566e94"], ["#6385ad", "#4a6991", "#365176", "#283f5e"]], SNOW = ["#f6fafd", "#cfdcea"];
-const mix = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-// One mountain on a panel (u along, v up): the summit and two shoulders, with ridges running down from them that cut the
-// flanks into faces, each shaded by the way it turns from the light (up left); a few darker crags; a snow cap with
-// tongues down the gullies and streaks along the shoulders.
-const mountain = ([u, v, hw], T) => {
-  const B = -12, r = (k) => hsh(u * 7.1 + v * 3.3 + k), at = (a, b) => [u + hw * a, B + (v - B) * b]; // a: -1 … 1 across, b: 0 … 1 up
-  const S = [u, v], Ls = at(-0.5 - r(1) * 0.15, 0.48 + r(2) * 0.16), Rs = at(0.42 + r(3) * 0.16, 0.42 + r(4) * 0.2);
-  const b = [-1, -0.62, -0.16, 0.14, 0.56, 1].map((a) => at(a, 0)), face = (p, k) => poly(p, T[k], "none");
-  let s = face([b[0], Ls, S, Rs, b[5]], 1) +
-    face([b[0], Ls, b[1]], 1) + face([b[1], Ls, S, b[2]], 0) + face([b[2], S, b[3]], 1) + face([b[3], S, Rs, b[4]], 2) + face([b[4], Rs, b[5]], 3);
-  for (let i = 0; i < 8; i++) { // crags: small dark wedges inside the faces, a shade down from the face they sit on
-    const a = -0.6 + r(10 + i) * 1.15, h = 0.08 + r(20 + i) * 0.55, [x, y] = at(a * (1 - h), h), w = 3 + r(30 + i) * 6;
-    s += face([[x, y], [x + w, y + 1 + w * 0.3], [x + w * 0.35, y + 3 + w * 0.5]], a < -0.1 ? 2 : 3);
-  }
-  const L1 = mix(S, Ls, 0.3 + r(5) * 0.12), R1 = mix(S, Rs, 0.26 + r(6) * 0.1), G2 = mix(S, b[2], 0.27 + r(7) * 0.08), G3 = mix(S, b[3], 0.22 + r(8) * 0.06);
-  const dip = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2 + (v - B) * 0.05]; // the hem of the cap rises between the tongues
-  s += poly([S, R1, dip(R1, G3), G3, dip(G3, G2), G2, dip(G2, L1), L1], SNOW[0], "none") + poly([S, R1, dip(R1, G3), G3], SNOW[1], "none");
-  const streak = (p, q, t0, t1, wide, k) => poly([mix(p, q, t0), mix(p, q, t1), [mix(p, q, t1)[0] + wide, mix(p, q, t1)[1] + 2], [mix(p, q, t0)[0] + wide, mix(p, q, t0)[1] + 1]], SNOW[k], "none");
-  return s + streak(S, Ls, 0.3, 0.55, 2, 0) + streak(S, b[2], 0.26, 0.4, -1.5, 0) + streak(S, Rs, 0.25, 0.45, -1.5, 1) + streak(Ls, b[1], 0, 0.12, 1.5, 0);
+// Scenery behind the building, like a Habbo room's backdrop: pixel-art mountains behind its two back edges (x = -0.25
+// and y = -0.25), then snowy firs and rocks along its stepped outline.
+// Mountains: three ranges, far to near, each a row of peaks [x, top, half width] in scene units. A peak is a pointed
+// summit flaring to a broad base, its ridgeline roughened by noise. The rock is lit from the up left: the flank facing
+// left is lighter, ridges and gullies fan out from the summit, and blotchy noise breaks it into crags; the light is
+// cut into five flat tones with a little ordered dither between them, as pixel art is. Snow lies high up on the faces
+// that catch the light and runs down the gullies. A dark line runs along each range's top.
+const RANGES = [
+  { tones: ["#b8c9de", "#a0b4cf", "#889dbe", "#7288ab", "#5f7598"], line: "#52668a", peaks: [[20, 62, 80], [100, 30, 95], [185, 44, 85], [262, 12, 105], [345, 28, 90], [425, 8, 110], [505, 34, 90], [580, 52, 80]] },
+  { tones: ["#94aac9", "#7a93b8", "#627ca4", "#4f688f", "#3f5679"], line: "#2f4263", peaks: [[0, 112, 80], [75, 84, 90], [158, 100, 80], [345, 74, 85], [440, 62, 95], [530, 90, 90], [600, 108, 80]] },
+  { tones: ["#7690b4", "#5b77a0", "#47618a", "#374e73", "#293d5c"], line: "#1c2a43", peaks: [[15, 178, 75], [95, 152, 85], [175, 150, 70], [450, 128, 80], [540, 140, 85]] },
+];
+const SNOWT = ["#f6fafd", "#dce6f1", "#b9cadd"];
+const ihash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const vnoise = (x, y = 0) => { // smooth value noise in [0, 1)
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const a = ihash(ix, iy), b = ihash(ix + 1, iy), c = ihash(ix, iy + 1), d = ihash(ix + 1, iy + 1);
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
 };
+function mountains(x0, x1, bottom) { // one picture over x0 … x1, from the top of the scene down to bottom(x)
+  const W = (x1 - x0) * 2, Ht = Math.ceil(Math.max(...Array.from({ length: x1 - x0 + 1 }, (_, k) => bottom(x0 + k)))) * 2, data = new Uint8ClampedArray(W * Ht * 4);
+  const rgb = (hex) => [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)), BAYER = [0, 0.5, 0.75, 0.25];
+  const snowC = SNOWT.map(rgb), ranges = RANGES.map((R) => ({ ...R, tonesC: R.tones.map(rgb), lineC: rgb(R.line) }));
+  // per range and column: the ridgeline's height, and the two peaks whose flanks rise highest there, blended by how
+  // close they come (so where two peaks meet the light turns gradually, as in a valley, not along a straight seam)
+  const cols = ranges.map((R, r) => Array.from({ length: W }, (_, X) => {
+    const x = x0 + (X + 0.5) / 2, ys = R.peaks.map(([pkx, top, w]) => {
+      const t = Math.abs(x - pkx) / w;
+      return top + (t < 1 ? 1 - (1 - t) ** 1.6 : 1 + (t - 1) * 0.3) * w * 0.8 + (vnoise(x / 7, r * 50) - 0.5) * 7 * Math.min(1, t * 3) + (vnoise(x / 2.5, r * 90) - 0.5) * 2.5 * Math.min(1, t * 4);
+    });
+    const order = ys.map((y, i) => i).sort((p, q) => ys[p] - ys[q]), [i, j] = order, k = Math.max(0, Math.min(1, (ys[j] - ys[i]) / 14));
+    return { y: ys[i], i, j, wi: 0.5 + k * 0.5, snow: 0.2 + (vnoise(x / 5, 7 + r) - 0.5) * 0.14 };
+  }));
+  for (let X = 0; X < W; X++) {
+    const x = x0 + (X + 0.5) / 2, yEnd = Math.min(Ht, Math.floor(bottom(x) * 2));
+    for (let Y = Math.floor(cols[0][X].y * 2); Y < yEnd; Y++) {
+      const y = (Y + 0.5) / 2;
+      let r = ranges.length - 1;
+      while (r >= 0 && cols[r][X].y > y) r--; // the nearest range that reaches this high
+      if (r < 0) continue;
+      const R = ranges[r], c = cols[r][X], o = (Y * W + X) * 4;
+      let col;
+      if (y - c.y < 0.55 || (X && cols[r][X - 1].y > y) || (X < W - 1 && cols[r][X + 1].y > y)) col = R.lineC;
+      else {
+        const lit = (n) => { const [pkx, top, w] = R.peaks[n], fan = (x - pkx) / Math.max(3, y - top + 3), fold = vnoise(fan * 5, n * 13 + r * 40);
+          return [-Math.max(-1, Math.min(1, (x - pkx) / w)) * 1.35 + (fold - 0.5) * 1.3, fold, (y - top) / (w * 0.8)]; };
+        const A = lit(c.i), B = c.wi < 1 ? lit(c.j) : A, mixw = (p, q) => p * c.wi + q * (1 - c.wi);
+        const light = mixw(A[0], B[0]) + (vnoise(x / 5, y / 3.5 + r * 20) - 0.5) * 0.35 + (vnoise(x / 1.8, y / 1.6 + r * 30) - 0.5) * 0.2;
+        const fold = mixw(A[1], B[1]), down = A[2], d = BAYER[(Y & 1) * 2 + (X & 1)] - 0.375;
+        col = down < c.snow + Math.max(0, light) * 0.18 + (fold < 0.3 ? 0.16 : 0) ? snowC[Math.max(0, Math.min(2, Math.floor(1.1 - light * 1.6 + d)))]
+          : R.tonesC[Math.max(0, Math.min(4, Math.floor(2.5 - light * 1.9 + d * 0.45)))];
+      }
+      data[o] = col[0]; data[o + 1] = col[1]; data[o + 2] = col[2]; data[o + 3] = 255;
+    }
+  }
+  const canvas = Object.assign(document.createElement("canvas"), { width: W, height: Ht }), id = `img${imageCount++}`;
+  canvas.getContext("2d").putImageData(new ImageData(data, W, Ht), 0, 0);
+  document.getElementById("img-defs").insertAdjacentHTML("beforeend", `<image id="${id}" href="${canvas.toDataURL()}" width="${W / 2}" height="${Ht / 2}" style="image-rendering:pixelated"/>`);
+  return imageTag({ id }, x0, 0);
+}
 function backdrop() {
   const L = iso(-0.25, NY), C = iso(-0.25, -0.25);
-  const panel = (id, origin, dir, len, far, near) => `<clipPath id="${id}"><rect x="0" y="-12" width="${len}" height="400"/></clipPath>` +
-    plane(origin, dir, `<g clip-path="url(#${id})">${far.map((m) => mountain(m, MTN[0])).join("")}${near.map((m) => mountain(m, MTN[1])).join("")}</g>`);
   // Firs on the panels in three loose rows along the building's outline (the left panel's outline steps down floor by
   // floor): small ones further up the slope, big ones in front dipping behind the walls; uneven gaps, mixed sizes and
   // greens. Where there's no building (beside the street) the trees stand on open ground, with snowy rocks between.
@@ -926,8 +960,10 @@ function backdrop() {
   plant(L, -0.5, (NY + 0.25) * 16, outlineL, 1);
   plant(C, 0.5, (NX + 0.25) * 16, () => H + WALL + 2, 2);
   props.sort((p, q) => p[1] - q[1]); // the lower a tree stands on the panel, the nearer it is: painted later, in front
-  return panel("bd-l", L, -0.5, (NY + 0.25) * 16, [[20, 150, 110], [110, 200, 120], [200, 185, 100]], [[60, 110, 80], [150, 150, 90], [230, 160, 70]]) +
-    panel("bd-r", C, 0.5, (NX + 0.25) * 16, [[25, 180, 110], [120, 230, 130], [230, 270, 120], [310, 280, 100]], [[70, 200, 80], [175, 225, 95], [280, 250, 80]]) +
+  const R = [C[0] + (NX + 0.25) * 16, C[1] + (NX + 0.25) * 8];
+  // (the mountains are only drawn down to the wall tops: below that the building hides them)
+  const edge = (x) => (x < C[0] ? C[1] + (C[0] - x) * 0.5 : C[1] + (x - C[0]) * 0.5), wallTop = (x) => (x < C[0] ? outlineL(x - L[0]) : H + WALL + 2);
+  return mountains(L[0], R[0], (x) => edge(x) + (wallTop(x) ? 4 - wallTop(x) : 12)) +
     props.map(([x, y, name]) => { const { w, h } = propImage(name); return propImg(name, Math.round(x - w / 2), Math.round(y - h)); }).join("");
 }
 
