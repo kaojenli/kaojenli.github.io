@@ -881,15 +881,15 @@ function rooftop(add) {
 
 // Scenery behind the building, like a Habbo room's backdrop: pixel-art mountains behind its two back edges (x = -0.25
 // and y = -0.25), then snowy firs and rocks along its stepped outline.
-// Mountains: three ranges, far to near, each a row of peaks [x, top, half width] in scene units. A peak is a pointed
+// Mountains: three ranges, far to near, each a few peaks [x, top, half width] in scene units, big and small. A peak is a pointed
 // summit flaring to a broad base, its ridgeline roughened by noise. The rock is lit from the up left: the flank facing
 // left is lighter, ridges and gullies fan out from the summit, and blotchy noise breaks it into crags; the light is
 // cut into five flat tones with a little ordered dither between them, as pixel art is. Snow lies high up on the faces
 // that catch the light and runs down the gullies. A dark line runs along each range's top.
 const RANGES = [
-  { tones: ["#b8c9de", "#a0b4cf", "#889dbe", "#7288ab", "#5f7598"], line: "#52668a", peaks: [[20, 62, 80], [100, 30, 95], [185, 44, 85], [262, 12, 105], [345, 28, 90], [425, 8, 110], [505, 34, 90], [580, 52, 80]] },
-  { tones: ["#94aac9", "#7a93b8", "#627ca4", "#4f688f", "#3f5679"], line: "#2f4263", peaks: [[0, 112, 80], [75, 84, 90], [158, 100, 80], [345, 74, 85], [440, 62, 95], [530, 90, 90], [600, 108, 80]] },
-  { tones: ["#7690b4", "#5b77a0", "#47618a", "#374e73", "#293d5c"], line: "#1c2a43", peaks: [[15, 178, 75], [95, 152, 85], [175, 150, 70], [450, 128, 80], [540, 140, 85]] },
+  { tones: ["#b8c9de", "#a0b4cf", "#889dbe", "#7288ab", "#5f7598"], line: "#52668a", peaks: [[70, 36, 125], [262, 4, 155], [482, 14, 140]] },
+  { tones: ["#94aac9", "#7a93b8", "#627ca4", "#4f688f", "#3f5679"], line: "#2f4263", peaks: [[22, 98, 80], [385, 70, 92], [568, 94, 72]] },
+  { tones: ["#7690b4", "#5b77a0", "#47618a", "#374e73", "#293d5c"], line: "#1c2a43", peaks: [[112, 150, 66], [505, 134, 54]] },
 ];
 const SNOWT = ["#f6fafd", "#dce6f1", "#b9cadd"];
 const ihash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
