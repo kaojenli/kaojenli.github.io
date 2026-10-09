@@ -142,6 +142,7 @@ const project = (p) => `<article class="proj" id="project-${p.slug}">
     <h4>${p.title}</h4>
     <p class="meta">${p.org} · ${p.date}</p>
     <p>${p.bullets[0]}</p>
+    ${typeof TOURS !== "undefined" && TOURS[p.slug] ? `<p><button class="tour-btn" type="button" data-tour="${p.slug}"><span aria-hidden="true">▶</span> 1-minute visual overview</button></p>` : ""}
     ${p.bullets.length > 1 ? `<details><summary>Details</summary>${list(p.bullets.slice(1))}</details>` : ""}
     ${tags(p.tags)}
     ${p.links.length ? `<p class="links">${p.links.map(link).join("")}</p>` : ""}
@@ -192,3 +193,11 @@ $("#rail-right").innerHTML =
 // fonts have loaded (they change the height of the text above).
 const jump = () => document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ behavior: "instant" });
 if (location.hash.length > 1) { jump(); document.fonts.ready.then(jump); }
+
+// ---------- one-minute pixel tours (tours.js): the button on a project, or a click on its room close-up
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".tour-btn, .proj .scene-box");
+  if (!b || typeof TourPlayer === "undefined") return;
+  const slug = b.dataset.tour || b.closest(".proj")?.id.replace("project-", "");
+  if (TOURS[slug]) TourPlayer.open(slug);
+});

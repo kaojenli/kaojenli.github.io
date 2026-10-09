@@ -279,3 +279,49 @@ figure { margin: 12px 0; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- one-minute pixel tours (tours.js): a pixel window over the page */
+.tour-btn { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 2px; padding: 6px 12px; border: 2px solid var(--ink); border-radius: 0; background: var(--surface); color: var(--ink); font: 500 13px var(--mono); cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+.tour-btn span { color: var(--accent); }
+.tour-btn:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--ink); }
+.tour-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+.tour-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.proj:has(.tour-btn) .scene-box { cursor: pointer; }
+.proj:has(.tour-btn) .scene-box:hover img { filter: saturate(1.1) brightness(1.04); }
+
+.pxwin { width: min(860px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; overflow: auto; border: 2px solid #2c313c; border-radius: 10px; background: #101114; color: #e9ecf1; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+.pxwin::backdrop { background: rgba(6, 7, 9, .78); backdrop-filter: blur(3px); }
+.pxwin-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 10px 10px 18px; border-bottom: 1px solid #1f232c; }
+.pxwin-title { color: #8a919c; font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pxwin-x { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0 0 2px; border: 1px solid #2c313c; border-radius: 50%; background: #161920; color: #e9ecf1; font: 400 18px/1 var(--font); cursor: pointer; }
+.pxwin-x:hover { background: #222631; }
+.pxwin-head { padding: 18px 26px 10px; }
+.pxwin-head.in { animation: capIn .45s ease-out; }
+.pxwin-eyebrow { margin: 0 0 4px; color: #e8915f; font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.pxwin-h { margin: 0; color: #f2f2f0; font: 600 24px/1.2 "Pixelify Sans", var(--font); letter-spacing: 0.01em; }
+.pxwin-stage { padding: 0; }
+.pxwin-stage { display: flex; justify-content: center; background: #101114; }
+.pxwin-stage canvas { display: block; flex: none; image-rendering: pixelated; image-rendering: crisp-edges; background: #101114; touch-action: manipulation; }
+.pxwin-sub { display: flex; align-items: center; justify-content: center; min-height: 3.4em; margin: 0; padding: 10px 26px; background: #101114; color: #f2f2f0; font: 400 17px/1.45 var(--font); text-align: center; letter-spacing: .005em; }
+.pxwin-sub.in { animation: capIn .35s ease-out; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@keyframes capIn { from { opacity: 0; transform: translateY(4px); } }
+.pxwin-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid #1f232c; }
+.pxb { min-width: 36px; height: 32px; padding: 0 10px; border: 1px solid #2c313c; border-radius: 8px; background: #161920; color: #e9ecf1; font: 600 12px var(--mono); cursor: pointer; }
+.pxb:hover { background: #222631; }
+.pxb.play { min-width: 44px; background: #f2f2f0; border-color: #f2f2f0; color: #101114; }
+.pxwin-track { position: relative; flex: 1 1 240px; min-width: 180px; height: 32px; border: 1px solid #2c313c; border-radius: 8px; background: #121418; overflow: hidden; }
+.pxwin-bar-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(232, 145, 95, .16); border-right: 2px solid #e8915f; }
+.pxwin-dots { position: absolute; inset: 0; display: flex; }
+.pxwin-dots button { border: 0; border-right: 1px solid #2c313c; background: transparent; color: #8a919c; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.pxwin-dots button:last-child { border-right: 0; }
+.pxwin-dots button.on { color: #fff; }
+.pxwin-link { margin-left: auto; color: #8fb8e6; font: 600 13px var(--mono); }
+.pxwin :focus-visible { outline: 2px solid #e8915f; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .pxwin-sub { font-size: 15px; min-height: 4.4em; padding: 8px 14px; }
+  .pxwin-head { padding: 14px 16px 8px; }
+  .pxwin-h { font-size: 18px; }
+  .pxwin-ctl { padding: 8px 12px 14px; }
+  .pxwin-link { margin-left: 0; flex-basis: 100%; }
+}

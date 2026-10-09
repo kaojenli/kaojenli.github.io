@@ -14,7 +14,7 @@ const fail = (msg) => errors.push(msg);
 // --- cache busting: index.html asks for the stylesheet and scripts with ?v=<hash of their contents>, so a browser never
 // pairs a new page with an old cached stylesheet (Pages lets each file be cached for 10 minutes on its own).
 // `node tools/check.mjs --stamp` writes the current hash in; run it before every commit that touches these files.
-const ASSETS = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "main"].map((f) => `js/${f}.js`)];
+const ASSETS = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "tours", "main"].map((f) => `js/${f}.js`)];
 const ver = createHash("sha1").update(ASSETS.map((f) => readFileSync(f, "utf8")).join("")).digest("hex").slice(0, 8);
 let html = readFileSync("index.html", "utf8");
 if (process.argv.includes("--stamp")) {
