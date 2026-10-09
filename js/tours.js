@@ -147,13 +147,76 @@ function heat(g, x, y, nx, ny, c, fn) { g.rect(x - 1, y - 1, nx * c + 2, ny * c 
 function arrow(g, x0, x1, y, col = SKY.ink, label = "") { g.rect(x0, y, x1 - x0 - 3, 1, col); for (let k = 0; k < 3; k++) g.rect(x1 - 3 + k, y - 2 + k, 1, 5 - 2 * k, col); if (label) g.text(label, (x0 + x1) / 2, y - 7, col, 1, "c"); }
 // the processing chain, drawn along the top of the signal-processing scenes with the current step lit
 const CHAIN = ["I/Q DATA", "IFFT", "CLUTTER", "DAS", "BACKGROUND", "CENTROID"];
-function chain(g, on) {
+const SIGMA_CHAIN = ["CRAWL", "VALIDATE", "AST", "PROMPT", "GENERATE", "EVALUATE"];
+function chain(g, on, list = CHAIN) {
   let x = 34;
-  CHAIN.forEach((lab, i) => {
+  list.forEach((lab, i) => {
     const w = g.textW(lab) + 6, lit = on.includes(i);
     g.rect(x, 3, w, 9, lit ? SKY.accent : CARD); g.text(lab, x + 3, 5, lit ? SKY.bg : SKY.muted);
-    x += w; if (i < CHAIN.length - 1) { g.text(">", x + 2, 5, SKY.trim); x += 8; }
+    x += w; if (i < list.length - 1) { g.text(">", x + 2, 5, SKY.trim); x += 8; }
   });
+}
+// ---------- pieces for the Sigma tour: YAML text, tree nodes, chips, documents
+const STRUCT = new Set(["detection", "selection", "filter", "condition", "logsource", "title", "level", "category"]);
+// one line of YAML: [indent, key, value]; keys blue, |modifiers orange, quoted values green. Returns the pieces drawn,
+// each { x, w, kind: "op" (an operator) | "opnd" (an operand) | "" }, so a scene can mark them.
+function yamlLine(g, x, y, [ind, key, val], fade = 1) {
+  const segs = []; let X = x + ind * 5;
+  const put = (str, col, kind) => { g.alpha(fade, () => g.text(str, X, y, col)); const w = g.textW(str); segs.push({ x: X, w, kind, txt: str }); X += w; };
+  const [base, ...mods] = key.split("|");
+  put(base, SKY.wave, STRUCT.has(base) ? "" : "opnd");
+  mods.forEach((m) => { const x0 = X; g.alpha(fade, () => g.rect(X + 1, y - 0.5, 1, 6.5, SKY.accent)); X += 3; put(m, SKY.accent, "op"); segs[segs.length - 1].x = x0; segs[segs.length - 1].w += 3; });
+  put(":", SKY.muted, ""); X += 3;
+  if (val !== undefined && val !== "") {
+    if (/^'/.test(val)) put(val, SKY.ok, "opnd");
+    else val.split(" ").forEach((w, i) => { if (i) X += g.textW(" "); put(w, /^(and|or|not)$/.test(w) ? SKY.accent : SKY.ink, /^(and|or|not)$/.test(w) ? "op" : ""); });
+  }
+  return segs;
+}
+function yamlBlock(g, x, y, lines, { lh = 7, hi = -1, hiW = 104, upto = 99 } = {}) {
+  const all = [];
+  lines.forEach((l, i) => {
+    if (i >= upto) return;
+    if (i === hi) g.rect(x - 2, y + i * lh - 1, hiW, lh, "rgba(232,145,95,.22)");
+    all.push(...yamlLine(g, x, y + i * lh, l).map((s) => ({ ...s, y: y + i * lh })));
+  });
+  return all;
+}
+// the example rule used through the tour (a real public Sigma rule, slightly shortened)
+const RULE = [[0, "title", "Malleable OneDrive Profile"], [0, "logsource", ""], [1, "category", "proxy"], [0, "detection", ""], [1, "selection", ""],
+  [2, "cs-method", "'GET'"], [2, "c-uri|endswith", "'?manifest=wac'"], [2, "cs-host", "'onedrive.live.com'"], [1, "filter", ""],
+  [2, "c-uri|startswith", "'http'"], [1, "condition", "selection and not filter"], [0, "level", "high"]];
+const DETECT = RULE.slice(3, 11).map(([i, k, v]) => [i - 0, k, v]);
+// a node of a tree: a small plate with a coloured edge (filled when lit); returns its box
+// text where "|" (a Sigma field modifier) is drawn as a thin bar
+const ptextW = (g, str) => str.split("|").reduce((w, p, i) => w + g.textW(p) + (i ? 3 : 0), 0);
+function ptext(g, str, x, y, col) { let X = x; str.split("|").forEach((p, i) => { if (i) { g.rect(X + 1, y - 0.5, 1, 6.5, col); X += 3; } g.text(p, X, y, col); X += g.textW(p); }); }
+function tnode(g, cx, y, label, col, lit = false) {
+  const w = ptextW(g, label) + 6, x = Math.round(cx - w / 2);
+  g.rect(x, y, w, 9, col); g.rect(x + 1, y + 1, w - 2, 7, lit ? col : CARD); ptext(g, label, x + 3, y + 2, lit ? SKY.bg : SKY.ink);
+  return { x, y, w, h: 9 };
+}
+function elbow(g, x0, y0, x1, y1, col = "#3a3f4a") { const ym = Math.round((y0 + y1) / 2); g.rect(x0, y0, 1, ym - y0 + 1, col); g.rect(Math.min(x0, x1), ym, Math.abs(x1 - x0) + 1, 1, col); g.rect(x1, ym, 1, y1 - ym, col); }
+// a model as a chip with pins
+function chip(g, cx, cy, label, col = SKY.accent, w = 34, h = 18) {
+  const x = Math.round(cx - w / 2), y = Math.round(cy - h / 2);
+  for (let i = 0; i < Math.floor((w - 6) / 6); i++) { g.rect(x + 5 + i * 6, y - 2, 2, 2, "#6b717c"); g.rect(x + 5 + i * 6, y + h, 2, 2, "#6b717c"); }
+  g.box(x, y, w, h, "#1b1e24", col); g.text(label, cx, cy - 3, col, 1, "c");
+}
+// a small document (a rule file), with a few lines on it
+function doc(g, x, y, col = "#e9ecef", line = "#9aa3ad") { g.rect(x, y, 9, 11, OUT); g.rect(x + 1, y + 1, 7, 9, col); g.rect(x + 6, y + 1, 2, 2, "#b9c0c8"); for (let k = 0; k < 3; k++) g.rect(x + 2, y + 4 + k * 2, k === 1 ? 3 : 5, 1, line); }
+// a code repository: a small book with a tab
+function repo(g, x, y) { g.rect(x, y, 14, 11, "#3a3f4a"); g.rect(x + 1, y + 1, 12, 9, "#22262e"); g.rect(x + 3, y + 3, 7, 1, "#8e9198"); g.rect(x + 3, y + 5, 5, 1, "#5d626b"); g.rect(x + 1, y + 1, 1, 9, "#7fb0f0"); }
+// a person at a desk, seen from the side, typing
+function analyst(g, x, y, t) {
+  g.rect(x - 4, y + 10, 12, 3, "#2b2e35"); g.rect(x - 4, y + 2, 3, 9, "#2b2e35"); g.rect(x, y + 13, 2, 10, "#2b2e35"); // chair
+  g.rect(x - 1, y + 1, 8, 11, "#4a6fa5"); g.rect(x - 1, y + 1, 8, 1, "#6b8fc4"); // body
+  g.disc(x + 3, y - 4, 4, 4, "#f1c7a3"); g.rect(x - 1, y - 9, 8, 4, "#3b2a20"); g.rect(x - 1, y - 6, 2, 4, "#3b2a20"); // head, hair
+  const k = tick(t, 6) % 0.4 < 0.2 ? 0 : 1; g.rect(x + 6, y + 5 + k, 8, 2, "#4a6fa5"); g.rect(x + 13, y + 5 + k, 2, 2, "#f1c7a3"); // arm, typing
+  g.rect(x + 2, y + 12, 12, 3, "#3a4250"); g.rect(x + 12, y + 14, 2, 9, "#3a4250"); // legs
+  g.rect(x + 10, y + 7, 30, 2, "#8a5a36"); g.rect(x + 36, y + 9, 2, 14, "#6e4631"); // desk
+  g.box(x + 22, y - 12, 18, 13, "#0b0c0f", "#3a3f4a"); g.rect(x + 30, y + 1, 2, 6, "#3a3f4a"); // screen
+  for (let i = 0; i < 4; i++) g.rect(x + 25, y - 9 + i * 2, 4 + ((i * 5 + Math.floor(t * 3)) % 9), 1, i === 3 ? SKY.accent : "#5d8f6a");
 }
 // ---------- the tours
 const TOURS = {
@@ -473,6 +536,238 @@ const TOURS = {
         } },
     ],
   },
+  sigma: {
+    title: "Automatic Sigma rule generation · overview",
+    chapters: ["Motivation", "Method", "Evaluation"],
+    scenes: [
+      { ch: 0, title: "Introduction", dur: 6, cap: "Research project: generating Sigma detection rules automatically with language and vision models, Applied Machine Learning Research, Texas A&M (2025 to 2026).",
+        subs: [[0.3, "Automatic Sigma rule generation with language and vision models"], [3, "Applied Machine Learning Research, Texas A&M, 2025–2026"]],
+        draw(g, t) {
+          room(g);
+          const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
+          let [a, d] = up(0.1); g.alpha(a, () => g.text("Sigma rule", 153, 18 + d, SKY.ink, 2, "c"));
+          [a, d] = up(0.4); g.alpha(a, () => g.text("generation", 153, 33 + d, SKY.accent, 2, "c"));
+          [a, d] = up(1.0); g.alpha(a, () => g.text("WITH LANGUAGE AND VISION MODELS", 153, 55 + d, SKY.ink, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("APPLIED ML RESEARCH, TEXAS A&M, 2025-2026", 153, 65 + d, SKY.muted, 1, "c"));
+          // a small terminal writing a rule
+          g.box(104, 80, 98, 44, "#0b0c0f", "#3a3f4a"); g.rect(105, 81, 96, 6, "#1d2027"); [0, 1, 2].forEach((i) => g.rect(108 + i * 5, 83, 3, 2, ["#e06a5f", "#e8c35f", "#6cc49a"][i]));
+          const n = Math.min(5, Math.floor(Math.max(0, t - 1.6) * 2.2));
+          [[0, "title", "Suspicious Download"], [0, "detection", ""], [1, "selection", ""], [2, "Image|endswith", "'\\curl.exe'"], [1, "condition", "selection"]].slice(0, n).forEach((l, i) => yamlLine(g, 109, 90 + i * 6.4, l));
+          if (blinkOn(t, 0.6)) g.rect(109 + (n < 5 ? 0 : 66), 90 + Math.min(n, 4) * 6.4, 3, 5, SKY.ink);
+        } },
+      { ch: 0, title: "Detection rules are written by hand", dur: 8, cap: "Security teams learn about new attack techniques every day, and each one needs a detection rule that a security analyst writes and tests by hand. Reports arrive faster than rules can be written.",
+        subs: [[0.3, "New attack techniques are reported every day"], [2.8, "Each one needs a detection rule, written by an analyst"], [5.4, "Slow, expert work: reports pile up faster than rules"]],
+        draw(g, t) {
+          room(g);
+          // the log stream, scrolling, now and then a suspicious line
+          g.box(34, 16, 74, 100, CARD, EDGE, LITE); g.text("LOG STREAM", 71, 20, SKY.muted, 1, "c");
+          const off = Math.floor(t * 8);
+          for (let i = 0; i < 12; i++) { const k = i + off, bad = k % 7 === 3, y = 30 + i * 7; g.rect(38, y, 4, 3, bad ? SKY.bad : "#3a3f4a"); g.rect(45, y, 18 + ((k * 13) % 30), 3, bad ? "#7a3a36" : "#2c3038"); }
+          analyst(g, 130, 82, t); g.text("ANALYST", 152, 108, SKY.muted, 1, "c");
+          // threat reports piling up; rules trickling out
+          const reps = Math.min(14, Math.floor(t * 2.2));
+          g.text("NEW THREAT REPORTS", 236, 16, SKY.ink, 1, "c");
+          for (let i = 0; i < reps; i++) { const x = 212 + (i % 2) * 22 + ((i * 7) % 5), y = 92 - Math.floor(i / 2) * 9; g.rect(x, y, 20, 8, OUT); g.rect(x + 1, y + 1, 18, 6, "#e9ecef"); g.rect(x + 3, y + 3, 10, 1, SKY.bad); }
+          g.rect(206, 101, 54, 2, "#3a3f4a");
+          const rules = t > 3 ? 1 : 0, prog = Math.min(1, Math.max(0, (t - 3) / 5));
+          g.text("RULES WRITTEN", 236, 110, SKY.ink, 1, "c"); g.rect(212, 119, 48, 4, "#2c3038"); g.rect(212, 119, Math.round(48 * prog), 4, SKY.ok);
+          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => g.tag(`${reps} REPORTS : ${rules} RULE`, 152, 123, SKY.bad, "#fff", "c"));
+        } },
+      { ch: 0, title: "What is a Sigma rule?", dur: 9, cap: "Sigma is an open, YAML-based format for detection rules. A rule names the log source to look at and the pattern to match (selections combined by a condition), and converts into queries for many security tools.",
+        subs: [[0.3, "Sigma: an open, YAML-based format for detection rules"], [3.2, "It says where to look and what pattern to match"], [6.2, "One rule converts into queries for many security tools"]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 14, 124, 92, CARD, EDGE, LITE);
+          const hi = t < 3.2 ? -1 : t < 4.6 ? 1 : t < 6.2 ? 3 : -1;
+          yamlBlock(g, 37, 19, RULE, { lh: 7, upto: Math.floor(t * 6) + 1 });
+          // brackets: what, where, how
+          const br = (y0, y1, lab, t0) => { if (t < t0) return; g.alpha(ease((t - t0) / 0.4), () => { g.rect(158, y0, 2, 1, SKY.accent); g.rect(160, y0, 1, y1 - y0, SKY.accent); g.rect(158, y1, 2, 1, SKY.accent); g.text(lab, 164, Math.round((y0 + y1) / 2) - 3, SKY.accent); }); };
+          br(19, 24, "WHAT IT DETECTS", 2.2); br(26, 38, "WHERE: LOG SOURCE", 3.2); br(40, 94, "HOW: PATTERN + CONDITION", 4.6);
+          if (t > 6.2) g.alpha(ease((t - 6.2) / 0.5), () => {
+            g.text("CONVERTS TO", 164, 84, SKY.muted);
+            ["SIEM QUERY", "EDR QUERY", "LOG SEARCH"].forEach((l, i) => { const y = 94 + i * 11; g.rect(164, y + 4, 8, 1, "#5d626b"); g.tag(l, 176, y, "#2c313c", SKY.ink); });
+          });
+        } },
+      { ch: 0, title: "Goal: from a description to a rule", dur: 8, cap: "The goal: describe the threat in plain language and have a model write the Sigma rule. A rule that looks right can still fail to parse, use the wrong field, or encode the wrong logic.",
+        subs: [[0.3, "Goal: describe the threat in plain language"], [2.6, "and let a language model write the Sigma rule"], [5.2, "But a rule can look right and still be wrong"]],
+        draw(g, t) {
+          room(g);
+          // the description
+          g.box(30, 22, 64, 58, "#e9ecef", OUT);
+          ["Detect proxy", "traffic to the", "OneDrive manifest", "URL, but skip", "ordinary web", "requests."].forEach((l, i) => g.alpha(ease((t - 0.3 - i * 0.22) / 0.3), () => g.text(l, 34, 27 + i * 8.4, "#2a2f3a")));
+          if (t > 2.4) { arrow(g, 97, 112, 51, SKY.muted); chip(g, 129, 51, "LLM", SKY.accent, 30); arrow(g, 147, 161, 51, SKY.muted); }
+          if (t > 2.8) { g.box(163, 16, 116, 66, CARD, EDGE, LITE); yamlBlock(g, 167, 21, DETECT, { lh: 7.6, upto: Math.floor((t - 2.8) * 4) }); }
+          if (t > 5.2) g.alpha(ease((t - 5.2) / 0.5), () => {
+            ["PARSES?", "RIGHT FIELDS?", "RIGHT LOGIC?"].forEach((q, i) => g.tag(q, 120 + i * 52, 104, "#2c313c", SKY.ink, "c"));
+            g.text("LOOKING RIGHT IS NOT BEING RIGHT", 172, 120, SKY.bad, 1, "c");
+          });
+        } },
+      { ch: 1, title: "Building the dataset", dur: 9, cap: "Dataset: public Sigma rules were crawled from GitHub (6,815 files), then validated: valid YAML, the required fields, a usable detection block, no duplicates. Files that only looked like Sigma rules (app configs, playbooks) were removed.",
+        subs: [[0.3, "Public Sigma rules crawled from GitHub: 6,815 files"], [3.2, "Each one checked: valid YAML, required fields, detection logic"], [6.2, "Duplicates and look-alikes (configs, playbooks) removed"]],
+        draw(g, t) {
+          room(g); chain(g, t < 3.2 ? [0] : [0, 1], SIGMA_CHAIN);
+          for (let i = 0; i < 12; i++) repo(g, 36 + (i % 3) * 20, 26 + Math.floor(i / 3) * 18);
+          g.text("PUBLIC REPOS", 64, 100, SKY.muted, 1, "c");
+          const n = Math.round(6815 * ease(t / 3));
+          g.tag(`${n.toLocaleString("en-US")} RULES COLLECTED`, 64, 108, n >= 6815 ? SKY.accent : CARD, n >= 6815 ? "#fff" : SKY.ink, "c");
+          // files flying into the funnel, a few rejected
+          for (let k = 0; k < 6; k++) {
+            const p = ((t * 0.9 + k / 6) % 1), bad = k === 2 && t > 6.2, sx = 96, sy = 30 + k * 10;
+            if (p < 0.5) doc(g, sx + (150 - sx) * (p / 0.5), sy + (28 - sy) * (p / 0.5), bad ? "#f3c9c4" : "#e9ecef");
+            else if (bad) doc(g, 172 + (p - 0.5) * 30, 58 + (p - 0.5) * 80, "#f3c9c4", SKY.bad);
+            else if (t > 3.2) doc(g, 146, 46 + (p - 0.5) * 80, "#e9ecef");
+          }
+          for (let y = 0; y < 30; y++) { const w = Math.round(26 - y * 0.6); g.rect(150 - w, 40 + y, 2 * w + 8, 1, y === 0 ? SKY.ink : "rgba(127,176,240,.18)"); g.px(150 - w, 40 + y, SKY.wave); g.px(157 + w, 40 + y, SKY.wave); }
+          cylinder(g, 152, 98, 16, 4, 14, ["#2e6b4a", "#3a8a5e", "#33794f", "#285f41"], "#5fc08a");
+          g.text("CLEAN DATASET", 152, 122, SKY.ok, 1, "c");
+          [["VALID YAML", 3.4], ["REQUIRED FIELDS", 4.0], ["DETECTION LOGIC", 4.6], ["NO DUPLICATES", 5.4], ["LOOK-ALIKE FILES", 6.2]].forEach(([l, t0], i) => {
+            if (t < t0) return; const y = 30 + i * 13, bad = i === 4;
+            g.alpha(ease((t - t0) / 0.4), () => { g.tag(bad ? "×" : "✓", 192, y - 2, bad ? SKY.bad : SKY.ok, "#fff"); g.text(l, 207, y, bad ? SKY.bad : SKY.ink); });
+          });
+        } },
+      { ch: 1, title: "From rule to syntax tree", dur: 11, interactive: true, cap: "Each rule is parsed into an abstract syntax tree (AST): keys, fields, values and the logic of the condition become nodes. The tree converts back to YAML without loss, so it can stand in for the rule. Click a node to find its line.",
+        subs: [[0.2, "Each rule is parsed into an abstract syntax tree (AST)"], [3.4, "Keys, fields and the condition's logic become nodes"], [6.4, "The tree converts back to YAML, so nothing is lost"], [8.6, "Try it: click a node to find its line"]],
+        draw(g, t, s) {
+          room(g); chain(g, [2], SIGMA_CHAIN);
+          // the tree: [id, label, cx, row, parent, kind, yaml line]
+          const N = [["det", "detection", 156, 0, null, "k", 0], ["sel", "selection", 93, 1, "det", "k", 1], ["fil", "filter", 189, 1, "det", "k", 5], ["con", "condition", 238, 1, "det", "k", 7],
+            ["f1", "cs-method", 45, 2, "sel", "f", 2], ["f2", "c-uri|endswith", 93, 2, "sel", "f", 3], ["f3", "cs-host", 140, 2, "sel", "f", 4], ["f4", "c-uri|startswith", 189, 2, "fil", "f", 6],
+            ["and", "AND", 238, 2, "con", "l", 7], ["r1", "selection", 216, 3, "and", "r", 7], ["not", "NOT", 256, 3, "and", "l", 7], ["r2", "filter", 256, 4, "not", "r", 7]];
+          const ROW = [76, 90, 104, 118, 131], COL = { k: SKY.wave, f: "#c9ccd2", l: SKY.accent, r: "#5d626b" };
+          const shown = (row) => t > 0.6 + row * 0.7;
+          const auto = N[Math.floor(Math.max(0, t - 3.4) / 0.6) % N.length], pick = s.pick ? N.find((n) => n[0] === s.pick) : t > 3.4 ? auto : null;
+          yamlBlock(g, 36, 18, DETECT, { lh: 6.8, hi: pick ? pick[6] : -1, hiW: 112 });
+          s.hits = [];
+          N.forEach((n) => { if (!shown(n[3]) || !n[4]) return; const p = N.find((m) => m[0] === n[4]); elbow(g, p[2], ROW[p[3]] + 9, n[2], ROW[n[3]]); });
+          N.forEach((n) => { if (!shown(n[3])) return; const b = tnode(g, n[2], ROW[n[3]], n[1], COL[n[5]], pick && pick[0] === n[0]); s.hits.push([n[0], b]); if (n[5] === "f") g.rect(n[2] - 1, ROW[n[3]] + 10, 3, 2, SKY.ok); });
+          // legend and the round trip
+          g.box(156, 16, 120, 50, CARD, EDGE, LITE);
+          [["KEY", SKY.wave], ["FIELD (+ VALUE)", "#c9ccd2"], ["LOGIC", SKY.accent], ["REFERENCE", "#5d626b"]].forEach(([l, c], i) => { g.rect(161, 21 + i * 8, 5, 5, c); g.text(l, 170, 21 + i * 8, SKY.ink); });
+          if (t > 6.4) g.alpha(ease((t - 6.4) / 0.5), () => g.text("AST > YAML: ROUND TRIP ✓", 216, 56, SKY.ok, 1, "c"));
+          if (t > 8.6 && !s.pick && blinkOn(t, 1)) g.text("CLICK A NODE", 156, 68, SKY.ink, 1, "c");
+        },
+        click(s, x, y) { const h = (s.hits || []).find(([, b]) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h); if (h) s.pick = h[0]; } },
+      { ch: 1, title: "From syntax tree to prompt", dur: 9, cap: "A prompt generator walks the tree and writes a plain-language description of the rule: fields and modifiers become words, the condition becomes AND / OR / NOT. Each rule then has a matching prompt and AST, for training and testing.",
+        subs: [[0.3, "The tree is walked to write a plain-language prompt"], [3.4, "Fields and modifiers become words: |endswith becomes \"ends with\""], [6.2, "Result: matched prompt, AST and rule for every example"]],
+        draw(g, t) {
+          room(g); chain(g, [3], SIGMA_CHAIN);
+          // a small tree on the left
+          const T = [[60, 22], [44, 40], [76, 40], [36, 58], [52, 58], [76, 58]]; [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5]].forEach(([a, b]) => elbow(g, T[a][0], T[a][1] + 6, T[b][0], T[b][1]));
+          T.forEach(([x, y], i) => { g.rect(x - 6, y, 12, 6, i === 0 ? SKY.wave : i < 3 ? SKY.wave : "#c9ccd2"); g.rect(x - 5, y + 1, 10, 4, CARD); });
+          g.text("AST", 60, 70, SKY.muted, 1, "c");
+          arrow(g, 92, 116, 42, SKY.accent, "PROMPTGEN");
+          // the prompt being written
+          g.box(120, 16, 156, 66, "#e9ecef", OUT);
+          const P = ["Rule: Malleable OneDrive Profile.", "Log source: category 'proxy'.", "Detection: method is 'GET' AND URI", "ends with '?manifest=wac' AND host is", "'onedrive.live.com', AND NOT URI", "starts with 'http'. Severity: high."];
+          P.forEach((l, i) => { const t0 = 0.5 + i * 0.45; if (t > t0) g.text(l.slice(0, Math.floor((t - t0) * 60)), 125, 21 + i * 9.6, "#2a2f3a"); });
+          if (t > 3.4) g.alpha(ease((t - 3.4) / 0.4), () => {
+            g.box(34, 84, 116, 26, CARD, EDGE, LITE);
+            [["c-uri|endswith", "URI ENDS WITH"], ["cs-method", "METHOD"]].forEach(([a, b], i) => { yamlLine(g, 38, 89 + i * 10, [0, a, ""]); g.text("> " + b, 104, 89 + i * 10, SKY.ink); });
+          });
+          if (t > 6.2) g.alpha(ease((t - 6.2) / 0.5), () => {
+            [["PROMPT", "#e9ecef"], ["AST", SKY.wave], ["RULE", SKY.ok]].forEach(([l, c], i) => { g.tag(l, 172 + i * 36, 96, c, SKY.bg, "c"); });
+            g.text("ONE TRAINING EXAMPLE", 208, 110, SKY.muted, 1, "c");
+          });
+        } },
+      { ch: 1, title: "Five ways to generate a rule", dur: 12, cap: "Five settings are compared: zero-shot (the prompt only), few-shot (with example pairs), fine-tuning on the prompt–rule pairs, AST-guided generation (the model also sees the rule's structure) and retrieval-augmented generation (templates and field mappings retrieved from a rule base), on open 7–8B instruction models.",
+        subs: [[0.2, "Zero-shot and few-shot: prompting only"], [3.0, "Fine-tuning on the prompt–rule pairs"], [5.0, "AST-guided: the model also sees the rule's structure"], [7.2, "RAG: retrieved templates and field mappings"], [9.4, "Compared across open 7–8B instruction models"]],
+        draw(g, t) {
+          room(g); chain(g, [4], SIGMA_CHAIN);
+          const E = [["EXP0", "ZERO-SHOT", "PROMPT ONLY", 0.3], ["EXP1", "FEW-SHOT", "+ EXAMPLE PAIRS", 1.6], ["EXP2", "FINE-TUNING", "TRAINED ON PAIRS", 3.0], ["EXP3", "AST-GUIDED", "+ RULE STRUCTURE", 5.0], ["EXP4", "RAG", "+ RETRIEVED TEMPLATES", 7.2]];
+          E.forEach(([id, name, desc, t0], i) => {
+            if (t < t0) return; const y = 20 + i * 20, on = (i === 0 && t < 3) || (i === 1 && t >= 1.6 && t < 3) || (i === 2 && t >= 3 && t < 5) || (i === 3 && t >= 5 && t < 7.2) || (i === 4 && t >= 7.2 && t < 9.4);
+            g.alpha(ease((t - t0) / 0.4), () => {
+              g.box(32, y - 2, 174, 18, on ? "#24262c" : CARD, on ? SKY.accent : EDGE);
+              g.text(id, 37, y + 4, SKY.accent); g.text(name, 60, y + 1, SKY.ink); g.text(desc, 60, y + 8, SKY.muted);
+              // what goes in: the prompt card, and the extra input
+              const ix = 150; g.rect(ix, y + 1, 9, 11, "#e9ecef"); g.rect(ix + 2, y + 4, 5, 1, "#2a2f3a"); g.rect(ix + 2, y + 7, 4, 1, "#2a2f3a");
+              if (i === 1) [0, 1].forEach((k) => { g.rect(ix + 13 + k * 12, y + 1, 9, 11, "#cfd5dc"); g.rect(ix + 15 + k * 12, y + 4, 5, 1, SKY.ok); });
+              if (i === 2) { g.rect(ix + 14, y + 2, 20, 10, "#2c313c"); g.text("TRAIN", ix + 24, y + 4, SKY.ink, 1, "c"); }
+              if (i === 3) { [[ix + 20, y + 1], [ix + 15, y + 8], [ix + 25, y + 8]].forEach(([x, yy], k) => { g.rect(x - 2, yy, 5, 4, k ? "#c9ccd2" : SKY.wave); if (k) g.rect(ix + 20, y + 5, 1, 3, "#5d626b"); }); g.rect(ix + 15, y + 6, 11, 1, "#5d626b"); }
+              if (i === 4) { cylinder(g, ix + 22, y + 2, 6, 2, 7, ["#3a5f8f", "#4a78b0", "#3f6a9e", "#345683"], "#7fb0f0", { outline: null }); }
+            });
+          });
+          if (t > 9.4) g.alpha(ease((t - 9.4) / 0.5), () => {
+            g.box(212, 18, 64, 62, CARD, EDGE, LITE); g.text("BASE MODELS", 244, 22, SKY.muted, 1, "c");
+            ["LLAMA 3.1 8B", "GEMMA 7B", "QWEN2.5 7B", "MISTRAL 7B", "FALCON 7B"].forEach((m, i) => g.text(m, 244, 33 + i * 9, SKY.ink, 1, "c"));
+          });
+        } },
+      { ch: 1, title: "Adding vision: the tree as a picture", dur: 8, cap: "Beyond text, the rule's structure can be given as a picture: the AST is drawn as a diagram and a vision-language model reads it together with the prompt, so the structure is shown, not only described.",
+        subs: [[0.3, "The syntax tree can also be drawn as a diagram"], [3, "A vision-language model reads it with the prompt"], [5.4, "The structure is shown, not only described"]],
+        draw(g, t) {
+          room(g); chain(g, [4], SIGMA_CHAIN);
+          // the prompt and the diagram
+          g.box(30, 18, 64, 40, "#e9ecef", OUT); g.text("PROMPT", 34, 22, "#5d626b"); for (let i = 0; i < 4; i++) g.rect(34, 32 + i * 6, [52, 44, 54, 28][i], 2, "#9aa3ad");
+          if (t > 0.3) g.alpha(ease((t - 0.3) / 0.5), () => {
+            g.rect(30, 64, 64, 54, "#f6f2e6"); g.rect(30, 64, 64, 1, OUT); g.rect(30, 117, 64, 1, OUT); g.rect(30, 64, 1, 54, OUT); g.rect(93, 64, 1, 54, OUT);
+            g.text("AST DIAGRAM", 34, 68, "#5d626b");
+            const T = [[62, 78, SKY.wave], [44, 92, SKY.wave], [62, 92, SKY.wave], [80, 92, SKY.accent], [37, 106, "#9aa3ad"], [51, 106, "#9aa3ad"], [62, 106, "#9aa3ad"], [80, 106, SKY.accent]];
+            [[0, 1], [0, 2], [0, 3], [1, 4], [1, 5], [2, 6], [3, 7]].forEach(([a, b]) => g.line(T[a][0], T[a][1] + 5, T[b][0], T[b][1], "#7d8590"));
+            T.forEach(([x, y, c]) => { g.rect(x - 5, y, 10, 6, OUT); g.rect(x - 4, y + 1, 8, 4, c); });
+          });
+          if (t > 2.6) { g.line(96, 38, 108, 60, SKY.muted); g.line(96, 90, 108, 68, SKY.muted); arrow(g, 108, 114, 64, SKY.muted); }
+          if (t > 3) {
+            chip(g, 130, 64, "", SKY.wave, 30, 22);
+            g.ring(130, 64, 7, SKY.wave, 0, Math.PI * 2, 4); g.disc(130, 64, 2, 2, blinkOn(t, 1.2) ? SKY.wave : "#3a5f8f");
+            g.text("VLM", 130, 80, SKY.wave, 1, "c");
+            arrow(g, 147, 161, 64, SKY.muted);
+            g.box(163, 30, 116, 66, CARD, EDGE, LITE); yamlBlock(g, 167, 35, DETECT, { lh: 7.6, upto: Math.floor((t - 3.2) * 4) });
+          }
+          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => g.text("TEXT + IMAGE IN, RULE OUT", 221, 106, SKY.accent, 1, "c"));
+        } },
+      { ch: 2, title: "Check 1: does the rule hold together?", dur: 9, cap: "Every generated rule goes through a validator: does the YAML parse, are the required fields present, does the condition only use selections that exist, and does it survive the round trip through the AST?",
+        subs: [[0.3, "Every generated rule goes through a validator"], [3.2, "Syntax: does the YAML parse, are the required fields there?"], [6, "Logic: does the condition use only selections that exist?"]],
+        draw(g, t) {
+          room(g); chain(g, [5], SIGMA_CHAIN);
+          // the result list
+          g.box(32, 18, 244, 62, CARD, EDGE, LITE);
+          const R = [["RULE A", true, "PARSES, FIELDS PRESENT, ROUND TRIP OK", 0.3], ["RULE B", false, "YAML DOES NOT PARSE (BAD INDENTATION)", 3.2], ["RULE C", false, "CONDITION USES 'filter', WHICH IS NOT DEFINED", 6]];
+          R.forEach(([n, ok, msg, t0], i) => { if (t < t0 + 1.6) return; const y = 26 + i * 16; g.alpha(ease((t - t0 - 1.6) / 0.3), () => { g.tag(ok ? "✓" : "×", 38, y - 2, ok ? SKY.ok : SKY.bad, "#fff"); g.text(n, 52, y, SKY.ink); g.text(msg, 84, y, ok ? SKY.ok : SKY.bad); }); });
+          // the conveyor belt and the validator
+          g.rect(32, 116, 120, 4, "#2c313c"); for (let x = 0; x < 120; x += 8) g.rect(32 + ((x + Math.floor(t * 20)) % 120), 117, 3, 2, "#4a4f59");
+          g.box(152, 92, 50, 30, "#1b1e24", SKY.accent); g.text("VALIDATOR", 177, 103, SKY.accent, 1, "c");
+          R.forEach(([, ok, , t0], i) => { const p = (t - t0) / 1.6; if (p < 0 || p > 1.6) return; if (p < 1) doc(g, 40 + p * 106, 104, "#e9ecef"); else doc(g, 208 + (p - 1) * 60, 104, ok ? "#d4f0e0" : "#f3c9c4", ok ? SKY.ok : SKY.bad); });
+          g.rect(202, 116, 74, 4, "#2c313c");
+        } },
+      { ch: 2, title: "Check 2: how complex is the rule?", dur: 10, cap: "Structural complexity is compared with human-written rules. Halstead metrics count operators (AND, OR, NOT, field modifiers) and operands (fields and values) to give volume, difficulty and effort; cyclomatic complexity counts the independent paths through the condition.",
+        subs: [[0.3, "Structure: is the rule as complex as a human-written one?"], [3.2, "Halstead: count operators and operands"], [6.4, "Cyclomatic: count the paths through the condition"]],
+        draw(g, t) {
+          room(g); chain(g, [5], SIGMA_CHAIN);
+          g.box(32, 16, 114, 64, CARD, EDGE, LITE);
+          const segs = yamlBlock(g, 36, 21, DETECT, { lh: 7 });
+          const ops = segs.filter((s) => s.kind === "op"), opn = segs.filter((s) => s.kind === "opnd");
+          if (t > 3.2) ops.forEach((s) => g.rect(s.x, s.y + 6, s.w, 1, SKY.accent));
+          if (t > 4.2) opn.forEach((s) => g.rect(s.x, s.y + 6, s.w, 1, SKY.wave));
+          // Halstead tallies for this block
+          if (t > 3.2) g.alpha(ease((t - 3.2) / 0.4), () => {
+            g.box(32, 84, 114, 42, CARD, EDGE, LITE); g.text("HALSTEAD (DETECTION BLOCK)", 36, 88, SKY.muted);
+            g.text(`OPERATORS  ${ops.length}`, 36, 98, SKY.accent); if (t > 4.2) g.text(`OPERANDS  ${opn.length}`, 90, 98, SKY.wave);
+            if (t > 5.2) { g.text("VOLUME V = N × LOG2 n", 36, 108, SKY.ink); g.text("(N: ALL TOKENS, n: DISTINCT)", 36, 116, SKY.muted); }
+          });
+          // cyclomatic: the condition as a flow graph
+          if (t > 6.4) g.alpha(ease((t - 6.4) / 0.5), () => {
+            g.box(152, 16, 124, 110, CARD, EDGE, LITE); g.text("selection and not filter", 214, 21, SKY.ink, 1, "c");
+            const dia = (cx, cy, lab) => { for (let k = 0; k <= 6; k++) g.rect(cx - k * 2, cy - 6 + k, k * 4 + 1, 1, "#2c3a52"); for (let k = 0; k < 6; k++) g.rect(cx - 10 + k * 2, cy + 1 + k, 21 - k * 4, 1, "#2c3a52"); g.text(lab, cx, cy - 2, SKY.wave, 1, "c"); };
+            g.tag("START", 214, 30, "#2c313c", SKY.ink, "c"); g.rect(214, 39, 1, 5, SKY.muted);
+            dia(214, 51, "SEL?"); g.rect(214, 58, 1, 8, SKY.muted); g.text("YES", 218, 59, SKY.ok);
+            dia(214, 73, "FILTER?"); g.rect(214, 80, 1, 8, SKY.muted); g.text("NO", 218, 81, SKY.ok);
+            g.tag("MATCH", 214, 89, SKY.ok, "#fff", "c");
+            g.rect(226, 51, 22, 1, SKY.muted); g.rect(226, 73, 22, 1, SKY.muted); g.rect(248, 51, 1, 39, SKY.muted); g.text("NO", 232, 45, SKY.bad); g.text("YES", 230, 67, SKY.bad);
+            g.tag("NO MATCH", 248, 92, SKY.bad, "#fff", "c");
+            if (t > 7.6) g.text("2 DECISIONS > M = 2 + 1 = 3 PATHS", 214, 112, SKY.accent, 1, "c");
+          });
+        } },
+      { ch: 2, title: "The pipeline, end to end", dur: 8, cap: "End to end: public rules are crawled and validated, turned into syntax trees and prompts, generated under five settings, and scored for validity and structural complexity, to compare prompt-only and structure-aware models.",
+        subs: [[0.3, "From public rules to scored generations, end to end"], [3.6, "Comparing prompt-only and structure-aware models"]],
+        draw(g, t) {
+          room(g);
+          let x = 36; SIGMA_CHAIN.forEach((lab, i) => { const w = g.textW(lab) + 8, on = t > 0.3 + i * 0.4; g.rect(x, 22, w, 11, on ? SKY.accent : CARD); g.text(lab, x + 4, 25, on ? SKY.bg : SKY.muted); x += w; if (i < 5) { g.text(">", x + 2, 25, SKY.trim); x += 9; } });
+          g.box(52, 46, 202, 62, CARD, EDGE, LITE); g.text("QUESTIONS IT ANSWERS", 153, 52, SKY.accent, 1, "c");
+          ["CAN OPEN LLMS WRITE VALID SIGMA RULES?", "DOES SEEING THE STRUCTURE (AST) HELP?", "HOW CLOSE IS THE COMPLEXITY TO EXPERT RULES?"].forEach((l, i) => { if (t > 2.8 + i * 0.8) { g.text("+", 62, 66 + i * 12, SKY.ok); g.text(l, 70, 66 + i * 12, SKY.ink); } });
+          if (t > 5.6) g.text("APPLIED ML RESEARCH, TEXAS A&M · 2025-2026", 153, 116, SKY.muted, 1, "c");
+        } },
+    ],
+  },
 };
 
 // ---------- the window and its player
@@ -572,7 +867,7 @@ const TourPlayer = (() => {
     dlg.querySelector(".pxwin-title").textContent = tour.title;
     dots.innerHTML = tour.chapters.map((c, k) => `<button type="button" data-ch="${k}" style="flex:${tour.scenes.filter((s) => s.ch === k).reduce((n, s) => n + s.dur, 0)}">${c}</button>`).join("");
     dots.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => go(tour.scenes.findIndex((s) => s.ch === +b.dataset.ch))));
-    linkEl.textContent = tour.link.label + " ↗"; linkEl.href = tour.link.url;
+    linkEl.hidden = !tour.link; if (tour.link) { linkEl.textContent = tour.link.label + " ↗"; linkEl.href = tour.link.url; }
     states = tour.scenes.map(() => ({}));
     dlg.showModal(); fit();
     document.fonts?.ready.then(() => draw());
