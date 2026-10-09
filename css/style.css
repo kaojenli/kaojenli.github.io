@@ -280,7 +280,7 @@ figure { margin: 12px 0; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* ---------- one-minute pixel tours (tours.js): a pixel window over the page */
+/* ---------- short pixel tours (tours.js): a pixel window over the page */
 .tour-btn { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 2px; padding: 6px 12px; border: 2px solid var(--ink); border-radius: 0; background: var(--surface); color: var(--ink); font: 500 13px var(--mono); cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
 .tour-btn span { color: var(--accent); }
 .tour-btn:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--ink); }

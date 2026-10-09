@@ -1,4 +1,4 @@
-// One-minute pixel tours of the projects: a small window opens over the page and plays a short animated story
+// Short pixel tours of the projects: a small window opens over the page and plays a short animated story
 // (why → how → what came out), drawn pixel by pixel on a 256×144 canvas and scaled up crisp; the
 // caption under the picture says what's going on. Space plays/pauses, ← → step between scenes, Esc closes.
 // Each tour is a list of scenes { ch: chapter, dur: seconds, cap: caption, draw(g, t, s) } (g: drawing helpers, t:
@@ -36,14 +36,14 @@ function pxKit(ctx) {
     ring: (cx, cy, r, c, a0 = 0, a1 = Math.PI * 2, ry = r) => { const n = Math.max(12, Math.ceil(r * 6)); for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; g.px(cx + Math.cos(a) * r, cy + Math.sin(a) * ry, c); } },
     line: (x0, y0, x1, y1, c) => { x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1); const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx + dy; for (;;) { g.px(x0, y0, c); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } } },
     // type: drawn as real (vector) text at the canvas' full resolution, so it stays crisp while the art stays pixel.
-    // k = 1: a small label in JetBrains Mono; k > 1: display type in Pixelify Sans (a pixel face, like the titles). align "l" | "c" | "r"
-    font: (k) => (k > 1 ? `600 ${5.6 * k}px "Pixelify Sans", Inter, system-ui, sans-serif` : `500 5.2px "JetBrains Mono", ui-monospace, monospace`),
+    // all type is Pixelify Sans (a pixel face, like the titles). k = 1: a small label; k > 1: display type. align "l" | "c" | "r"
+    font: (k) => (k > 1 ? `600 ${5.6 * k}px "Pixelify Sans", Inter, system-ui, sans-serif` : `500 5.6px "Pixelify Sans", Inter, system-ui, sans-serif`),
     text: (str, x, y, c, k = 1, align = "l") => {
       ctx.save(); ctx.font = g.font(k); ctx.fillStyle = c; ctx.textBaseline = "top"; ctx.textAlign = align === "c" ? "center" : align === "r" ? "right" : "left";
-      if ("letterSpacing" in ctx) ctx.letterSpacing = k > 1 ? "-0.1px" : "0.15px";
+      if ("letterSpacing" in ctx) ctx.letterSpacing = k > 1 ? "-0.1px" : "0.1px";
       ctx.fillText(String(str), x, y - (k > 1 ? 0.6 * k : 0.2)); ctx.restore();
     },
-    textW: (str, k = 1) => { ctx.save(); ctx.font = g.font(k); if ("letterSpacing" in ctx) ctx.letterSpacing = k > 1 ? "-0.1px" : "0.15px"; const w = ctx.measureText(String(str)).width; ctx.restore(); return Math.ceil(w); },
+    textW: (str, k = 1) => { ctx.save(); ctx.font = g.font(k); if ("letterSpacing" in ctx) ctx.letterSpacing = k > 1 ? "-0.1px" : "0.1px"; const w = ctx.measureText(String(str)).width; ctx.restore(); return Math.ceil(w); },
     // a label on a little plate
     tag: (str, x, y, bg, fg = "#fff", align = "l") => { if (bg === SKY.ink) fg = SKY.bg; const w = g.textW(str) + 6, X = Math.round(align === "c" ? x - w / 2 : align === "r" ? x - w : x); g.rect(X, y, w, 9, bg); g.text(str, X + 3, y + 2, fg); },
     img: (im, x, y, flip = false) => { if (!im || !im.complete) return; if (flip) { ctx.save(); ctx.scale(-1, 1); ctx.drawImage(im, -Math.round(x) - im.width, Math.round(y)); ctx.restore(); } else ctx.drawImage(im, Math.round(x), Math.round(y)); },
@@ -297,7 +297,7 @@ const TOURS = {
           }
         } },
       { ch: 1, title: "Signal model: 20 × 20 MIMO", dur: 12, cap: "Signal model: each of the 20 transmitters fires in turn while all 20 receivers listen, giving 20 × 20 = 400 channels. Each channel is a 150-point frequency sweep (I/Q) from 62 to 69 GHz; an inverse FFT turns it into a 512-sample echo in time, where each peak is a reflector at a given distance.",
-        subs: [[0.2, "Each transmitter fires in turn; all 20 receivers listen"], [3.6, "20 × 20 = 400 channels, each a 150-point frequency sweep"], [7.2, "Inverse FFT: each sweep becomes an echo in time"], [9.6, "Each peak is a reflector: time ∝ distance"]],
+        subs: [[0.2, "Each transmitter fires in turn; all 20 receivers listen"], [3.6, "20 × 20 = 400 channels, each a 150-point frequency sweep"], [7.2, "Inverse FFT: each sweep becomes an echo in time"], [9.6, "Each peak is a reflector: later echoes come from deeper"]],
         draw(g, t, s) {
           room(g); chain(g, t < 7 ? [0] : [0, 1]);
           // beat 1: the board from above, one transmitter at a time, its row of the channel matrix filling
@@ -328,7 +328,7 @@ const TOURS = {
               g.box(184, 62, 74, 46, CARD, EDGE); g.text("1 ECHO", 188, 65, SKY.ink); g.text("512 PTS", 254, 65, SKY.muted, 1, "r");
               trace(g, 188, 254, 94, 204, 9, SKY.ink); trace(g, 220, 254, 94, 238, 4, SKY.tumor);
             });
-            if (t > 9.6) g.alpha(ease((t - 9.6) / 0.5), () => { g.text("SURFACE", 204, 74, SKY.ink, 1, "c"); g.text("TUMOR", 238, 81, SKY.tumor, 1, "c"); g.text("TIME ~ DISTANCE", 221, 101, SKY.accent, 1, "c"); });
+            if (t > 9.6) g.alpha(ease((t - 9.6) / 0.5), () => { g.text("SURFACE", 204, 74, SKY.ink, 1, "c"); g.text("TUMOR", 238, 81, SKY.tumor, 1, "c"); g.text("LATER = DEEPER", 221, 101, SKY.accent, 1, "c"); });
           }
         } },
       { ch: 1, title: "Clutter removal: average subtraction", dur: 10, cap: "Clutter removal by average subtraction: antenna coupling and the surface reflection arrive early and look nearly the same in every channel. Their mean over all 400 channels is subtracted from each channel, which removes the shared early response while the tumor response, different in every channel, remains.",
@@ -387,8 +387,8 @@ const TOURS = {
             const y = 34 + k * 12, c = 92 + delays[k] * (1 - align);
             trace(g, 58, 130, y, c, 5, SKY.wave);
           }
-          for (let y = 24; y < 86; y += 3) g.px(92, y, SKY.accent);
-          g.text("COHERENT SUM", 58, 108, SKY.muted);
+          for (let y = 28; y < 84; y += 3) g.px(92, y, SKY.accent);
+          g.text("COHERENT SUM", 97, 88, SKY.muted);
           const amp = 2 + 10 * align;
           trace(g, 58, 130, 102, 92, amp, SKY.accent);
           // the image: a grid of cells, the tumor's cell glowing once the echoes line up
@@ -460,7 +460,7 @@ const TOURS = {
           for (let i = 0; i < 22; i++) { const x = 160 + i * 4, h = 8 + ((i * 7) % 6); g.line(x, 76, x + ((i % 3) - 1) * 2, 76 - h, "#6b5a4a"); }
           if (r < 22) g.ring(203, 30, r + 4, SKY.wave, Math.PI * 0.2, Math.PI * 0.8, (r + 4) * 0.5);
           if (r > 20) [[172, 64], [190, 60], [210, 66], [228, 61], [240, 68]].forEach(([x, y], i) => g.ring(x, y, (r - 20) * 0.5 + (i % 2), "rgba(255,90,90,.8)", i % 2 ? Math.PI : 0, (i % 2 ? Math.PI : 0) + Math.PI * 1.1, (r - 20) * 0.35));
-          g.text("SCATTERING CLUTTER", 203, 86, "#2a2f3a", 1, "c"); g.text("DIFFERS PER CHANNEL", 203, 94, "#2a2f3a", 1, "c"); g.text("NOT REMOVED BY", 203, 104, "#b02a2a", 1, "c"); g.text("AVERAGE SUBTRACTION", 203, 110, "#b02a2a", 1, "c");
+          g.text("SCATTERING CLUTTER", 203, 84, "#2a2f3a", 1, "c"); g.text("DIFFERS PER CHANNEL", 203, 92, "#2a2f3a", 1, "c"); g.text("NOT REMOVED BY", 203, 100, "#b02a2a", 1, "c"); g.text("AVERAGE SUBTRACTION", 203, 107, "#b02a2a", 1, "c");
         } },
       { ch: 2, title: "Key findings and future work", dur: 7, cap: "Future work: improved hardware, reconstruction algorithms beyond delay-and-sum, and anatomical sites without a skin barrier.",
         subs: [[0.3, "A clear resolution–depth trade-off at 62 to 69 GHz"], [3.5, "Next: better hardware, reconstruction beyond delay-and-sum"]],
