@@ -302,7 +302,7 @@ figure { margin: 12px 0; }
 .pxwin-stage { padding: 0; }
 .pxwin-stage { display: flex; justify-content: center; background: #101114; }
 .pxwin-stage canvas { display: block; flex: none; image-rendering: pixelated; image-rendering: crisp-edges; background: #101114; touch-action: manipulation; }
-.pxwin-sub { display: flex; align-items: center; justify-content: center; min-height: 3.4em; margin: 0; padding: 10px 26px; background: #101114; color: #f2f2f0; font: 400 17px/1.45 var(--font); text-align: center; letter-spacing: .005em; }
+.pxwin-sub { display: flex; align-items: flex-start; justify-content: center; min-height: 2.9em; margin: 0; padding: 4px 26px 14px; background: #101114; color: #f2f2f0; font: 400 17px/1.45 var(--font); text-align: center; text-wrap: balance; letter-spacing: .005em; }
 .pxwin-sub.in { animation: capIn .35s ease-out; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @keyframes capIn { from { opacity: 0; transform: translateY(4px); } }
@@ -310,16 +310,19 @@ figure { margin: 12px 0; }
 .pxb { min-width: 36px; height: 32px; padding: 0 10px; border: 1px solid #2c313c; border-radius: 8px; background: #161920; color: #e9ecf1; font: 600 12px var(--mono); cursor: pointer; }
 .pxb:hover { background: #222631; }
 .pxb.play { min-width: 44px; background: #f2f2f0; border-color: #f2f2f0; color: #101114; }
-.pxwin-track { position: relative; flex: 1 1 240px; min-width: 180px; height: 32px; border: 1px solid #2c313c; border-radius: 8px; background: #121418; overflow: hidden; }
+.pxwin-track { position: relative; flex: 1 1 240px; min-width: 180px; height: 32px; border: 1px solid #2c313c; border-radius: 8px; background: #121418; overflow: hidden; cursor: pointer; touch-action: none; user-select: none; }
+.pxwin-track.drag { cursor: grabbing; }
+.pxwin-knob { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #e8915f; box-shadow: 0 0 0 3px rgba(232, 145, 95, .25); pointer-events: none; opacity: 0; transition: opacity .15s; }
+.pxwin-track:hover .pxwin-knob, .pxwin-track.drag .pxwin-knob, .pxwin-track:focus-visible .pxwin-knob { opacity: 1; }
 .pxwin-bar-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(232, 145, 95, .16); border-right: 2px solid #e8915f; }
 .pxwin-dots { position: absolute; inset: 0; display: flex; }
-.pxwin-dots button { border: 0; border-right: 1px solid #2c313c; background: transparent; color: #8a919c; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
-.pxwin-dots button:last-child { border-right: 0; }
-.pxwin-dots button.on { color: #fff; }
+.pxwin-dots span { display: flex; align-items: center; justify-content: center; border-right: 1px solid #2c313c; color: #8a919c; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; pointer-events: none; }
+.pxwin-dots span:last-child { border-right: 0; }
+.pxwin-dots span.on { color: #fff; }
 .pxwin-link { margin-left: auto; color: #8fb8e6; font: 600 13px var(--mono); }
 .pxwin :focus-visible { outline: 2px solid #e8915f; outline-offset: 2px; }
 @media (max-width: 640px) {
-  .pxwin-sub { font-size: 15px; min-height: 4.4em; padding: 8px 14px; }
+  .pxwin-sub { font-size: 15px; min-height: 4.35em; padding: 4px 14px 10px; }
   .pxwin-head { padding: 14px 16px 8px; }
   .pxwin-h { font-size: 18px; }
   .pxwin-ctl { padding: 8px 12px 14px; }

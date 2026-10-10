@@ -64,7 +64,7 @@ let PXK = 1; // canvas pixels per picture pixel (set by the player)
 const CARD = "#17191d", EDGE = "#2a2d34", LITE = "#1f2126"; // panels: a dark card with a faint edge
 function room(g) { // one solid colour, like a keynote slide, and a faint line for things to stand on
   g.ctx.save(); g.ctx.setTransform(PXK, 0, 0, PXK, 0, 0);
-  g.rect(0, 0, 256, 144, SKY.bg); g.rect(0, 128, 256, 1, SKY.stage);
+  g.rect(0, 0, 256, 144, SKY.bg);
   g.ctx.restore();
 }
 // a radar board seen from the front: green, a row of transmit (green) and receive (orange) antennas, a status light
@@ -218,6 +218,83 @@ function analyst(g, x, y, t) {
   g.box(x + 22, y - 12, 18, 13, "#0b0c0f", "#3a3f4a"); g.rect(x + 30, y + 1, 2, 6, "#3a3f4a"); // screen
   for (let i = 0; i < 4; i++) g.rect(x + 25, y - 9 + i * 2, 4 + ((i * 5 + Math.floor(t * 3)) % 9), 1, i === 3 ? SKY.accent : "#5d8f6a");
 }
+// ---------- pieces for the course-project tours
+const rnd = (i) => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+// horizontal bars: rows [label, value (or null), colour]; labels right-aligned before the bar, the value after it
+function hbars(g, x, y, rows, { lw = 80, bw = 120, rh = 11, max = 1, t = 99, t0 = 0, fmt = (v) => v.toFixed(2) } = {}) {
+  rows.forEach(([lab, v, col], i) => {
+    const Y = y + i * rh, p = ease((t - t0 - i * 0.2) / 0.6);
+    g.text(lab, x + lw - 4, Y + 1, SKY.ink, 1, "r"); g.rect(x + lw, Y, bw, 7, "#1c1f25");
+    if (v == null) { g.text("NOT RUN", x + lw + 3, Y + 1, SKY.muted); return; }
+    const w = Math.round(bw * Math.min(1, v / max) * p); g.rect(x + lw, Y, w, 7, col);
+    if (p > 0.95) g.text(fmt(v), x + lw + w + 3, Y + 1, col);
+  });
+}
+// a small instrument board (the Analog Discovery 2)
+function ad2(g, x, y, label) { g.box(x, y, 32, 18, "#1a1d23", "#4a78b0"); for (let i = 0; i < 5; i++) g.rect(x + 4 + i * 5, y + 15, 2, 2, "#c9a64a"); g.text(label, x + 16, y + 5, SKY.wave, 1, "c"); }
+// a C-shaped permanent magnet, a coil in its gap with a sample tube inside
+function magnet(g, x, y) {
+  g.rect(x, y, 8, 40, "#3f4550"); g.rect(x, y, 50, 9, "#5d636e"); g.rect(x, y + 31, 50, 9, "#5d636e"); g.rect(x + 1, y + 1, 48, 1, "#7d8590"); g.rect(x + 1, y + 32, 48, 1, "#7d8590");
+  g.rect(x + 14, y + 9, 30, 3, "#c94a3f"); g.rect(x + 14, y + 28, 30, 3, "#3f6ac9");
+  for (let i = 0; i < 8; i++) g.rect(x + 18 + i * 3, y + 15, 2, 10, i % 2 ? "#b8742f" : "#d99a52");
+  g.rect(x + 16, y + 19, 26, 2, "#9fd0f0");
+}
+// a mammogram (side view): the breast against a black background, denser tissue near the chest wall, a few calcifications
+function mammo(g, x, y, w, h, seed = 1, calc = true) {
+  g.rect(x, y, w, h, "#050506");
+  for (let j = 0; j < h; j++) {
+    const v = (j - h * 0.5) / (h * 0.5), ww = Math.round(w * 0.92 * Math.sqrt(Math.max(0, 1 - v * v)));
+    for (let i = 0; i < ww; i += 1) { const e = i / Math.max(1, ww), d = 0.3 + 0.5 * (1 - e) * (1 - Math.abs(v) * 0.7) + 0.18 * rnd(seed * 997 + Math.floor(i / 2) * 31 + Math.floor(j / 2) * 7); const c = Math.round(235 * Math.min(1, d)); g.rect(x + i, y + j, 1, 1, `rgb(${c},${c},${c - 4})`); }
+  }
+  if (calc) [[0.55, 0.42], [0.6, 0.47], [0.52, 0.5], [0.58, 0.53], [0.63, 0.44]].forEach(([u, v]) => g.rect(x + Math.round(u * w), y + Math.round(v * h), 1, 1, "#ffffff"));
+}
+// a microbe: a rod or a round cell
+function microbe(g, x, y, kind, col) { if (kind) { g.rect(x - 5, y - 2, 11, 5, OUT); g.rect(x - 4, y - 1, 9, 3, col); g.rect(x - 3, y - 1, 3, 1, "rgba(255,255,255,.5)"); } else { g.disc(x, y, 3, 3, OUT); g.disc(x, y, 2, 2, col); g.px(x - 1, y - 1, "rgba(255,255,255,.6)"); } }
+// 2D discrete Fourier transform of a real image (rows × cols), done separably; returns { re, im }
+function dft2(img, R, C, inv = false) {
+  const s = inv ? 1 : -1, re = new Float64Array(R * C), im = new Float64Array(R * C), tr = new Float64Array(R * C), ti = new Float64Array(R * C);
+  const src = img.re ? img : { re: img, im: new Float64Array(R * C) };
+  for (let r = 0; r < R; r++) for (let k = 0; k < C; k++) { let a = 0, b = 0; for (let c = 0; c < C; c++) { const ang = (s * 2 * Math.PI * k * c) / C, xr = src.re[r * C + c], xi = src.im[r * C + c]; a += xr * Math.cos(ang) - xi * Math.sin(ang); b += xr * Math.sin(ang) + xi * Math.cos(ang); } tr[r * C + k] = a; ti[r * C + k] = b; }
+  for (let k = 0; k < C; k++) for (let q = 0; q < R; q++) { let a = 0, b = 0; for (let r = 0; r < R; r++) { const ang = (s * 2 * Math.PI * q * r) / R, xr = tr[r * C + k], xi = ti[r * C + k]; a += xr * Math.cos(ang) - xi * Math.sin(ang); b += xr * Math.sin(ang) + xi * Math.cos(ang); } re[q * C + k] = a; im[q * C + k] = b; }
+  return { re, im };
+}
+// the MRI phantom: two water tubes; images and projections computed once
+const MRI = (() => {
+  const discs = [[-6, -3, 5], [6, 4, 4]], N = 32, R = 32, C = 64, cache = {};
+  const chord = (d, r) => (Math.abs(d) < r ? 2 * Math.sqrt(r * r - d * d) : 0);
+  const proj = (th, s) => discs.reduce((a, [cx, cy, r]) => a + chord(s - (cx * Math.cos(th) + cy * Math.sin(th)), r), 0);
+  // filtered backprojection with n angles over 180°: sinogram and image on an N × N grid
+  function fbp(n) {
+    if (cache[n]) return cache[n];
+    const sino = [], cum = [], img = new Float64Array(N * N), h = (k) => (k === 0 ? 0.25 : k % 2 ? -1 / (Math.PI * Math.PI * k * k) : 0);
+    for (let a = 0; a < n; a++) {
+      const th = (Math.PI * a) / n, p = []; for (let s = 0; s < N; s++) p.push(proj(th, s - N / 2 + 0.5));
+      const f = p.map((_, s) => p.reduce((acc, v, u) => acc + v * h(s - u), 0)); sino.push(p);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const X = x - N / 2 + 0.5, Y = y - N / 2 + 0.5, s = X * Math.cos(th) + Y * Math.sin(th) + N / 2 - 0.5, i = Math.floor(s), u = s - i; if (i >= 0 && i < N - 1) img[y * N + x] += f[i] * (1 - u) + f[i + 1] * u; }
+      cum.push(Float64Array.from(img));
+    }
+    const mx = Math.max(...img), norm = (a) => Array.from(a, (v) => Math.max(0, v / mx));
+    return (cache[n] = { sino, img: norm(img), cum: cum.map(norm), pmax: Math.max(...sino.flat()) });
+  }
+  // phase-encoded acquisition: the object on a 32 × 64 grid, its k-space and the reconstruction (Hamming window, 2D FFT, 20 % threshold)
+  function fourier() {
+    if (cache.k) return cache.k;
+    const obj = new Float64Array(R * C);
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) { const x = (c - C / 2 + 0.5) / 2, y = r - R / 2 + 0.5; obj[r * C + c] = discs.some(([cx, cy, rr]) => (x - cx) ** 2 + (y - cy) ** 2 < rr * rr) ? 1 : 0; }
+    const K = dft2(obj, R, C), mag = [];
+    for (let q = 0; q < R; q++) for (let k = 0; k < C; k++) { const qq = (q + R / 2) % R, kk = (k + C / 2) % C; mag.push(Math.log(1 + Math.hypot(K.re[qq * C + kk], K.im[qq * C + kk]))); }
+    const mm = Math.max(...mag), w = new Float64Array(R * C);
+    for (let q = 0; q < R; q++) for (let k = 0; k < C; k++) { const hq = 0.54 - 0.46 * Math.cos((2 * Math.PI * ((q + R / 2) % R)) / (R - 1)), hk = 0.54 - 0.46 * Math.cos((2 * Math.PI * ((k + C / 2) % C)) / (C - 1)); w[q * C + k] = hq * hk; }
+    const Kw = { re: K.re.map((v, i) => v * w[i]), im: K.im.map((v, i) => v * w[i]) }, I = dft2(Kw, R, C, true), im = [];
+    for (let i = 0; i < R * C; i++) im.push(Math.hypot(I.re[i], I.im[i]));
+    const imx = Math.max(...im);
+    return (cache.k = { k: mag.map((v) => v / mm), img: im.map((v) => v / imx), R, C });
+  }
+  const inside = (i, j) => discs.some(([cx, cy, r]) => (i - N / 2 + 0.5 - cx) ** 2 + (j - N / 2 + 0.5 - cy) ** 2 < r * r);
+  return { fbp, fourier, proj, inside, N };
+})();
+// a grey-level image drawn cell by cell; fn(i) gives 0..1
+function gray(g, x, y, nx, ny, cw, ch, fn, tint = null) { for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const v = Math.max(0, Math.min(1, fn(i, j))), c = Math.round(v * 255); g.rect(x + i * cw, y + j * ch, cw, ch, tint ? tint(v) : `rgb(${c},${c},${c})`); } }
 // ---------- the tours
 const TOURS = {
   mmwave: {
@@ -225,8 +302,8 @@ const TOURS = {
     link: { label: "Read the paper", url: "https://ieeexplore.ieee.org/document/9945009" },
     chapters: ["Motivation", "Method", "Results"],
     scenes: [
-      { ch: 0, title: "Introduction", dur: 6, cap: "M.S. thesis: a preliminary study of breast tumor detection with a multi-channel 62–69 GHz millimeter-wave imaging radar.",
-        subs: [[0.3, "Millimeter-wave imaging for breast tumor detection"], [3, "M.S. thesis, Chang Gung University, 2022"]],
+      { ch: 0, title: "Introduction", dur: 6.5, cap: "M.S. thesis: a preliminary study of breast tumor detection with a multi-channel 62–69 GHz millimeter-wave imaging radar.",
+        subs: [[0.3, "For my master's thesis, I asked a simple question:"], [3.2, "could a millimeter-wave radar find a breast tumor?"]],
         draw(g, t, s, I) {
           room(g);
           const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
@@ -237,10 +314,10 @@ const TOURS = {
           [a, d] = up(1.6); g.alpha(a, () => g.text("M.S. THESIS, CHANG GUNG UNIV., 2022", 153, 80 + d, SKY.muted, 1, "c"));
           radarBoard(g, 129, 106, 48, t); waves(g, 153, 106, tick(t, 8) * 24 % 30 + 4, SKY.wave, true, 2, 10, 14);
         } },
-      { ch: 0, title: "Why another imaging modality?", dur: 9, cap: "Current modalities involve trade-offs: ionizing radiation and compression (mammography), limited resolution (ultrasound), high cost and contrast agents (MRI).",
-        subs: [[0.3, "Mammography: ionizing radiation and breast compression"], [2.0, "Ultrasound: limited resolution"], [3.6, "MRI: high cost, often with a contrast agent"], [6, "A safe, low-cost sensor could complement them"]],
+      { ch: 0, title: "Why another imaging modality?", dur: 11.8, cap: "Current modalities involve trade-offs: ionizing radiation and compression (mammography), limited resolution (ultrasound), high cost and contrast agents (MRI).",
+        subs: [[0.3, "Each way we image the breast today has a catch."], [3.0, "Mammography uses X-rays and compression."], [5.4, "Ultrasound misses fine detail, and MRI is expensive."], [8.4, "I wanted something safe and cheap to sit beside them."]],
         draw(g, t, s, I) {
-          room(g);
+          room(g); g.ctx.translate(0, -6); // (drawn a little higher, so the labels clear the bottom edge)
           const show = (k) => t > 0.4 + k * 1.6, tagAt = (k) => t > 1.2 + k * 1.6;
           // X-ray mammography: a tall unit with an arm and two plates pressing together
           if (show(0)) { g.box(52, 40, 20, 88, "#dfe4e8", "#111", "#fff"); g.box(70, 58, 26, 6, "#c9d0d6"); const sq = tick(t, 4) % 1 < 0.5 ? 0 : 2; g.box(70, 76 - sq, 26, 5, "#c9d0d6"); g.box(70, 86, 26, 5, "#aab3bb"); g.text("MAMMOGRAPHY", 66, 132, SKY.ink, 1, "c"); }
@@ -252,8 +329,8 @@ const TOURS = {
           if (show(2)) { g.disc(212, 84, 30, 30, "#111"); g.disc(212, 84, 29, 29, "#eef1f4"); g.disc(212, 84, 13, 13, "#111"); g.disc(212, 84, 12, 12, "#4a5568"); g.box(176, 94, 72, 6, "#cfd6dc"); g.rect(196, 100, 4, 28, "#9aa6b0"); g.rect(226, 100, 4, 28, "#9aa6b0"); g.text("MRI", 212, 132, SKY.ink, 1, "c"); }
           if (tagAt(2)) g.tag("COST, CONTRAST AGENT", 212, 28, SKY.bad, "#fff", "c");
         } },
-      { ch: 0, title: "Principle: dielectric contrast", dur: 8, cap: "Principle: malignant tissue has a higher water content than adipose tissue, so its dielectric properties differ sharply and it reflects millimeter waves more strongly.",
-        subs: [[0.3, "Tumors hold more water than the surrounding fat"], [3, "so their dielectric properties differ sharply"], [5.5, "and they reflect millimeter waves more strongly"]],
+      { ch: 0, title: "Principle: dielectric contrast", dur: 9.6, cap: "Principle: malignant tissue has a higher water content than adipose tissue, so its dielectric properties differ sharply and it reflects millimeter waves more strongly.",
+        subs: [[0.3, "It comes down to water."], [3, "Tumors hold far more of it than the fat around them,"], [6.0, "so they bounce millimeter waves back much more strongly."]],
         draw(g, t, s, I) {
           room(g);
           // a slice of fatty tissue with a tumor in it
@@ -269,8 +346,8 @@ const TOURS = {
           if (e > 0) waves(g, 176, 90, e, SKY.hot, true, 3, 9, 60);
           g.text("WEAK REFLECTION", 66, 58, "#8a6a2a"); if (e > 10) g.text("STRONG REFLECTION", 160, 92, "#b03030", 1, "r");
         } },
-      { ch: 0, title: "Research gap: above 50 GHz", dur: 8, cap: "Prior radar-based breast imaging systems operated at or below 50 GHz. This work evaluates 62–69 GHz, where resolution improves at the cost of penetration depth.",
-        subs: [[0.3, "Prior radar breast imaging stayed at or below 50 GHz"], [3.6, "This work: 62 to 69 GHz"], [5.5, "Higher frequency: finer resolution, shallower penetration"]],
+      { ch: 0, title: "Research gap: above 50 GHz", dur: 8.6, cap: "Prior radar-based breast imaging systems operated at or below 50 GHz. This work evaluates 62–69 GHz, where resolution improves at the cost of penetration depth.",
+        subs: [[0.3, "Earlier breast radars all stayed at or below 50 GHz."], [3.6, "I went higher, to 62–69 GHz."], [5.5, "The trade-off: sharper images, but less depth."]],
         draw(g, t, s, I) {
           room(g);
           g.box(54, 12, 196, 108, CARD, EDGE, LITE);
@@ -285,8 +362,8 @@ const TOURS = {
           [0, 20, 40, 60].forEach((f) => g.text(String(f), X(f), 108, SKY.muted, 1, "c"));
           g.text("GHz", 246, 108, SKY.muted, 1, "r"); g.text("OPERATING FREQUENCY (GHz)", 60, 14, SKY.muted);
         } },
-      { ch: 1, title: "Tissue-mimicking phantoms", dur: 8, cap: "Tissue-mimicking phantoms. Water sets the high permittivity of water-rich tissue, sunflower oil mimics fat, gelatin forms the solid matrix, and a surfactant emulsifies oil and water. The tumor uses far less oil and twice the gelatin, so its water fraction and permittivity are higher.",
-        subs: [[0.2, "Phantom recipe: water, oil, gelatin, surfactant"], [2.8, "each standing in for a property of breast tissue"], [4.4, "Tumor: less oil, more gelatin, so more water"], [5.8, "Measured permittivity: 14.8 (breast) vs. 40.7 (tumor)"]],
+      { ch: 1, title: "Tissue-mimicking phantoms", dur: 12.3, cap: "Tissue-mimicking phantoms. Water sets the high permittivity of water-rich tissue, sunflower oil mimics fat, gelatin forms the solid matrix, and a surfactant emulsifies oil and water. The tumor uses far less oil and twice the gelatin, so its water fraction and permittivity are higher.",
+        subs: [[0.2, "First, I needed something to scan."], [2.8, "So I mixed phantoms from water, oil, gelatin and soap."], [5.9, "The tumor gets less oil and more gelatin, so more water,"], [9.1, "and it shows: a permittivity of 40.7 versus 14.8."]],
         draw(g, t, s) {
           room(g);
           // a bench with a deep top, so things can stand on it
@@ -319,8 +396,8 @@ const TOURS = {
             if (t > 5.8) g.alpha(ease((t - 5.8) / 0.5), () => { g.text("MEASURED AT 4 GHz: 14.8 / 40.7", 118, 52, SKY.accent); g.text("(BREAST / TUMOR)", 118, 59, SKY.muted); });
           }
         } },
-      { ch: 1, title: "Data acquisition", dur: 7.5, cap: "Data acquisition: a Vayyar IMAGEVK-74 MIMO radar (20 Tx × 20 Rx) in an absorber-lined enclosure records 400 channels × 150 frequency points from 62 to 69 GHz.",
-        subs: [[0.3, "Vayyar IMAGEVK-74: a 20 Tx × 20 Rx MIMO radar"], [2.8, "An absorber-lined enclosure blocks stray reflections"], [5, "400 channels × 150 frequency points, 62 to 69 GHz"]],
+      { ch: 1, title: "Data acquisition", dur: 9.8, cap: "Data acquisition: a Vayyar IMAGEVK-74 MIMO radar (20 Tx × 20 Rx) in an absorber-lined enclosure records 400 channels × 150 frequency points from 62 to 69 GHz.",
+        subs: [[0.3, "The radar is a palm-sized board with 20 × 20 antennas."], [3.4, "It sits in a box lined with absorber to stop stray echoes,"], [6.7, "and records 400 channels, 150 frequencies each."]],
         draw(g, t, s, I) {
           room(g);
           // the box lined with absorbing foam (zigzags)
@@ -335,8 +412,8 @@ const TOURS = {
           g.tag(`CHANNEL ${String(ch).padStart(3, "0")}/400`, 70, 6, CARD, "#39ff88");
           if (t > 5) g.tag("400 CH X 150 FREQ. POINTS", 167, 64, SKY.accent, "#fff", "c");
         } },
-      { ch: 1, title: "Wave propagation in tissue", dur: 9, cap: "Propagation: at the phantom surface part of the wave reflects (the strong early response); the rest is attenuated as it travels through the tissue. At the tumor the dielectric contrast reflects part of it back, attenuated again on the way out. Higher frequencies attenuate faster.",
-        subs: [[0.3, "Part of the wave reflects at the surface"], [3, "the rest is attenuated inside the tissue"], [5.8, "and the tumor's dielectric contrast reflects it back"]],
+      { ch: 1, title: "Wave propagation in tissue", dur: 9.6, cap: "Propagation: at the phantom surface part of the wave reflects (the strong early response); the rest is attenuated as it travels through the tissue. At the tumor the dielectric contrast reflects part of it back, attenuated again on the way out. Higher frequencies attenuate faster.",
+        subs: [[0.3, "When the wave hits the phantom, part of it bounces off the surface."], [4.1, "The rest fades as it travels through the tissue,"], [6.9, "until the tumor sends a small echo back."]],
         draw(g, t, s) {
           room(g);
           // a cross-section: radar in air, then the phantom, the tumor inside
@@ -359,8 +436,8 @@ const TOURS = {
             let py = 112; for (let x = 0; x < 58; x++) { const v = x < 14 ? 112 : Math.round(116 + (1 - Math.exp(-(x - 14) / 16)) * 8); if (x) g.line(189 + x - 1, py, 189 + x, v, SKY.wave); py = v; }
           }
         } },
-      { ch: 1, title: "Signal model: 20 × 20 MIMO", dur: 12, cap: "Signal model: each of the 20 transmitters fires in turn while all 20 receivers listen, giving 20 × 20 = 400 channels. Each channel is a 150-point frequency sweep (I/Q) from 62 to 69 GHz; an inverse FFT turns it into a 512-sample echo in time, where each peak is a reflector at a given distance.",
-        subs: [[0.2, "Each transmitter fires in turn; all 20 receivers listen"], [3.6, "20 × 20 = 400 channels, each a 150-point frequency sweep"], [7.2, "Inverse FFT: each sweep becomes an echo in time"], [9.6, "Each peak is a reflector: later echoes come from deeper"]],
+      { ch: 1, title: "Signal model: 20 × 20 MIMO", dur: 13.5, cap: "Signal model: each of the 20 transmitters fires in turn while all 20 receivers listen, giving 20 × 20 = 400 channels. Each channel is a 150-point frequency sweep (I/Q) from 62 to 69 GHz; an inverse FFT turns it into a 512-sample echo in time, where each peak is a reflector at a given distance.",
+        subs: [[0.2, "Each of the 20 transmitters fires in turn, and all 20 receivers listen."], [4.2, "That gives 400 channels, each a sweep over 150 frequencies."], [7.5, "An inverse FFT turns each sweep into an echo over time,"], [10.7, "and later echoes come from deeper inside."]],
         draw(g, t, s) {
           room(g); chain(g, t < 7 ? [0] : [0, 1]);
           // beat 1: the board from above, one transmitter at a time, its row of the channel matrix filling
@@ -394,8 +471,8 @@ const TOURS = {
             if (t > 9.6) g.alpha(ease((t - 9.6) / 0.5), () => { g.text("SURFACE", 204, 74, SKY.ink, 1, "c"); g.text("TUMOR", 238, 81, SKY.tumor, 1, "c"); g.text("LATER = DEEPER", 221, 101, SKY.accent, 1, "c"); });
           }
         } },
-      { ch: 1, title: "Clutter removal: average subtraction", dur: 10, cap: "Clutter removal by average subtraction: antenna coupling and the surface reflection arrive early and look nearly the same in every channel. Their mean over all 400 channels is subtracted from each channel, which removes the shared early response while the tumor response, different in every channel, remains.",
-        subs: [[0.2, "Every channel starts with a strong early echo"], [2.6, "It is nearly identical across channels: take the mean"], [5.2, "Subtract the mean from each channel"], [7.6, "The early echo is gone; the tumor response remains"]],
+      { ch: 1, title: "Clutter removal: average subtraction", dur: 11.3, cap: "Clutter removal by average subtraction: antenna coupling and the surface reflection arrive early and look nearly the same in every channel. Their mean over all 400 channels is subtracted from each channel, which removes the shared early response while the tumor response, different in every channel, remains.",
+        subs: [[0.2, "Every channel starts with a big, early echo."], [2.8, "It looks almost the same everywhere, so I take the average,"], [6.1, "and subtract it from every channel."], [8.2, "The early echo is gone; the tumor's echo stays."]],
         draw(g, t, s) {
           room(g); chain(g, [2]);
           g.box(34, 16, 222, 104, CARD, EDGE, LITE);
@@ -409,8 +486,8 @@ const TOURS = {
           if (t > 2.6) g.alpha(ease((t - 2.6) / 0.5) * (1 - 0.6 * sub), () => { g.rect(40, 86, 210, 1, EDGE); g.text("MEAN", 64, 94, SKY.accent, 1, "r"); wave(96, 9, 0, SKY.accent); g.text("SHARED BY ALL 400 CHANNELS", 250, 89, SKY.accent, 1, "r"); });
           if (t > 5.2) g.alpha(ease((t - 5.2) / 0.5), () => g.text("SM(N) = XM(N) - MEAN(N)", 160, 110, SKY.ink, 1, "c"));
         } },
-      { ch: 1, title: "Delay-and-sum beamforming", dur: 10, cap: "Delay-and-sum beamforming: for every point in the image, the round-trip distance from each transmitter to that point and back to each receiver gives a delay. Each channel is read at its own delay and all 400 are summed. Repeating this for every point builds the image; only at the tumor do the channels add up in phase.",
-        subs: [[0.2, "For one image point: path from a transmitter to the point, back to a receiver"], [2.8, "That path sets the delay τ for this Tx–Rx pair"], [5, "Read all 400 channels at their delays and sum them"], [6.8, "Repeat for every point: energy builds up only at the tumor"]],
+      { ch: 1, title: "Delay-and-sum beamforming", dur: 13.4, cap: "Delay-and-sum beamforming: for every point in the image, the round-trip distance from each transmitter to that point and back to each receiver gives a delay. Each channel is read at its own delay and all 400 are summed. Repeating this for every point builds the image; only at the tumor do the channels add up in phase.",
+        subs: [[0.2, "To build the image, I pick one point and trace its path."], [3.4, "That path tells me how late its echo should arrive."], [6.3, "I read every channel at its own delay and add them up,"], [9.4, "then repeat for every point. Only at the tumor do they line up."]],
         draw(g, t, s) {
           room(g); chain(g, [3]);
           // cross-section: the radar's antennas along the top, the phantom, the tumor
@@ -438,7 +515,7 @@ const TOURS = {
           g.text("IMAGE", IX + (NX * IC) / 2, IY + NY * IC + 4, SKY.muted, 1, "c");
         } },
       { ch: 1, title: "Delay-and-sum: try it", dur: 10, interactive: true, cap: "Delay-and-sum beamforming: each channel is shifted by its round-trip delay to every image point and the channels are summed; they add coherently only at the target. Click the image to relocate the target.",
-        subs: [[0.2, "At the tumor, the delayed channels line up in phase"], [3.5, "so their sum is large; elsewhere they cancel"], [6.2, "Try it: click the image to move the target"]],
+        subs: [[0.2, "At the tumor, the delayed echoes line up,"], [3.5, "so they add up. Everywhere else, they cancel out."], [6.3, "Click the image to move the tumor and watch it follow."]],
         draw(g, t, s, I) {
           room(g); chain(g, [3]);
           s.tx ??= 9; s.ty ??= 6; s.t0 ??= 0;
@@ -471,8 +548,8 @@ const TOURS = {
           const i = Math.floor((x - h.X0) / h.C), j = Math.floor((y - h.Y0) / h.C);
           if (i >= 0 && j >= 0 && i < h.NX && j < h.NY) { s.tx = i; s.ty = j; s.t0 = t - 3; }
         } },
-      { ch: 1, title: "Background subtraction and localization", dur: 8.5, cap: "Background subtraction and localization: an empty-scene image is subtracted from the target image to remove the enclosure's reflections, values unrelated to the target are set to zero, and the centroid of what remains is compared with the true position (MSE).",
-        subs: [[0.3, "Subtract an empty-scene scan to remove the enclosure"], [3.2, "Threshold everything unrelated to the target"], [4.6, "Its centroid vs. the true position gives the error (MSE)"]],
+      { ch: 1, title: "Background subtraction and localization", dur: 9, cap: "Background subtraction and localization: an empty-scene image is subtracted from the target image to remove the enclosure's reflections, values unrelated to the target are set to zero, and the centroid of what remains is compared with the true position (MSE).",
+        subs: [[0.3, "Next, I subtract a scan of the empty box,"], [3.2, "drop everything that isn't the target,"], [5.5, "and compare its center with where the tumor really was."]],
         draw(g, t, s) {
           room(g); chain(g, t < 4.4 ? [4] : [4, 5]);
           const tgt = (i, j) => 0.12 + 0.75 * Math.exp(-((i - 6) ** 2) / 2 - ((j - 6) ** 2) / 3);
@@ -491,7 +568,7 @@ const TOURS = {
           if (t > 4.4) g.text("CENTROID VS. TRUE POSITION  >  MSE (cm²)", 150, 100, SKY.ink, 1, "c");
         } },
       { ch: 2, title: "Phantom results", dur: 10, cap: "Phantom results: maximum detection depth 2 cm, minimum detectable size 0.6 cm, and correct localization at every position tested. Beneath a skin layer the tumor was not detected, as penetration at these frequencies is limited.",
-        subs: [[0.2, "Detected up to 2 cm deep"], [1.7, "and as small as 0.6 cm"], [3.2, "Localized correctly at every position tested"], [4.7, "Under a skin layer, the tumor was not detected"]],
+        subs: [[0.2, "In the phantoms, it found tumors up to 2 cm deep,"], [3.0, "as small as 0.6 cm,"], [4.3, "and in the right place every time."], [6.3, "But under a layer of skin, the tumor disappeared."]],
         draw(g, t, s, I) {
           room(g);
           const panel = (k, x, y, title, good) => { g.box(x, y, 90, 52, CARD, EDGE, LITE); g.text(title, x + 4, y + 4, SKY.ink); if (t > 0.9 + k * 1.5) g.tag(good ? "✓" : "×", x + 84, y + 2, good ? SKY.ok : SKY.bad, "#fff", "r"); return t > 0.2 + k * 1.5; };
@@ -504,8 +581,8 @@ const TOURS = {
           // under skin: waves bounce off the skin layer, nothing reaches the tumor
           if (panel(3, 152, 70, "WITH SKIN LAYER", false)) { g.rect(162, 92, 76, 26, SKY.fat); g.rect(162, 90, 76, 3, "#e9a3a3"); g.disc(200, 108, 4, 3, SKY.tumor); const r = (tick(t, 8) * 20) % 14; waves(g, 200, 80, r + 2, "#7fd1ff", false, 1, 8, 12); if (r > 8) waves(g, 200, 90, r - 6, SKY.hot, true, 1, 8, 10); }
         } },
-      { ch: 2, title: "Why skin and fur are difficult", dur: 9, cap: "Why skin and fur are difficult: skin's high water content gives a strong surface reflection and absorbs most of the remaining energy within about 1 mm. Fur and an uneven surface scatter the wave into clutter that differs between channels, so average subtraction cannot remove it.",
-        subs: [[0.3, "Skin is water-rich: it reflects strongly"], [2.8, "and absorbs the rest within about 1 mm"], [5.3, "Fur scatters the wave into clutter that varies per channel"]],
+      { ch: 2, title: "Why skin and fur are difficult", dur: 10.6, cap: "Why skin and fur are difficult: skin's high water content gives a strong surface reflection and absorbs most of the remaining energy within about 1 mm. Fur and an uneven surface scatter the wave into clutter that differs between channels, so average subtraction cannot remove it.",
+        subs: [[0.3, "Why? Skin is full of water, so it reflects most of the wave,"], [3.7, "and absorbs the rest within about a millimeter."], [6.4, "Fur scatters it into clutter that changes from channel to channel."]],
         draw(g, t, s) {
           room(g);
           const panel = (x, title) => { g.box(x, 10, 94, 106, CARD, EDGE, LITE); g.text(title, x + 47, 14, SKY.ink, 1, "c"); };
@@ -525,8 +602,8 @@ const TOURS = {
           if (r > 20) [[172, 64], [190, 60], [210, 66], [228, 61], [240, 68]].forEach(([x, y], i) => g.ring(x, y, (r - 20) * 0.5 + (i % 2), "rgba(255,90,90,.8)", i % 2 ? Math.PI : 0, (i % 2 ? Math.PI : 0) + Math.PI * 1.1, (r - 20) * 0.35));
           g.text("SCATTERING CLUTTER", 203, 84, "#2a2f3a", 1, "c"); g.text("DIFFERS PER CHANNEL", 203, 92, "#2a2f3a", 1, "c"); g.text("NOT REMOVED BY", 203, 100, "#b02a2a", 1, "c"); g.text("AVERAGE SUBTRACTION", 203, 107, "#b02a2a", 1, "c");
         } },
-      { ch: 2, title: "Key findings and future work", dur: 7, cap: "Future work: improved hardware, reconstruction algorithms beyond delay-and-sum, and anatomical sites without a skin barrier.",
-        subs: [[0.3, "A clear resolution–depth trade-off at 62 to 69 GHz"], [3.5, "Next: better hardware, reconstruction beyond delay-and-sum"]],
+      { ch: 2, title: "Key findings and future work", dur: 7.3, cap: "Future work: improved hardware, reconstruction algorithms beyond delay-and-sum, and anatomical sites without a skin barrier.",
+        subs: [[0.3, "So at these frequencies, sharper images come at the cost of depth."], [4.0, "Next: better hardware and smarter reconstruction."]],
         draw(g, t, s, I) {
           room(g);
           g.box(60, 16, 186, 82, CARD, EDGE, LITE);
@@ -540,8 +617,8 @@ const TOURS = {
     title: "Automatic Sigma rule generation · overview",
     chapters: ["Motivation", "Method", "Evaluation"],
     scenes: [
-      { ch: 0, title: "Introduction", dur: 6, cap: "Research project: generating Sigma detection rules automatically with language and vision models, Applied Machine Learning Research, Texas A&M (2025 to 2026).",
-        subs: [[0.3, "Automatic Sigma rule generation with language and vision models"], [3, "Applied Machine Learning Research, Texas A&M, 2025–2026"]],
+      { ch: 0, title: "Introduction", dur: 7.6, cap: "Research project: generating Sigma detection rules automatically with language and vision models, Applied Machine Learning Research, Texas A&M (2025 to 2026).",
+        subs: [[0.3, "Can a language model write security detection rules for us?"], [3.7, "That's what we explored at Texas A&M's Applied ML Research lab."]],
         draw(g, t) {
           room(g);
           const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
@@ -555,8 +632,8 @@ const TOURS = {
           [[0, "title", "Suspicious Download"], [0, "detection", ""], [1, "selection", ""], [2, "Image|endswith", "'\\curl.exe'"], [1, "condition", "selection"]].slice(0, n).forEach((l, i) => yamlLine(g, 109, 90 + i * 6.4, l));
           if (blinkOn(t, 0.6)) g.rect(109 + (n < 5 ? 0 : 66), 90 + Math.min(n, 4) * 6.4, 3, 5, SKY.ink);
         } },
-      { ch: 0, title: "Detection rules are written by hand", dur: 8, cap: "Security teams learn about new attack techniques every day, and each one needs a detection rule that a security analyst writes and tests by hand. Reports arrive faster than rules can be written.",
-        subs: [[0.3, "New attack techniques are reported every day"], [2.8, "Each one needs a detection rule, written by an analyst"], [5.4, "Slow, expert work: reports pile up faster than rules"]],
+      { ch: 0, title: "Detection rules are written by hand", dur: 9.6, cap: "Security teams learn about new attack techniques every day, and each one needs a detection rule that a security analyst writes and tests by hand. Reports arrive faster than rules can be written.",
+        subs: [[0.3, "New attack techniques show up every day,"], [2.8, "and each one needs a detection rule written by an analyst."], [6.1, "It's slow, expert work, and the reports keep piling up."]],
         draw(g, t) {
           room(g);
           // the log stream, scrolling, now and then a suspicious line
@@ -571,10 +648,10 @@ const TOURS = {
           g.rect(206, 101, 54, 2, "#3a3f4a");
           const rules = t > 3 ? 1 : 0, prog = Math.min(1, Math.max(0, (t - 3) / 5));
           g.text("RULES WRITTEN", 236, 110, SKY.ink, 1, "c"); g.rect(212, 119, 48, 4, "#2c3038"); g.rect(212, 119, Math.round(48 * prog), 4, SKY.ok);
-          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => g.tag(`${reps} REPORTS : ${rules} RULE`, 152, 123, SKY.bad, "#fff", "c"));
+          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => g.tag(`${reps} REPORTS : ${rules} RULE`, 152, 117, SKY.bad, "#fff", "c"));
         } },
-      { ch: 0, title: "What is a Sigma rule?", dur: 9, cap: "Sigma is an open, YAML-based format for detection rules. A rule names the log source to look at and the pattern to match (selections combined by a condition), and converts into queries for many security tools.",
-        subs: [[0.3, "Sigma: an open, YAML-based format for detection rules"], [3.2, "It says where to look and what pattern to match"], [6.2, "One rule converts into queries for many security tools"]],
+      { ch: 0, title: "What is a Sigma rule?", dur: 10.6, cap: "Sigma is an open, YAML-based format for detection rules. A rule names the log source to look at and the pattern to match (selections combined by a condition), and converts into queries for many security tools.",
+        subs: [[0.3, "Those rules are often written in Sigma, an open YAML format."], [3.7, "A rule says which logs to look at and what pattern to catch,"], [7.1, "and it converts into queries for many security tools."]],
         draw(g, t) {
           room(g);
           g.box(32, 14, 124, 92, CARD, EDGE, LITE);
@@ -588,8 +665,8 @@ const TOURS = {
             ["SIEM QUERY", "EDR QUERY", "LOG SEARCH"].forEach((l, i) => { const y = 94 + i * 11; g.rect(164, y + 4, 8, 1, "#5d626b"); g.tag(l, 176, y, "#2c313c", SKY.ink); });
           });
         } },
-      { ch: 0, title: "Goal: from a description to a rule", dur: 8, cap: "The goal: describe the threat in plain language and have a model write the Sigma rule. A rule that looks right can still fail to parse, use the wrong field, or encode the wrong logic.",
-        subs: [[0.3, "Goal: describe the threat in plain language"], [2.6, "and let a language model write the Sigma rule"], [5.2, "But a rule can look right and still be wrong"]],
+      { ch: 0, title: "Goal: from a description to a rule", dur: 8.7, cap: "The goal: describe the threat in plain language and have a model write the Sigma rule. A rule that looks right can still fail to parse, use the wrong field, or encode the wrong logic.",
+        subs: [[0.3, "Our goal: describe a threat in plain English,"], [2.9, "and let a language model write the rule."], [5.3, "The catch: a rule can look right and still be wrong."]],
         draw(g, t) {
           room(g);
           // the description
@@ -602,8 +679,8 @@ const TOURS = {
             g.text("LOOKING RIGHT IS NOT BEING RIGHT", 172, 120, SKY.bad, 1, "c");
           });
         } },
-      { ch: 1, title: "Building the dataset", dur: 9, cap: "Dataset: public Sigma rules were crawled from GitHub (6,815 files), then validated: valid YAML, the required fields, a usable detection block, no duplicates. Files that only looked like Sigma rules (app configs, playbooks) were removed.",
-        subs: [[0.3, "Public Sigma rules crawled from GitHub: 6,815 files"], [3.2, "Each one checked: valid YAML, required fields, detection logic"], [6.2, "Duplicates and look-alikes (configs, playbooks) removed"]],
+      { ch: 1, title: "Building the dataset", dur: 11.1, cap: "Dataset: public Sigma rules were crawled from GitHub (6,815 files), then validated: valid YAML, the required fields, a usable detection block, no duplicates. Files that only looked like Sigma rules (app configs, playbooks) were removed.",
+        subs: [[0.3, "We started by collecting 6,815 public Sigma rules from GitHub."], [3.8, "Each file was checked: valid YAML, required fields, real detection logic."], [7.9, "Duplicates and look-alike files were thrown out."]],
         draw(g, t) {
           room(g); chain(g, t < 3.2 ? [0] : [0, 1], SIGMA_CHAIN);
           for (let i = 0; i < 12; i++) repo(g, 36 + (i % 3) * 20, 26 + Math.floor(i / 3) * 18);
@@ -625,15 +702,15 @@ const TOURS = {
             g.alpha(ease((t - t0) / 0.4), () => { g.tag(bad ? "×" : "✓", 192, y - 2, bad ? SKY.bad : SKY.ok, "#fff"); g.text(l, 207, y, bad ? SKY.bad : SKY.ink); });
           });
         } },
-      { ch: 1, title: "From rule to syntax tree", dur: 11, interactive: true, cap: "Each rule is parsed into an abstract syntax tree (AST): keys, fields, values and the logic of the condition become nodes. The tree converts back to YAML without loss, so it can stand in for the rule. Click a node to find its line.",
-        subs: [[0.2, "Each rule is parsed into an abstract syntax tree (AST)"], [3.4, "Keys, fields and the condition's logic become nodes"], [6.4, "The tree converts back to YAML, so nothing is lost"], [8.6, "Try it: click a node to find its line"]],
+      { ch: 1, title: "From rule to syntax tree", dur: 13, interactive: true, cap: "Each rule is parsed into an abstract syntax tree (AST): keys, fields, values and the logic of the condition become nodes. The tree converts back to YAML without loss, so it can stand in for the rule. Click a node to find its line.",
+        subs: [[0.2, "Each rule is then parsed into a syntax tree."], [3.4, "Keys, fields and the condition's logic each become a node,"], [6.7, "and the tree turns back into YAML without losing anything."], [10.0, "Click a node to see which line it came from."]],
         draw(g, t, s) {
           room(g); chain(g, [2], SIGMA_CHAIN);
           // the tree: [id, label, cx, row, parent, kind, yaml line]
           const N = [["det", "detection", 156, 0, null, "k", 0], ["sel", "selection", 93, 1, "det", "k", 1], ["fil", "filter", 189, 1, "det", "k", 5], ["con", "condition", 238, 1, "det", "k", 7],
             ["f1", "cs-method", 45, 2, "sel", "f", 2], ["f2", "c-uri|endswith", 93, 2, "sel", "f", 3], ["f3", "cs-host", 140, 2, "sel", "f", 4], ["f4", "c-uri|startswith", 189, 2, "fil", "f", 6],
             ["and", "AND", 238, 2, "con", "l", 7], ["r1", "selection", 216, 3, "and", "r", 7], ["not", "NOT", 256, 3, "and", "l", 7], ["r2", "filter", 256, 4, "not", "r", 7]];
-          const ROW = [76, 90, 104, 118, 131], COL = { k: SKY.wave, f: "#c9ccd2", l: SKY.accent, r: "#5d626b" };
+          const ROW = [74, 86, 98, 110, 121], COL = { k: SKY.wave, f: "#c9ccd2", l: SKY.accent, r: "#5d626b" };
           const shown = (row) => t > 0.6 + row * 0.7;
           const auto = N[Math.floor(Math.max(0, t - 3.4) / 0.6) % N.length], pick = s.pick ? N.find((n) => n[0] === s.pick) : t > 3.4 ? auto : null;
           yamlBlock(g, 36, 18, DETECT, { lh: 6.8, hi: pick ? pick[6] : -1, hiW: 112 });
@@ -647,8 +724,8 @@ const TOURS = {
           if (t > 8.6 && !s.pick && blinkOn(t, 1)) g.text("CLICK A NODE", 156, 68, SKY.ink, 1, "c");
         },
         click(s, x, y) { const h = (s.hits || []).find(([, b]) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h); if (h) s.pick = h[0]; } },
-      { ch: 1, title: "From syntax tree to prompt", dur: 9, cap: "A prompt generator walks the tree and writes a plain-language description of the rule: fields and modifiers become words, the condition becomes AND / OR / NOT. Each rule then has a matching prompt and AST, for training and testing.",
-        subs: [[0.3, "The tree is walked to write a plain-language prompt"], [3.4, "Fields and modifiers become words: |endswith becomes \"ends with\""], [6.2, "Result: matched prompt, AST and rule for every example"]],
+      { ch: 1, title: "From syntax tree to prompt", dur: 10.3, cap: "A prompt generator walks the tree and writes a plain-language description of the rule: fields and modifiers become words, the condition becomes AND / OR / NOT. Each rule then has a matching prompt and AST, for training and testing.",
+        subs: [[0.3, "Walking the tree, we write a plain-English description of the rule."], [4.1, "Fields and modifiers become words, like \"ends with\"."], [7.1, "So every example has a prompt, a tree and a rule."]],
         draw(g, t) {
           room(g); chain(g, [3], SIGMA_CHAIN);
           // a small tree on the left
@@ -669,8 +746,8 @@ const TOURS = {
             g.text("ONE TRAINING EXAMPLE", 208, 110, SKY.muted, 1, "c");
           });
         } },
-      { ch: 1, title: "Five ways to generate a rule", dur: 12, cap: "Five settings are compared: zero-shot (the prompt only), few-shot (with example pairs), fine-tuning on the prompt–rule pairs, AST-guided generation (the model also sees the rule's structure) and retrieval-augmented generation (templates and field mappings retrieved from a rule base), on open 7–8B instruction models.",
-        subs: [[0.2, "Zero-shot and few-shot: prompting only"], [3.0, "Fine-tuning on the prompt–rule pairs"], [5.0, "AST-guided: the model also sees the rule's structure"], [7.2, "RAG: retrieved templates and field mappings"], [9.4, "Compared across open 7–8B instruction models"]],
+      { ch: 1, title: "Five ways to generate a rule", dur: 14.7, cap: "Five settings are compared: zero-shot (the prompt only), few-shot (with example pairs), fine-tuning on the prompt–rule pairs, AST-guided generation (the model also sees the rule's structure) and retrieval-augmented generation (templates and field mappings retrieved from a rule base), on open 7–8B instruction models.",
+        subs: [[0.2, "We tried five ways to generate rules, starting with just prompting."], [4.0, "Next, fine-tuning on our prompt–rule pairs."], [6.5, "Then showing the model the rule's structure, the tree,"], [9.6, "and retrieving similar templates to guide it."], [12.2, "All on open 7–8B instruction models."]],
         draw(g, t) {
           room(g); chain(g, [4], SIGMA_CHAIN);
           const E = [["EXP0", "ZERO-SHOT", "PROMPT ONLY", 0.3], ["EXP1", "FEW-SHOT", "+ EXAMPLE PAIRS", 1.6], ["EXP2", "FINE-TUNING", "TRAINED ON PAIRS", 3.0], ["EXP3", "AST-GUIDED", "+ RULE STRUCTURE", 5.0], ["EXP4", "RAG", "+ RETRIEVED TEMPLATES", 7.2]];
@@ -692,8 +769,8 @@ const TOURS = {
             ["LLAMA 3.1 8B", "GEMMA 7B", "QWEN2.5 7B", "MISTRAL 7B", "FALCON 7B"].forEach((m, i) => g.text(m, 244, 33 + i * 9, SKY.ink, 1, "c"));
           });
         } },
-      { ch: 1, title: "Adding vision: the tree as a picture", dur: 8, cap: "Beyond text, the rule's structure can be given as a picture: the AST is drawn as a diagram and a vision-language model reads it together with the prompt, so the structure is shown, not only described.",
-        subs: [[0.3, "The syntax tree can also be drawn as a diagram"], [3, "A vision-language model reads it with the prompt"], [5.4, "The structure is shown, not only described"]],
+      { ch: 1, title: "Adding vision: the tree as a picture", dur: 9.2, cap: "Beyond text, the rule's structure can be given as a picture: the AST is drawn as a diagram and a vision-language model reads it together with the prompt, so the structure is shown, not only described.",
+        subs: [[0.3, "The tree can also be drawn as a picture."], [3, "A vision-language model reads it alongside the prompt,"], [6.1, "so the structure is shown, not just described."]],
         draw(g, t) {
           room(g); chain(g, [4], SIGMA_CHAIN);
           // the prompt and the diagram
@@ -715,8 +792,8 @@ const TOURS = {
           }
           if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => g.text("TEXT + IMAGE IN, RULE OUT", 221, 106, SKY.accent, 1, "c"));
         } },
-      { ch: 2, title: "Check 1: does the rule hold together?", dur: 9, cap: "Every generated rule goes through a validator: does the YAML parse, are the required fields present, does the condition only use selections that exist, and does it survive the round trip through the AST?",
-        subs: [[0.3, "Every generated rule goes through a validator"], [3.2, "Syntax: does the YAML parse, are the required fields there?"], [6, "Logic: does the condition use only selections that exist?"]],
+      { ch: 2, title: "Check 1: does the rule hold together?", dur: 9.4, cap: "Every generated rule goes through a validator: does the YAML parse, are the required fields present, does the condition only use selections that exist, and does it survive the round trip through the AST?",
+        subs: [[0.3, "Every generated rule goes through a validator."], [3.2, "Does the YAML parse? Are the required fields there?"], [6.1, "Does the condition only use selections that exist?"]],
         draw(g, t) {
           room(g); chain(g, [5], SIGMA_CHAIN);
           // the result list
@@ -729,8 +806,8 @@ const TOURS = {
           R.forEach(([, ok, , t0], i) => { const p = (t - t0) / 1.6; if (p < 0 || p > 1.6) return; if (p < 1) doc(g, 40 + p * 106, 104, "#e9ecef"); else doc(g, 208 + (p - 1) * 60, 104, ok ? "#d4f0e0" : "#f3c9c4", ok ? SKY.ok : SKY.bad); });
           g.rect(202, 116, 74, 4, "#2c313c");
         } },
-      { ch: 2, title: "Check 2: how complex is the rule?", dur: 10, cap: "Structural complexity is compared with human-written rules. Halstead metrics count operators (AND, OR, NOT, field modifiers) and operands (fields and values) to give volume, difficulty and effort; cyclomatic complexity counts the independent paths through the condition.",
-        subs: [[0.3, "Structure: is the rule as complex as a human-written one?"], [3.2, "Halstead: count operators and operands"], [6.4, "Cyclomatic: count the paths through the condition"]],
+      { ch: 2, title: "Check 2: how complex is the rule?", dur: 10.5, cap: "Structural complexity is compared with human-written rules. Halstead metrics count operators (AND, OR, NOT, field modifiers) and operands (fields and values) to give volume, difficulty and effort; cyclomatic complexity counts the independent paths through the condition.",
+        subs: [[0.3, "We also ask: is it as complex as a rule a person would write?"], [3.8, "Halstead metrics count operators and operands,"], [6.4, "and cyclomatic complexity counts the paths through the condition."]],
         draw(g, t) {
           room(g); chain(g, [5], SIGMA_CHAIN);
           g.box(32, 16, 114, 64, CARD, EDGE, LITE);
@@ -758,7 +835,7 @@ const TOURS = {
           });
         } },
       { ch: 2, title: "The pipeline, end to end", dur: 8, cap: "End to end: public rules are crawled and validated, turned into syntax trees and prompts, generated under five settings, and scored for validity and structural complexity, to compare prompt-only and structure-aware models.",
-        subs: [[0.3, "From public rules to scored generations, end to end"], [3.6, "Comparing prompt-only and structure-aware models"]],
+        subs: [[0.3, "Put together, it's an end-to-end pipeline,"], [3.6, "built to compare prompt-only and structure-aware models."]],
         draw(g, t) {
           room(g);
           let x = 36; SIGMA_CHAIN.forEach((lab, i) => { const w = g.textW(lab) + 8, on = t > 0.3 + i * 0.4; g.rect(x, 22, w, 11, on ? SKY.accent : CARD); g.text(lab, x + 4, 25, on ? SKY.bg : SKY.muted); x += w; if (i < 5) { g.text(">", x + 2, 25, SKY.trim); x += 9; } });
@@ -768,12 +845,447 @@ const TOURS = {
         } },
     ],
   },
+  mri: {
+    title: "Benchtop MRI from scratch · overview",
+    link: { label: "GitHub", url: "https://github.com/Dino-Boooo/Instrumentation-and-System-Design-for-Advanced-MRI-Imaging" },
+    chapters: ["Motivation", "Method", "Results"],
+    scenes: [
+      { ch: 0, title: "Introduction", dur: 6.9, cap: "Course project (MR Engineering, Texas A&M, Fall 2024): a benchtop MRI system built from two Analog Discovery 2 boards, a permanent magnet, a hand-wound RF coil and custom Python software.",
+        subs: [[0.3, "What does it take to build an MRI scanner from scratch?"], [3.4, "We found out in an MR engineering course at Texas A&M."]],
+        draw(g, t) {
+          room(g);
+          const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
+          let [a, d] = up(0.1); g.alpha(a, () => g.text("Benchtop MRI", 153, 16 + d, SKY.ink, 2, "c"));
+          [a, d] = up(0.4); g.alpha(a, () => g.text("from scratch", 153, 31 + d, SKY.accent, 2, "c"));
+          [a, d] = up(1.0); g.alpha(a, () => g.text("2 INSTRUMENT BOARDS, A MAGNET, A HAND-WOUND COIL", 153, 53 + d, SKY.ink, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("MR ENGINEERING, TEXAS A&M, FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
+          ad2(g, 82, 92, "AD2 #1"); ad2(g, 192, 92, "AD2 #2"); magnet(g, 128, 82);
+          for (let x = 114; x < 144; x++) g.px(x, 100 + Math.round(2 * Math.sin(x * 0.9 - t * 12)), SKY.accent);
+          for (let x = 178; x < 192; x++) g.px(x, 106 + Math.round(2 * Math.sin(x * 0.5 - t * 6)), SKY.ok);
+        } },
+      { ch: 0, title: "How does MRI make an image?", dur: 12.4, cap: "MRI in one line: protons in a magnetic field precess at a set (Larmor) frequency; an RF pulse tips them over, and a second pulse makes them answer with an echo, a few millivolts for a few milliseconds. The project builds every stage from that echo to an image.",
+        subs: [[0.3, "In a magnetic field, protons spin like tiny tops."], [3.1, "A radio pulse tips them over,"], [4.9, "and a second pulse makes them answer with an echo."], [7.8, "Our job: turn that faint echo into an image, building every step ourselves."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 104, 98, CARD, EDGE, LITE); g.text("PROTONS IN B0", 84, 20, SKY.muted, 1, "c");
+          g.rect(40, 34, 1, 70, "#3a3f4a"); for (let k = 0; k < 3; k++) g.rect(39 + k, 34 - 2 + k, 1, 1, "#3a3f4a"); g.text("B0", 44, 30, SKY.muted);
+          const tip = Math.min(1, Math.max(0, (t - 2.6) / 0.8));
+          for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+            const cx = 62 + i * 24, cy = 44 + j * 24, ph = (i * 3 + j) * 0.7 + t * 6 * (1 + (t > 4 ? 0.04 * (i - j) : 0)), L = 9;
+            const x = Math.cos(ph) * L * (0.25 + 0.75 * tip), y = -L * (1 - tip) + Math.sin(ph) * 3 * tip;
+            g.disc(cx, cy, 2, 2, "#3a5f8f"); g.line(cx, cy, cx + x, cy + y, SKY.wave); g.px(cx + x, cy + y, "#ffffff");
+          }
+          g.text("PRECESSING AT ABOUT 3.32 MHz", 84, 106, SKY.ink, 1, "c");
+          // the signal: two RF pulses, then the echo
+          g.box(142, 16, 134, 98, CARD, EDGE, LITE); g.text("SIGNAL", 209, 20, SKY.muted, 1, "c"); g.rect(148, 66, 122, 1, "#2c3038");
+          const burst = (cx, amp, col) => { for (let x = -8; x <= 8; x++) { const v = Math.round(amp * Math.cos(x * 1.4) * Math.max(0, 1 - Math.abs(x) / 8.5)); g.rect(cx + x, 66 - Math.max(v, 0), 1, Math.abs(v) + 1, col); } };
+          if (t > 2.6) { burst(168, 14, SKY.accent); g.text("RF 90°", 168, 86, SKY.accent, 1, "c"); }
+          if (t > 4.8) { burst(204, 14, SKY.accent); g.text("RF 180°", 204, 86, SKY.accent, 1, "c"); }
+          if (t > 5.6) { trace(g, 222, 268, 66, 246, 6 * ease((t - 5.6) / 0.5), SKY.wave); g.text("ECHO", 246, 86, SKY.wave, 1, "c"); }
+          if (t > 6.2) g.text("A FEW mV, A FEW ms", 209, 98, SKY.ink, 1, "c");
+          if (t > 7) g.alpha(ease((t - 7) / 0.4), () => g.tag("GOAL: ECHO > IMAGE, EVERY STAGE BUILT BY HAND", 153, 119, SKY.accent, "#fff", "c"));
+        } },
+      { ch: 1, title: "The system: two boards, one trigger", dur: 11.4, cap: "AD2 #1 is the master: it plays the RF pulses, the local oscillator, the switch timing and digitizes the echo. The echo returns through a T/R switch, preamp, 3.5 MHz low-pass filter and mixer. AD2 #2, started by AD2 #1's trigger, drives the gradient and shim coils through an amplifier (gain about 11).",
+        subs: [[0.3, "One board sends the radio pulses and times every switch."], [3.5, "The echo comes back through an amplifier, a filter and a mixer."], [7.1, "A second board drives the gradient coils, started by a shared trigger."]],
+        draw(g, t) {
+          room(g);
+          const ln = (pts, col) => { for (let i = 1; i < pts.length; i++) g.line(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], col); };
+          const TX = [[142, 26], [212, 26], [212, 62], [236, 62]], RX = [[236, 66], [206, 66], [206, 98], [130, 98], [90, 98], [90, 31]], GR = [[176, 118], [256, 118], [256, 86]];
+          ln(TX, "#4a3a30"); ln(RX, "#2f3d52"); ln([[106, 118], [176, 118]], "#2e4a3c"); ln(GR, "#2e4a3c"); ln([[124, 31], [124, 94]], "#3a3f4a"); ln([[50, 31], [50, 118], [78, 118]], "#3a3f4a");
+          for (let y = 32; y < 112; y += 3) g.px(84, y, "#5d626b"); g.text("TRIG", 79, 74, SKY.muted, 1, "r"); g.text("LO", 128, 70, SKY.muted);
+          g.tag("PYTHON GUI", 32, 22, "#2c313c", SKY.ink); g.tag("AD2 #1: RF, LO, ADC", 78, 22, SKY.wave, SKY.bg); g.tag("ATTENUATOR", 150, 22, "#2c313c", SKY.ink); g.tag("T/R SWITCH", 192, 22, "#2c313c", SKY.ink);
+          g.tag("PREAMP + LOW-PASS", 140, 94, "#2c313c", SKY.ink); g.tag("MIXER", 102, 94, "#2c313c", SKY.ink); g.tag("AD2 #2", 78, 114, SKY.ok, SKY.bg); g.tag("GRADIENT AMP X11", 112, 114, "#2c313c", SKY.ink);
+          magnet(g, 228, 44); g.text("S11 -34.8 dB", 252, 90, SKY.muted, 1, "r"); g.text("GRADIENTS", 226, 110, SKY.ok, 1, "r");
+          const travel = (pts, p, col) => { const L = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1])), tot = L.reduce((a, b) => a + b, 0); let d = p * tot; for (let i = 0; i < L.length; i++) { if (d <= L[i]) { const u = d / L[i]; g.rect(pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u - 1, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u - 1, 3, 3, col); return; } d -= L[i]; } };
+          if (t > 0.3 && t < 3.2) for (let k = 0; k < 3; k++) travel(TX, ((t - 0.3) * 0.5 + k / 3) % 1, SKY.accent);
+          if (t > 3 && t < 6) for (let k = 0; k < 3; k++) travel(RX, ((t - 3) * 0.4 + k / 3) % 1, SKY.wave);
+          if (t > 5.8) for (let k = 0; k < 3; k++) travel(GR, ((t - 5.8) * 0.5 + k / 3) % 1, SKY.ok);
+        } },
+      { ch: 1, title: "The pulse sequence", dur: 10.6, cap: "The spin-echo sequence: a 90° pulse, a 180° pulse TE/2 later, and the echo at TE. The T/R switch protects the receiver around the pulses, the digitizer window is centred on the echo, and gradient lobes play around the readout, all aligned to microseconds by one master trigger.",
+        subs: [[0.3, "Each shot is a spin echo: a 90° pulse, then a 180° pulse."], [3.5, "The echo appears at TE, and we record right around it."], [6.6, "One master trigger keeps everything aligned to the microsecond."]],
+        draw(g, t) {
+          room(g);
+          const X0 = 62, X1 = 272, head = X0 + (X1 - X0) * Math.min(1, (t - 0.3) / 5.4), rows = [["RF", 26], ["T/R", 46], ["GRADIENT", 66], ["ADC", 86], ["SIGNAL", 106]];
+          rows.forEach(([l, y]) => { g.text(l, 56, y - 3, SKY.muted, 1, "r"); g.rect(X0, y + 6, X1 - X0, 1, "#22252c"); });
+          const seen = (x) => x <= head;
+          for (let x = X0; x < X1; x++) {
+            if (!seen(x)) break;
+            const rf = (c) => Math.abs(x - c) <= 7 ? Math.round(9 * Math.cos((x - c) * 1.3) * (1 - Math.abs(x - c) / 8)) : null;
+            const a = rf(84) ?? rf(140); if (a != null) g.rect(x, 32 - Math.max(a, 0), 1, Math.abs(a) + 1, SKY.accent);
+            g.px(x, x > 76 && x < 150 ? 46 : 52, SKY.ink);
+            const gr = x > 104 && x < 122 ? 72 - 4 : x > 178 && x < 222 ? 72 - 6 : 72; g.px(x, gr, SKY.ok); if (gr !== 72) g.rect(x, gr, 1, 72 - gr, "rgba(108,196,154,.35)");
+            g.px(x, x > 180 && x < 220 ? 86 : 92, SKY.wave);
+            const fid = x > 92 && x < 120 ? 7 * Math.exp(-(x - 92) / 7) * Math.cos((x - 92) * 1.2) : 0, ec = 7 * Math.exp(-((x - 200) ** 2) / 50) * Math.cos((x - 200) * 1.2);
+            g.px(x, 112 - Math.round(fid + ec), SKY.ink);
+          }
+          if (head < X1) g.rect(Math.round(head), 18, 1, 100, "rgba(232,145,95,.5)");
+          if (t > 3) g.alpha(ease((t - 3) / 0.4), () => { g.rect(84, 20, 1, 3, SKY.muted); g.rect(140, 20, 1, 3, SKY.muted); g.rect(200, 20, 1, 3, SKY.muted); g.rect(84, 21, 56, 1, SKY.muted); g.rect(140, 21, 60, 1, SKY.muted); g.text("TE/2", 112, 13, SKY.muted, 1, "c"); g.text("TE/2", 170, 13, SKY.muted, 1, "c"); g.tag("ECHO AT TE", 200, 120, SKY.wave, SKY.bg, "c"); });
+        } },
+      { ch: 1, title: "Finding and cleaning the echo", dur: 11.7, cap: "The resonance was found with a coarse sweep (3.2–3.6 MHz, 10 kHz steps) and a fine sweep (2 kHz steps): 3.318 MHz. The echo is mixed down to a low intermediate frequency and cleaned with a zero-phase Chebyshev II band-pass filter and a Hamming window: echo SNR 26 dB.",
+        subs: [[0.3, "First, we had to find the signal at all."], [2.8, "We swept the frequency, coarse then fine, and landed on 3.318 MHz."], [6.5, "Careful filtering cleaned up the noisy echo,"], [9.1, "for a signal-to-noise ratio of 26 dB."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 116, 88, CARD, EDGE, LITE);
+          const fine = t > 2.8, lo = fine ? 3.30 : 3.2, hi = fine ? 3.34 : 3.6, n = fine ? 21 : 41, prog = Math.min(1, fine ? (t - 2.8) / 1.4 : (t - 0.3) / 2.4);
+          g.text(fine ? "FINE SWEEP" : "COARSE SWEEP", 36, 20, SKY.muted);
+          for (let i = 0; i < Math.floor(n * prog); i++) { const f = lo + ((hi - lo) * i) / (n - 1), v = Math.exp(-(((f - 3.318) / (fine ? 0.006 : 0.012)) ** 2)) * 0.9 + 0.08 * rnd(i + (fine ? 50 : 0)), x = 40 + Math.round((i * 100) / (n - 1)), h = Math.round(v * 52); g.rect(x, 86 - h, fine ? 3 : 2, h, Math.abs(f - 3.318) < (fine ? 0.0015 : 0.006) ? SKY.accent : SKY.wave); }
+          g.rect(38, 87, 106, 1, "#3a3f4a"); g.text(lo.toFixed(2), 38, 92, SKY.muted); g.text(hi.toFixed(2) + " MHz", 144, 92, SKY.muted, 1, "r");
+          if (fine && prog >= 1) g.tag("3.318 MHz", 90, 24, SKY.accent, "#fff", "c");
+          // the echo, raw then clean
+          g.box(154, 16, 122, 88, CARD, EDGE, LITE);
+          const clean = ease((t - 4.8) / 0.8);
+          g.text(clean > 0.5 ? "FILTERED + WINDOWED" : "RAW CAPTURE", 158, 20, clean > 0.5 ? SKY.ok : SKY.muted);
+          let py = 60; for (let x = 0; x < 112; x++) { const s = 16 * Math.exp(-(((x - 56) / 18) ** 2)) * Math.cos(x * 0.9), nz = (rnd(x * 3 + Math.floor(t * 8)) - 0.5) * 22 * (1 - clean), v = 60 - Math.round(s + nz); if (x) g.line(158 + x - 1, py, 158 + x, v, clean > 0.5 ? SKY.wave : "#7d8590"); py = v; }
+          if (t > 4.8) g.text("CHEBYSHEV II, filtfilt, HAMMING", 215, 92, SKY.muted, 1, "c");
+          if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => { g.tag("ECHO SNR 26 dB", 120, 112, SKY.ok, SKY.bg, "c"); g.tag("T2* 0.28 ms", 190, 112, "#2c313c", SKY.ink, "c"); });
+        } },
+      { ch: 1, title: "Shimming", dur: 10.5, cap: "An uneven main field (B0) broadens the spectral line. DC offsets on the shim coils, tuned with the line width as feedback, narrowed it from 1953 Hz to about 1220 Hz.",
+        subs: [[0.3, "The magnet's field isn't perfectly even, which smears the signal."], [4.0, "Small shim currents correct it, using the line width as a guide."], [7.6, "It narrowed from 1953 Hz to about 1220 Hz."]],
+        draw(g, t) {
+          room(g);
+          const k = ease((t - 2.4) / 2.6), fw = 1953 - (1953 - 1220) * k, wpx = fw / 1953 * 34;
+          g.box(32, 16, 80, 98, CARD, EDGE, LITE); g.text("SHIM OFFSETS", 72, 20, SKY.muted, 1, "c");
+          [["X", 0.12], ["Z", -0.08]].forEach(([ax, v], i) => { const cx = 52 + i * 40, cy = 56, a = -Math.PI / 2 + v * 6 * k; g.disc(cx, cy, 11, 11, "#2c313c"); g.disc(cx, cy, 9, 9, "#1b1e24"); g.line(cx, cy, cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, SKY.accent); g.text("SHIM " + ax, cx, 74, SKY.ink, 1, "c"); g.text(((v * k) >= 0 ? "+" : "") + (v * k).toFixed(2) + " V", cx, 84, SKY.muted, 1, "c"); });
+          g.text("LIMIT +/-0.2 V", 72, 102, SKY.muted, 1, "c");
+          g.box(118, 16, 158, 98, CARD, EDGE, LITE); g.text("SPECTRUM", 197, 20, SKY.muted, 1, "c");
+          let py = 96; for (let x = 0; x < 146; x++) { const d = (x - 73) / wpx, v = 96 - Math.round(62 * (1 / (1 + 4 * d * d)) * (0.75 + 0.25 * (1 - wpx / 34) / 0.38)); if (x) g.line(124 + x - 1, py, 124 + x, v, SKY.wave); py = v; }
+          const hy = 96 - Math.round(31 * (0.75 + 0.25 * (1 - wpx / 34) / 0.38)); g.rect(197 - Math.round(wpx / 2), hy, Math.round(wpx), 1, SKY.accent);
+          g.tag(`FWHM ${Math.round(fw)} Hz`, 197, 102, SKY.accent, "#fff", "c");
+        } },
+      { ch: 1, title: "Gradients encode position", dur: 11.4, cap: "With a gradient on, the precession frequency depends on position, so the spectrum becomes a projection of the object. The GUI turns a target resolution into a gradient, a coil current and an AD2 output voltage; for 0.333 mm: 1.10 G/cm, 2.2 A, 8.8 V, 0.80 V. Per-axis calibration factors corrected the measured spread.",
+        subs: [[0.3, "With two water tubes in the magnet, we still see just one peak."], [3.9, "Add a gradient, and frequency starts to depend on position."], [7.2, "We calibrated it all the way from resolution down to board voltage."]],
+        draw(g, t) {
+          room(g);
+          const on = ease((t - 2.6) / 0.6);
+          g.box(32, 16, 90, 80, CARD, EDGE, LITE); g.text("TUBES (TOP VIEW)", 77, 20, SKY.muted, 1, "c");
+          for (let x = 36; x < 118; x++) g.rect(x, 30, 1, 62, `rgba(${Math.round(120 + 100 * (x - 36) / 82)},${Math.round(150 - 40 * (x - 36) / 82)},240,${(0.25 * on).toFixed(2)})`);
+          g.disc(62, 56, 12, 12, "#9fd0f0"); g.disc(62, 56, 10, 10, "#cfe8f7"); g.disc(96, 66, 9, 9, "#9fd0f0"); g.disc(96, 66, 7, 7, "#cfe8f7");
+          if (on > 0) { g.rect(38, 88, Math.round(76 * on), 1, SKY.ok); g.rect(38 + Math.round(76 * on) - 2, 86, 1, 5, SKY.ok); g.text("Gx: FREQUENCY RISES >", 77, 80, SKY.ok, 1, "c"); }
+          g.box(128, 16, 148, 80, CARD, EDGE, LITE); g.text("SPECTRUM = PROJECTION", 202, 20, SKY.muted, 1, "c");
+          let py = 86; for (let x = 0; x < 136; x++) { const xx = ((x - 68) / 68) * 22, proj = MRI.proj(0, xx), v0 = 60 * Math.exp(-((x - 68) ** 2) / 6), v = 86 - Math.round(v0 * (1 - on) + proj * 2.6 * on); if (x) g.line(134 + x - 1, py, 134 + x, v, SKY.wave); py = v; }
+          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.5), () => {
+            const S = [["0.333 mm", SKY.ink], ["1.10 G/cm", SKY.ok], ["2.2 A", SKY.ink], ["8.8 V", SKY.ink], ["0.80 V AD2", SKY.accent]]; let x = 34;
+            S.forEach(([l, c], i) => { const w = g.textW(l) + 6; g.rect(x, 104, w, 9, "#22252c"); g.text(l, x + 3, 106, c); x += w; if (i < 4) { g.text(">", x + 2, 106, SKY.trim); x += 9; } });
+            g.text("x CALIBRATION 1.28 / 0.56 PER AXIS", 34, 118, SKY.muted);
+          });
+        } },
+      { ch: 1, title: "First image: projection reconstruction", dur: 12.5, interactive: true, cap: "Mixing the two gradient axes rotates the readout, giving one projection per angle. Each projection is filtered and smeared back across the image (filtered backprojection). With 8 angles the image is dominated by streaks; 32 angles fill it in. Click to switch between 8 and 32 angles.",
+        subs: [[0.3, "Rotate the gradient, and each angle gives one projection."], [3.5, "Smearing each projection back across the image builds a picture."], [7.2, "With 8 angles you get streaks; 32 fill it in."], [9.8, "Click to switch between 8 and 32 angles."]],
+        draw(g, t, s) {
+          room(g);
+          const n = s.n ?? (t < 5.2 ? 8 : 32), R = MRI.fbp(n), start = s.n ? s.t0 : t < 5.2 ? 0.3 : 5.2, shown = Math.max(1, Math.min(n, Math.floor(((t - start) / (n === 8 ? 2.4 : 2)) * n) + 1));
+          // the phantom with the readout direction rotating
+          g.box(32, 16, 74, 74, CARD, EDGE, LITE); g.text("READOUT ANGLE", 69, 20, SKY.muted, 1, "c");
+          gray(g, 37, 26, 32, 32, 2, 2, (i, j) => (MRI.inside(i, j) ? 0.85 : 0.06));
+          const th = (Math.PI * (shown - 1)) / n; g.line(69 - Math.cos(th) * 30, 58 - Math.sin(th) * 30, 69 + Math.cos(th) * 30, 58 + Math.sin(th) * 30, SKY.accent);
+          // the sinogram
+          g.box(112, 16, 74, 74, CARD, EDGE, LITE); g.text(`SINOGRAM (${n})`, 149, 20, SKY.muted, 1, "c");
+          const rh = 64 / n; for (let a = 0; a < shown; a++) for (let k = 0; k < 32; k++) { const v = R.sino[a][k] / R.pmax, c = Math.round(v * 255); g.rect(117 + k * 2, 26 + Math.floor(a * rh), 2, Math.max(1, Math.ceil(rh)), `rgb(${c},${c},${c})`); }
+          // the backprojection, built up one angle at a time
+          g.box(192, 16, 84, 74, CARD, EDGE, LITE); g.text("BACKPROJECTION", 234, 20, SKY.muted, 1, "c");
+          const part = R.cum[shown - 1];
+          gray(g, 202, 26, 32, 32, 2, 2, (i, j) => part[j * 32 + i] * 1.1);
+          g.tag(`${n} ANGLES`, 153, 96, n === 32 ? SKY.ok : SKY.accent, n === 32 ? SKY.bg : "#fff", "c");
+          if (t > 7.6 && blinkOn(t, 1)) g.text("CLICK TO SWITCH", 153, 110, SKY.ink, 1, "c");
+        },
+        click(s, x, y, t) { s.n = (s.n ?? (t < 5.2 ? 8 : 32)) === 8 ? 32 : 8; s.t0 = t; } },
+      { ch: 1, title: "Final image: phase encoding and k-space", dur: 11.2, cap: "Each shot combines a frequency-encode readout with a phase-encode lobe that steps over 32 values, so each shot fills one line of k-space (32 × 64). A 2D Hamming window and a 2D FFT turn k-space into the image, and pixels below 20 % of the maximum are set to zero.",
+        subs: [[0.3, "For the final image, each shot fills one line of k-space."], [3.6, "32 shots fill the whole grid."], [5.6, "A 2D Fourier transform turns it into an image,"], [8.3, "and a simple threshold leaves the two tubes."]],
+        draw(g, t) {
+          room(g);
+          const F = MRI.fourier(), rows = Math.min(32, Math.floor(Math.max(0, t - 0.3) / 5 * 32) + 1);
+          // the phase-encode lobe stepping
+          g.box(32, 16, 60, 74, CARD, EDGE, LITE); g.text("PHASE ENCODE", 62, 20, SKY.muted, 1, "c");
+          for (let q = 0; q < 32; q += 2) { const a = (q - 16) / 16, h = Math.round(a * 22), cur = Math.abs(q - (rows - 1)) < 2; g.rect(44 + q, 56 - Math.max(h, 0), 1, Math.abs(h) + 1, cur ? SKY.accent : "#3a5f8f"); }
+          g.text(`STEP ${rows}/32`, 62, 82, SKY.ink, 1, "c");
+          // k-space filling line by line
+          g.box(98, 16, 74, 74, CARD, EDGE, LITE); g.text("K-SPACE 32 X 64", 135, 20, SKY.muted, 1, "c");
+          gray(g, 103, 26, 64, 32, 1, 2, (i, j) => (j < rows ? F.k[j * 64 + i] ** 1.6 : 0));
+          if (t > 5.6) { arrow(g, 176, 194, 52, SKY.accent, "2D FFT"); }
+          if (t > 5.6) g.alpha(ease((t - 5.6) / 0.6), () => {
+            g.box(198, 16, 78, 74, CARD, EDGE, LITE); g.text(t > 8.2 ? "THRESHOLDED" : "IMAGE", 237, 20, SKY.muted, 1, "c");
+            gray(g, 205, 26, 64, 32, 1, 2, (i, j) => { const v = F.img[j * 64 + i]; return t > 8.2 && v < 0.2 ? 0 : v; });
+          });
+          g.text("1 SHOT = 1 LINE", 135, 96, SKY.ink, 1, "c");
+        } },
+      { ch: 2, title: "Results", dur: 8.6, cap: "Results: a coil matched to S11 = −34.8 dB, resonance at 3.318 MHz, echo SNR 26 dB, line width 1953 → ~1220 Hz after shimming, a 32-angle projection image and a 32 × 64 phase-encoded image matching the two-tube phantom.",
+        subs: [[0.3, "From a faint echo to a real image, all built and tuned by hand."], [4.2, "Biggest lessons: timing is everything, and measure instead of assuming."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 160, 98, CARD, EDGE, LITE); g.text("KEY RESULTS", 112, 20, SKY.accent, 1, "c");
+          [["COIL MATCH", "S11 -34.8 dB, Q 74"], ["RESONANCE", "3.318 MHz"], ["ECHO SNR", "26 dB"], ["LINE WIDTH", "1953 > ABOUT 1220 Hz"], ["FIRST IMAGE", "32-ANGLE PROJECTION"], ["FINAL IMAGE", "32 X 64, PHASE-ENCODED"]].forEach(([a, b], i) => { if (t < 0.4 + i * 0.4) return; g.text(a, 38, 32 + i * 12, SKY.muted); g.text(b, 96, 32 + i * 12, SKY.ink); });
+          const F = MRI.fourier(); g.box(198, 16, 78, 74, CARD, EDGE, LITE); g.text("FINAL IMAGE", 237, 20, SKY.muted, 1, "c");
+          gray(g, 205, 26, 64, 32, 1, 2, (i, j) => { const v = F.img[j * 64 + i]; return v < 0.2 ? 0 : v; });
+          if (t > 4.2) g.text("MATCHES THE PHANTOM", 237, 98, SKY.ok, 1, "c");
+        } },
+    ],
+  },
+  mammo: {
+    title: "Mammogram classification · overview",
+    link: { label: "GitHub", url: "https://github.com/xoumyax/Breast-Cancer-Classification" },
+    chapters: ["Motivation", "Method", "Results"],
+    scenes: [
+      { ch: 0, title: "Introduction", dur: 7.7, cap: "Course project (Texas A&M, Fall 2024): classifying mammograms as benign or malignant on the CBIS-DDSM dataset, comparing texture-feature SVMs with deep convolutional networks.",
+        subs: [[0.3, "Can a computer tell a benign mammogram finding from a malignant one?"], [4.1, "We compared classic texture features with deep networks."]],
+        draw(g, t) {
+          room(g);
+          const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
+          let [a, d] = up(0.1); g.alpha(a, () => g.text("Mammogram", 153, 16 + d, SKY.ink, 2, "c"));
+          [a, d] = up(0.4); g.alpha(a, () => g.text("classification", 153, 31 + d, SKY.accent, 2, "c"));
+          [a, d] = up(1.0); g.alpha(a, () => g.text("TEXTURE FEATURES VS. DEEP NETWORKS", 153, 53 + d, SKY.ink, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("CBIS-DDSM, TEXAS A&M, FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
+          mammo(g, 112, 72, 40, 42, 3); mammo(g, 160, 72, 40, 42, 7, false);
+          g.tag("BENIGN?", 132, 118, "#2c313c", SKY.ink, "c"); g.tag("MALIGNANT?", 180, 118, "#2c313c", SKY.ink, "c");
+        } },
+      { ch: 0, title: "Why classify mammograms?", dur: 10.8, cap: "Mammography is the main screening tool for breast cancer. Telling benign from malignant findings, such as clusters of calcifications, is hard; automated classification could support radiologists. The project asks three questions on one public dataset.",
+        subs: [[0.3, "Mammography is the main screening tool for breast cancer."], [3.5, "Telling benign from malignant is hard, and a model could help."], [7.1, "We set out to answer three questions on one public dataset."]],
+        draw(g, t) {
+          room(g);
+          mammo(g, 32, 16, 62, 96, 3);
+          const z = ease((t - 1.2) / 0.6);
+          if (z > 0) { g.rect(60, 50, 16, 14, "rgba(232,145,95,.0)"); g.rect(60, 50, 16, 1, SKY.accent); g.rect(60, 63, 16, 1, SKY.accent); g.rect(60, 50, 1, 14, SKY.accent); g.rect(75, 50, 1, 14, SKY.accent);
+            g.alpha(z, () => { g.line(76, 50, 104, 18, "#5d626b"); g.line(76, 63, 104, 70, "#5d626b"); g.box(104, 16, 56, 56, "#050506", SKY.accent);
+              gray(g, 106, 18, 26, 26, 2, 2, (i, j) => 0.35 + 0.25 * rnd(i * 13 + j * 71) + 0.25 * Math.exp(-((i - 13) ** 2 + (j - 13) ** 2) / 90));
+              [[14, 12], [18, 16], [11, 19], [20, 22], [24, 14], [16, 25]].forEach(([i, j]) => g.rect(106 + i * 2, 18 + j * 2, 2, 2, "#ffffff")); g.text("CALCIFICATIONS", 132, 76, SKY.muted, 1, "c"); }); }
+          if (t > 2.6) g.alpha(ease((t - 2.6) / 0.4), () => { g.tag("BENIGN", 168, 30, SKY.ok, SKY.bg); g.tag("MALIGNANT", 168, 44, SKY.bad, "#fff"); g.text("?", 214, 36, SKY.ink, 2); });
+          if (t > 4.8) g.alpha(ease((t - 4.8) / 0.4), () => {
+            ["1  CAN A PUBLISHED GLCM + SVM BE REPRODUCED?", "2  HOW MUCH DO PREPROCESSING CHOICES MATTER?", "3  HOW DO DEEP MODELS COMPARE?"].forEach((l, i) => g.text(l, 104, 88 + i * 10, i === 0 ? SKY.ink : SKY.ink));
+          });
+        } },
+      { ch: 1, title: "The dataset: CBIS-DDSM", dur: 11, cap: "CBIS-DDSM is a curated subset of the Digital Database for Screening Mammography, with verified pathology and region-of-interest annotations. The calcification training set has 1,546 cases: 528 benign and 544 malignant are kept, 474 benign-without-callback cases are excluded, and the 1,072 remaining are split 70 / 30.",
+        subs: [[0.3, "We used CBIS-DDSM: mammograms with confirmed diagnoses."], [3.4, "From its calcification set, we kept the benign and malignant cases,"], [7.2, "dropped those without follow-up, and split the rest 70 / 30."]],
+        draw(g, t) {
+          room(g);
+          g.text("CALCIFICATION TRAINING SET: 1,546 ROI CASES", 153, 18, SKY.ink, 1, "c");
+          const B = [["BENIGN", 528, SKY.ok], ["MALIGNANT", 544, SKY.bad], ["", 474, "#5d626b"]];
+          let x = 40; B.forEach(([l, n, c], i) => { const w = Math.round((n / 1546) * 226 * ease((t - 0.6 - i * 0.4) / 0.6)); g.rect(x, 30, w, 14, c); if (w > 40) { g.text(l, x + 3, 33, i === 2 ? SKY.ink : SKY.bg); g.text(String(n), x + w - 3, 33, i === 2 ? SKY.ink : SKY.bg, 1, "r"); } x += Math.round((n / 1546) * 226); });
+          if (t > 5.2) { const x0 = 40 + Math.round((1072 / 1546) * 226); g.rect(x0, 30, 266 - x0, 14, "rgba(16,17,20,.6)"); g.tag("× EXCLUDED: NO FOLLOW-UP", 266, 48, SKY.bad, "#fff", "r"); }
+          if (t > 5.8) g.alpha(ease((t - 5.8) / 0.5), () => {
+            g.text("1,072 CASES", 153, 66, SKY.ink, 1, "c");
+            g.rect(40, 78, 158, 14, SKY.wave); g.text("TRAIN 70 %", 119, 82, SKY.bg, 1, "c"); g.rect(200, 78, 66, 14, SKY.accent); g.text("TEST 30 %", 233, 82, SKY.bg, 1, "c");
+          });
+        } },
+      { ch: 1, title: "Preprocessing", dur: 7, cap: "Preprocessing: DICOM images are converted to PNG and to grayscale, and contrast is enhanced with histogram equalization, which spreads the gray levels over the full range.",
+        subs: [[0.3, "Each image was converted to grayscale,"], [3, "and histogram equalization stretched the contrast."]],
+        draw(g, t) {
+          room(g);
+          let x = 40; ["DICOM", "PNG", "GRAYSCALE", "HIST. EQUALIZATION"].forEach((l, i) => { const w = g.textW(l) + 8, on = t > 0.3 + i * 0.6; g.rect(x, 18, w, 11, on ? SKY.accent : CARD); g.text(l, x + 4, 21, on ? SKY.bg : SKY.muted); x += w; if (i < 3) { g.text(">", x + 3, 21, SKY.trim); x += 10; } });
+          const eq = ease((t - 3) / 1.2), f = (i, j) => { const v = 0.42 + 0.12 * rnd(i * 17 + j * 31) + 0.1 * Math.exp(-((i - 14) ** 2 + (j - 12) ** 2) / 40) + ([[14, 12], [18, 16], [11, 19]].some(([a, b]) => a === i && b === j) ? 0.12 : 0); return eq ? Math.max(0, Math.min(1, (v - 0.42) * (1 + 3 * eq) + 0.42 - 0.1 * eq)) : v; };
+          g.box(40, 36, 64, 64, "#050506", EDGE); gray(g, 42, 38, 30, 30, 2, 2, f); g.text(eq > 0.5 ? "AFTER" : "BEFORE", 72, 104, SKY.muted, 1, "c");
+          // the histogram
+          g.box(120, 36, 150, 64, CARD, EDGE, LITE); g.text("GRAY-LEVEL HISTOGRAM", 195, 40, SKY.muted, 1, "c");
+          const H = new Array(32).fill(0); for (let j = 0; j < 30; j++) for (let i = 0; i < 30; i++) H[Math.min(31, Math.floor(Math.max(0, Math.min(1, f(i, j))) * 32))]++;
+          const hm = Math.max(...H); H.forEach((n, k) => { const h = Math.round((n / hm) * 46); g.rect(126 + k * 4, 94 - h, 3, h, SKY.wave); });
+        } },
+      { ch: 1, title: "Texture features: the GLCM", dur: 11, interactive: true, cap: "A gray-level co-occurrence matrix (GLCM) counts how often gray level i sits next to level j, at a given distance and angle. It is computed at 0°, 45°, 90° and 135° (distance 1, 256 levels in the project; 4 levels here), and nine texture features are taken from each matrix. Click an angle to recount.",
+        subs: [[0.2, "To describe texture, we count how often one gray level sits next to another."], [4.5, "We count in four directions,"], [6.2, "and pull nine texture features from each count."], [8.9, "Click an angle to recount."]],
+        draw(g, t, s) {
+          room(g);
+          const P = [[0, 0, 1, 1, 2, 3], [0, 1, 1, 2, 3, 3], [1, 1, 2, 2, 3, 2], [1, 2, 2, 3, 2, 1], [2, 2, 3, 2, 1, 1], [2, 3, 2, 1, 1, 0]], OFF = [[0, 1], [-1, 1], [-1, 0], [-1, -1]], ANG = ["0°", "45°", "90°", "135°"];
+          const ai = s.a ?? Math.min(3, Math.floor(Math.max(0, t - 0.5) / 2.4) % 4), [dr, dc] = OFF[ai], pairs = [];
+          for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) { const r2 = r + dr, c2 = c + dc; if (r2 >= 0 && r2 < 6 && c2 >= 0 && c2 < 6) pairs.push([r, c, r2, c2]); }
+          const k = Math.floor(((t - (s.t0 ?? 0)) * 8) % (pairs.length + 8)), done = Math.min(pairs.length, k + 1), M = [0, 1, 2, 3].map(() => [0, 0, 0, 0]);
+          pairs.slice(0, done).forEach(([r, c, r2, c2]) => M[P[r][c]][P[r2][c2]]++);
+          // the patch
+          const shade = ["#1c1f25", "#5d626b", "#a3a9b3", "#eef0f3"];
+          g.text("IMAGE PATCH", 62, 24, SKY.muted, 1, "c");
+          P.forEach((row, r) => row.forEach((v, c) => { g.rect(38 + c * 8, 38 + r * 8, 8, 8, shade[v]); g.text(String(v), 41 + c * 8, 40 + r * 8, v > 1 ? SKY.bg : SKY.ink); }));
+          const cur = pairs[Math.min(k, pairs.length - 1)];
+          if (k < pairs.length) { [[cur[0], cur[1]], [cur[2], cur[3]]].forEach(([r, c]) => { g.rect(38 + c * 8, 38 + r * 8, 8, 1, SKY.accent); g.rect(38 + c * 8, 45 + r * 8, 8, 1, SKY.accent); g.rect(38 + c * 8, 38 + r * 8, 1, 8, SKY.accent); g.rect(45 + c * 8, 38 + r * 8, 1, 8, SKY.accent); }); }
+          // the angle buttons
+          s.btn = ANG.map((l, i) => { const x = 36 + i * 13; g.rect(x, 90, 12, 9, i === ai ? SKY.accent : "#2c313c"); g.text(l, x + 6, 92, i === ai ? SKY.bg : SKY.ink, 1, "c"); return [x, 90, 12, 9]; });
+          // the matrix
+          g.text("GLCM (COUNTS)", 134, 24, SKY.muted, 1, "c"); for (let i = 0; i < 4; i++) { g.text(String(i), 104, 41 + i * 12, SKY.muted); g.text(String(i), 115 + i * 12, 31, SKY.muted, 1, "c"); }
+          for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const hit = k < pairs.length && P[cur[0]][cur[1]] === i && P[cur[2]][cur[3]] === j; g.rect(110 + j * 12, 38 + i * 12, 11, 11, hit ? SKY.accent : `rgba(127,176,240,${Math.min(0.9, M[i][j] / 8).toFixed(2)})`); g.text(String(M[i][j]), 115 + j * 12, 41 + i * 12, hit ? SKY.bg : SKY.ink, 1, "c"); }
+          g.text("ROW: LEVEL i", 110, 90, SKY.muted); g.text("COLUMN: NEIGHBOUR j", 110, 98, SKY.muted);
+          // features from the (normalised) matrix
+          const tot = M.flat().reduce((a, b) => a + b, 0) || 1, p = M.map((r) => r.map((v) => v / tot));
+          let con = 0, hom = 0, asm = 0, mi = 0, mj = 0; p.forEach((r, i) => r.forEach((v, j) => { con += v * (i - j) ** 2; hom += v / (1 + (i - j) ** 2); asm += v * v; mi += i * v; mj += j * v; }));
+          let si = 0, sj = 0, cov = 0; p.forEach((r, i) => r.forEach((v, j) => { si += v * (i - mi) ** 2; sj += v * (j - mj) ** 2; cov += v * (i - mi) * (j - mj); }));
+          g.box(170, 26, 106, 68, CARD, EDGE, LITE); g.text("FEATURES", 223, 30, SKY.muted, 1, "c");
+          [["CONTRAST", con], ["HOMOGENEITY", hom], ["ENERGY", Math.sqrt(asm)], ["CORRELATION", si && sj ? cov / Math.sqrt(si * sj) : 0]].forEach(([l, v], i) => { g.text(l, 175, 42 + i * 10, SKY.ink); g.text(v.toFixed(2), 270, 42 + i * 10, SKY.accent, 1, "r"); });
+          g.text("+ 5 MORE: ASM, DISSIMILARITY, ...", 223, 84, SKY.muted, 1, "c");
+          g.text("9 FEATURES X 4 ANGLES PER IMAGE", 223, 104, SKY.ink, 1, "c");
+          if (t > 8.4 && s.a == null && blinkOn(t, 1)) g.text("CLICK AN ANGLE", 62, 108, SKY.ink, 1, "c");
+        },
+        click(s, x, y, t) { (s.btn || []).forEach(([bx, by, bw, bh], i) => { if (x >= bx && x < bx + bw && y >= by && y < by + bh) { s.a = i; s.t0 = t; } }); } },
+      { ch: 1, title: "Normalization and the SVM", dur: 10.8, cap: "The nine features live on very different scales, so they are normalized before the SVM: none, standard scaling, or a Yeo-Johnson power transform, which reduces skew and was the most stable. The classifier is an SVM with an RBF kernel (C = 1); Random Forest and XGBoost serve as baselines.",
+        subs: [[0.3, "Those features live on very different scales, so we normalize them first."], [4.4, "A Yeo-Johnson transform worked best."], [6.5, "Then an SVM draws the line, with Random Forest and XGBoost as checks."]],
+        draw(g, t) {
+          room(g);
+          const F = [3.2, 0.05, 0.6, 1.8, 0.2];
+          [["NONE", (v) => v / 3.2], ["STANDARD", (v, i) => 0.55 + 0.05 * (i % 3)], ["YEO-JOHNSON", (v, i) => 0.6]].forEach(([l, f], k) => {
+            if (t < 0.3 + k * 1.2) return; const x = 34 + k * 46, best = k === 2 && t > 3.4;
+            g.alpha(ease((t - 0.3 - k * 1.2) / 0.4), () => { g.box(x, 16, 42, 58, best ? "#24262c" : CARD, best ? SKY.ok : EDGE); g.text(l, x + 21, 20, best ? SKY.ok : SKY.muted, 1, "c"); F.forEach((v, i) => { const h = Math.round(Math.min(1, f(v, i)) * 40); g.rect(x + 5 + i * 7, 68 - h, 5, h, i === 0 && k === 0 ? SKY.bad : SKY.wave); }); });
+          });
+          if (t > 0.8) g.text("ONE FEATURE DOMINATES", 34, 78, SKY.bad);
+          // the SVM: two overlapping classes, a wavy RBF boundary
+          g.box(176, 16, 100, 98, CARD, EDGE, LITE); g.text("SVM, RBF KERNEL", 226, 20, SKY.muted, 1, "c");
+          const bx = (y) => 226 + Math.round(10 * Math.sin(y * 0.12) + 4 * Math.sin(y * 0.31));
+          for (let y = 28; y < 110; y++) { const b = bx(y); g.rect(180, y, b - 180, 1, "rgba(108,196,154,.08)"); g.rect(b, y, 272 - b, 1, "rgba(224,106,95,.08)"); if (t > 6) g.px(b, y, SKY.ink); }
+          for (let i = 0; i < 34; i++) { const ben = i % 2 === 0, x = 226 + (ben ? -10 : 10) + (rnd(i * 7) - 0.5) * 70, y = 30 + rnd(i * 13 + 5) * 76; g.rect(x - 1, y - 1, 3, 3, ben ? SKY.ok : SKY.bad); }
+          if (t > 6) g.tag("CLASSES OVERLAP", 226, 102, "#2c313c", SKY.ink, "c");
+          if (t > 6) g.alpha(ease((t - 6) / 0.4), () => { g.tag("BASELINES: RANDOM FOREST, XGBOOST", 103, 96, "#2c313c", SKY.ink, "c"); });
+        } },
+      { ch: 1, title: "Deep models", dur: 9.8, cap: "Deep models: a two-view EfficientNet-B0 reads both standard mammogram views (CC and MLO) together, but was too compute-intensive to train fully on the available hardware, so a residual network (Xception-style, with shortcut connections) was trained instead, its hyperparameters tuned with Optuna.",
+        subs: [[0.3, "On the deep side, one network reads both views of the breast together."], [4.2, "It was too heavy to train fully, so we used a residual network instead,"], [8.2, "tuned with Optuna."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 104, 98, CARD, EDGE, LITE); g.text("TWO-VIEW EFFICIENTNET-B0", 84, 20, SKY.muted, 1, "c");
+          mammo(g, 38, 30, 30, 40, 3); mammo(g, 72, 30, 30, 40, 5); g.text("CC", 53, 74, SKY.ink, 1, "c"); g.text("MLO", 87, 74, SKY.ink, 1, "c");
+          g.line(53, 82, 84, 90, "#5d626b"); g.line(87, 82, 84, 90, "#5d626b"); g.tag("ONE NETWORK", 84, 90, "#2c313c", SKY.ink, "c");
+          if (t > 3.4) g.alpha(ease((t - 3.4) / 0.4), () => g.tag("TOO COMPUTE-HEAVY", 84, 103, SKY.bad, "#fff", "c"));
+          if (t > 3.6) g.alpha(ease((t - 3.6) / 0.5), () => {
+            g.box(142, 16, 134, 98, "#24262c", SKY.ok); g.text("RESIDUAL CNN (XCEPTION)", 209, 20, SKY.ok, 1, "c");
+            for (let i = 0; i < 5; i++) { const x = 150 + i * 24, on = Math.floor(t * 4) % 6 === i; g.rect(x, 40, 16, 28, on ? SKY.wave : "#3a5f8f"); g.rect(x + 1, 41, 14, 1, "#7fb0f0"); if (i < 4) g.rect(x + 16, 54, 8, 1, SKY.muted); if (i % 2 === 0 && i < 4) { g.rect(x + 8, 34, 49, 1, SKY.accent); g.rect(x + 8, 34, 1, 6, SKY.accent); g.rect(x + 56, 34, 1, 6, SKY.accent); } }
+            g.text("SHORTCUTS", 209, 28, SKY.accent, 1, "c"); g.text("BENIGN / MALIGNANT", 209, 72, SKY.ink, 1, "c");
+            if (t > 6.2) { g.text("OPTUNA TRIALS", 209, 86, SKY.muted, 1, "c"); for (let i = 0; i < 18; i++) { if (t < 6.2 + i * 0.12) break; const v = 0.4 + 0.5 * rnd(i * 9) * (0.6 + 0.4 * i / 18); g.rect(156 + i * 6, 108 - Math.round(v * 14), 3, 3, i === 13 ? SKY.accent : SKY.wave); } }
+          });
+        } },
+      { ch: 2, title: "Results", dur: 14.2, cap: "Results: reproducing the published GLCM + SVM gave 0.50 accuracy (near chance, likely a mismatch in the selected cases). With Yeo-Johnson normalization the SVM reached 0.52–0.57 held-out (0.57 at 135°); Random Forest and XGBoost reached 0.51. The tuned residual CNN reached 0.80 / 0.78 validation accuracy (left / right models).",
+        subs: [[0.3, "Copying the published SVM gave just 50%, a coin flip."], [3.3, "With normalization, it reached 52–57% on held-out data."], [6.5, "The residual network did much better: 80% and 78% on validation."], [10.1, "And the SVM's best fold, 79%, made it look far better than it was."]],
+        draw(g, t) {
+          room(g);
+          g.text("ACCURACY", 153, 16, SKY.muted, 1, "c");
+          hbars(g, 34, 28, [["GLCM + SVM, AS PUBLISHED", 0.50, SKY.bad], ["SVM + YEO-JOHNSON, 135°", 0.57, SKY.wave], ["RANDOM FOREST / XGBOOST", 0.51, "#7d8590"], ["RESIDUAL CNN (VALIDATION)", 0.80, SKY.ok]], { lw: 104, bw: 110, rh: 16, t, t0: 0.3, max: 1 });
+          for (let y = 24; y < 94; y += 3) g.px(138 + 55, y, SKY.muted); g.text("CHANCE 0.5", 193, 96, SKY.muted, 1, "c");
+          if (t > 4.6) g.text("/ 0.78", 138 + 88 + 22, 77, SKY.ok);
+          if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => g.tag("SVM: BEST CV FOLD 0.79, HELD-OUT ABOUT 0.56", 153, 110, SKY.accent, "#fff", "c"));
+        } },
+      { ch: 2, title: "Takeaways", dur: 7.4, cap: "Takeaways: reproducibility depends on which cases are selected; normalization matters for distance-based SVMs; held-out accuracy, not the best fold, is the realistic figure; learned features beat global texture statistics, at far more compute.",
+        subs: [[0.3, "Lesson one: which cases you pick can change everything."], [3.6, "Lesson two: learned features win, but cost far more compute."]],
+        draw(g, t) {
+          room(g);
+          g.box(48, 22, 210, 84, CARD, EDGE, LITE); g.text("TAKEAWAYS", 153, 28, SKY.accent, 1, "c");
+          ["REPRODUCIBILITY DEPENDS ON DATA SELECTION", "NORMALIZATION MATTERS FOR SVMS", "REPORT HELD-OUT ACCURACY, NOT THE BEST FOLD", "LEARNED FEATURES WIN, AT MORE COMPUTE"].forEach((l, i) => { if (t > 0.5 + i * 0.8) { g.text("+", 58, 44 + i * 13, SKY.ok); g.text(l, 66, 44 + i * 13, SKY.ink); } });
+        } },
+    ],
+  },
+  metagenomic: {
+    title: "Benchmarking transformer enzyme annotation · overview",
+    link: { label: "GitHub", url: "https://github.com/Dino-Boooo/Metagenomic-Functional-Profiling" },
+    chapters: ["Motivation", "Method", "Results"],
+    scenes: [
+      { ch: 0, title: "Introduction", dur: 6.6, cap: "Course project (Texas A&M, Spring 2025): benchmarking a transformer-based enzyme classifier, DeepECtransformer, against alignment-based and machine-learning methods for annotating enzyme functions in metagenomes.",
+        subs: [[0.3, "A microbial community carries thousands of genes."], [3.1, "We asked how well a transformer can tell what they do."]],
+        draw(g, t) {
+          room(g);
+          const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
+          let [a, d] = up(0.1); g.alpha(a, () => g.text("Enzyme function", 153, 16 + d, SKY.ink, 2, "c"));
+          [a, d] = up(0.4); g.alpha(a, () => g.text("from metagenomes", 153, 31 + d, SKY.accent, 2, "c"));
+          [a, d] = up(1.0); g.alpha(a, () => g.text("BENCHMARKING A TRANSFORMER EC CLASSIFIER", 153, 53 + d, SKY.ink, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("TEXAS A&M, SPRING 2025", 153, 63 + d, SKY.muted, 1, "c"));
+          for (let x = 0; x < 120; x++) { const y1 = 100 + Math.round(8 * Math.sin(x * 0.18 + t * 2)), y2 = 100 - Math.round(8 * Math.sin(x * 0.18 + t * 2)); g.px(94 + x, y1, SKY.wave); g.px(94 + x, y2, SKY.accent); if (x % 6 === 0) g.rect(94 + x, Math.min(y1, y2), 1, Math.abs(y1 - y2), "#3a3f4a"); }
+          [[70, 92, 1, SKY.ok], [78, 108, 0, "#e8c35f"], [236, 94, 0, SKY.ok], [244, 108, 1, "#e8c35f"]].forEach(([x, y, k, c], i) => microbe(g, x + Math.round(Math.sin(t * 2 + i) * 2), y, k, c));
+        } },
+      { ch: 0, title: "What can a microbial community do?", dur: 12.8, cap: "Functional profiling asks what a microbial community can do, by assigning Enzyme Commission (EC) numbers to its genes. Standard tools align genes to reference databases: precise, but divergent or novel genes stay unannotated. Transformers may annotate them, but their reliability on full metagenomes had rarely been benchmarked.",
+        subs: [[0.3, "Functional profiling asks what a community can actually do."], [3.7, "Each gene gets an enzyme label, an EC number."], [6.3, "Alignment tools match known genes, but miss new ones."], [9.3, "Could a transformer fill that gap on real metagenomes?"]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 66, 66, CARD, EDGE, LITE); g.text("COMMUNITY", 65, 20, SKY.muted, 1, "c");
+          for (let i = 0; i < 14; i++) microbe(g, 42 + rnd(i) * 46 + Math.sin(t * 1.5 + i) * 2, 32 + rnd(i + 30) * 44, i % 3 === 0 ? 1 : 0, [SKY.ok, "#e8c35f", SKY.wave, SKY.hot][i % 4]);
+          if (t > 1.6) arrow(g, 100, 112, 48, SKY.muted);
+          const genes = [["EC 2.7.7.7", true], ["EC 1.1.1.1", true], ["EC 3.2.1.4", true], ["?", false]];
+          genes.forEach(([ec, known], i) => { if (t < 1.8 + i * 0.3) return; const y = 22 + i * 15; g.rect(116, y, 40, 5, i === 3 ? SKY.hot : SKY.wave); for (let k = 0; k < 8; k++) g.rect(117 + k * 5, y + 1, 2, 3, "#1b1e24"); if (t > 2.4) g.text(ec, 162, y, known ? SKY.ink : SKY.bad); });
+          if (t > 4.4) g.alpha(ease((t - 4.4) / 0.4), () => {
+            g.box(206, 16, 70, 66, CARD, EDGE, LITE); g.text("REFERENCE DB", 241, 20, SKY.muted, 1, "c");
+            for (let i = 0; i < 5; i++) g.rect(212, 30 + i * 7, 58, 4, "#2c313c");
+            g.tag("3 MATCHED", 241, 72, SKY.ok, SKY.bg, "c"); g.tag("NOVEL: NO HIT", 182, 88, SKY.bad, "#fff", "c");
+          });
+          if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => g.tag("TRANSFORMERS MIGHT FILL THE GAP: HOW RELIABLY?", 153, 110, SKY.accent, "#fff", "c"));
+        } },
+      { ch: 1, title: "Four methods compared", dur: 11.2, cap: "Four methods: HUMAnN3 (alignment to pangenomes and UniRef clusters, the current gold standard), Carnelian (k-mer profiles with one-vs-all classifiers), DeepECtransformer (two ProtBERT transformer layers, two convolutions and a linear output, with a homology fallback) and ECPICK (a CNN with hierarchical EC layers).",
+        subs: [[0.3, "We compared four tools. HUMAnN3 aligns genes to reference databases,"], [4.1, "Carnelian works from short sequence fragments,"], [6.8, "and two deep models: DeepECtransformer, the one under test, and ECPICK."]],
+        draw(g, t) {
+          room(g);
+          const C = [["HUMANN3", "ALIGNMENT TO PANGENOMES", "+ UNIREF CLUSTERS", "#7d8590", 0.3], ["CARNELIAN", "K-MER PROFILES,", "ONE-VS-ALL CLASSIFIERS", "#7d8590", 2.6], ["DEEPECTRANSFORMER", "PROTBERT TRANSFORMER + CNN,", "HOMOLOGY FALLBACK", SKY.accent, 4.4], ["ECPICK", "CNN WITH HIERARCHICAL", "EC LAYERS", SKY.wave, 5.2]];
+          C.forEach(([n, a, b, col, t0], i) => { if (t < t0) return; const x = 34 + (i % 2) * 122, y = 18 + Math.floor(i / 2) * 50; g.alpha(ease((t - t0) / 0.4), () => { g.box(x, y, 118, 44, i === 2 ? "#24262c" : CARD, col); g.text(n, x + 6, y + 6, col === "#7d8590" ? SKY.ink : col); g.text(a, x + 6, y + 18, SKY.muted); g.text(b, x + 6, y + 26, SKY.muted); if (i === 2) g.tag("UNDER TEST", x + 112, y + 32, SKY.accent, "#fff", "r"); }); });
+        } },
+      { ch: 1, title: "Building a gold-standard benchmark", dur: 11, cap: "CAMI-II gives simulated metagenomes with known genomes but no functional labels, so the labels were built: genes predicted with Prodigal on gold-standard assemblies from five body sites, searched against UniRef90 with DIAMOND, kept only at identity ≥ 90 % and coverage ≥ 80 %, and mapped to EC numbers. Result: 251,559 labeled sequences covering 2,392 EC numbers.",
+        subs: [[0.3, "No labeled benchmark existed, so we built one."], [3.0, "We predicted genes and searched them against UniRef90,"], [6.1, "kept only very confident matches,"], [8.0, "and ended up with 251,559 labeled sequences."]],
+        draw(g, t) {
+          room(g);
+          const S = [["CAMI-II ASSEMBLIES", "5 BODY SITES", 0.3], ["PRODIGAL", "GENE PREDICTION", 2.6], ["DIAMOND VS. UNIREF90", "TOP HIT", 3.6], ["FILTER", "ID >= 90 %, COV >= 80 %", 5], ["MAP TO EC", "HUMANN3 UTILITY DB", 6.2]];
+          S.forEach(([a, b, t0], i) => { const y = 18 + i * 20, on = t > t0; g.box(34, y, 100, 16, on ? "#24262c" : CARD, on ? SKY.accent : EDGE); g.text(a, 38, y + 3, on ? SKY.ink : SKY.muted); g.text(b, 38, y + 9, SKY.muted); if (i < 4) g.rect(84, y + 16, 1, 4, on ? SKY.accent : EDGE); });
+          // the body sites
+          ["AIRWAYS", "GASTROINTESTINAL", "ORAL", "SKIN", "UROGENITAL"].forEach((l, i) => { if (t < 0.6 + i * 0.25) return; g.tag(l, 150, 20 + i * 11, "#2c313c", SKY.ink); });
+          // sequences flowing down and some filtered out
+          for (let k = 0; k < 8; k++) { const p = (t * 0.35 + k / 8) % 1, y = 20 + p * 96, out = k % 3 === 0 && y > 82; if (y < 114 && t > 2.6) g.rect(out ? 139 + (y - 82) * 0.9 : 138, y, 3, 2, out ? SKY.bad : SKY.wave); }
+          if (t > 7.4) g.alpha(ease((t - 7.4) / 0.5), () => {
+            g.box(196, 74, 80, 40, CARD, SKY.ok); g.text("251,559", 236, 80, SKY.ok, 2, "c"); g.text("LABELED SEQUENCES", 236, 96, SKY.ink, 1, "c"); g.text("2,392 EC NUMBERS", 236, 104, SKY.muted, 1, "c");
+          });
+        } },
+      { ch: 1, title: "The model under test", dur: 10.2, cap: "DeepECtransformer reads a protein sequence one amino acid at a time: two ProtBERT transformer layers, two convolutional layers and a linear output predict the EC number. When it is not confident, it falls back to a homology search. It was trained on 22 million enzymes covering 2,802 EC numbers.",
+        subs: [[0.3, "The model reads a protein one amino acid at a time."], [3.2, "Transformer layers, then convolutions, then a final guess."], [6.5, "If it isn't confident, it falls back to a homology search."]],
+        draw(g, t) {
+          room(g);
+          const seq = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPIL", off = Math.floor(t * 4) % 6;
+          for (let i = 0; i < 16; i++) { const ch = seq[(i + off) % seq.length], x = 34 + i * 9; g.rect(x, 18, 8, 9, "#2c313c"); g.text(ch, x + 4, 20, SKY.ink, 1, "c"); }
+          g.text("PROTEIN SEQUENCE", 106, 30, SKY.muted, 1, "c");
+          const L = [["PROTBERT LAYER 1", SKY.wave, 0.8, 38], ["PROTBERT LAYER 2", SKY.wave, 1.6, 54], ["CONV LAYER X2", SKY.ok, 2.6, 70], ["LINEAR", "#c9ccd2", 3.4, 86]];
+          L.forEach(([l, c, t0, y]) => { if (t < t0) return; g.alpha(ease((t - t0) / 0.4), () => { g.box(40, y, 132, 12, "#1b1e24", c); g.text(l, 106, y + 3, c, 1, "c"); }); });
+          if (t > 1.6) for (let i = 0; i < 6; i++) { const a = 44 + ((i * 37 + Math.floor(t * 5) * 11) % 120), b = 44 + ((i * 53 + 17) % 120); g.line(a, 51, b, 54, "rgba(127,176,240,.35)"); }
+          if (t > 4.2) g.alpha(ease((t - 4.2) / 0.4), () => { arrow(g, 174, 192, 92, SKY.accent); g.tag("EC 2.7.7.7", 196, 88, SKY.accent, "#fff"); g.text("CONFIDENCE", 196, 102, SKY.muted); g.rect(196, 110, 60, 4, "#2c313c"); g.rect(196, 110, Math.round(60 * (t > 5.8 ? 0.35 : 0.9)), 4, t > 5.8 ? SKY.bad : SKY.ok); });
+          if (t > 5.8) g.alpha(ease((t - 5.8) / 0.4), () => { g.box(196, 38, 80, 40, CARD, SKY.accent); g.text("LOW CONFIDENCE?", 236, 44, SKY.accent, 1, "c"); g.text("HOMOLOGY SEARCH", 236, 56, SKY.ink, 1, "c"); g.text("(FALLBACK)", 236, 66, SKY.muted, 1, "c"); });
+          g.text("TRAINED: 22M ENZYMES, 2,802 ECS", 106, 108, SKY.muted, 1, "c");
+        } },
+      { ch: 1, title: "A 2023 model on 2025 hardware", dur: 11.3, cap: "DeepECtransformer was released for Python 3.6, CUDA 10.2 and Transformers 3.5.1, which no longer run on current clusters. It was rebuilt on Texas A&M's Grace HPC cluster; the newer Transformers library changed the model's behaviour, so the original configuration was restored by hand (attention settings, zeroed and frozen positional embeddings, tokenizer files downloaded in advance). It then ran on both CPU and GPU.",
+        subs: [[0.3, "The model was released in 2023, and it no longer ran on today's systems."], [4.3, "We rebuilt it on Texas A&M's Grace supercomputer,"], [7.2, "and restored its original settings by hand so it behaved the same."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 132, 66, CARD, EDGE, LITE); g.text("ORIGINAL", 100, 20, SKY.bad, 1, "c"); g.text("OURS", 146, 20, SKY.ok, 1, "c");
+          [["PYTHON", "3.6", "3.8"], ["CUDA", "10.2", "11.3.1"], ["TRANSFORMERS", "3.5.1", "4.2.2"], ["PYTORCH", "1.7.0", "1.12.1"]].forEach(([n, a, b], i) => { if (t < 0.4 + i * 0.4) return; const y = 32 + i * 11; g.text(n, 38, y, SKY.muted); g.text(a, 100, y, SKY.ink, 1, "c"); if (t > 3) { g.text(">", 123, y, SKY.trim, 1, "c"); g.text(b, 146, y, SKY.ok, 1, "c"); } });
+          // the cluster
+          g.box(176, 16, 100, 66, CARD, EDGE, LITE); g.text("GRACE HPC", 226, 20, SKY.muted, 1, "c");
+          for (let r = 0; r < 4; r++) { g.rect(196, 30 + r * 11, 60, 9, "#22262e"); g.rect(197, 31 + r * 11, 58, 1, "#3a3f4a"); for (let k = 0; k < 6; k++) g.rect(200 + k * 4, 34 + r * 11, 2, 2, t > 3 && blinkOn(t + r * 0.3 + k * 0.17, 0.6) ? (k % 2 ? SKY.ok : SKY.wave) : "#2c3038"); g.text(r < 2 ? "CPU" : "GPU", 252, 33 + r * 11, SKY.muted, 1, "r"); }
+          if (t > 5.4) ["RESTORE ATTENTION SETTINGS", "ZERO + FREEZE POSITIONAL EMBEDDINGS", "TOKENIZER DOWNLOADED IN ADVANCE"].forEach((l, i) => { if (t < 5.4 + i * 0.5) return; g.tag("✓", 36, 88 + i * 11, SKY.ok, "#fff"); g.text(l, 50, 90 + i * 11, SKY.ink); });
+        } },
+      { ch: 2, title: "Results: F1 by dataset", dur: 12, interactive: true, cap: "F1 scores: DeepECtransformer (ProtBERT) is the most accurate on every dataset, with micro-F1 0.89–0.91. HUMAnN3 recovers most true enzymes but with very low precision (F1 about 0.1). ProtT5 lowers peak accuracy but balances micro and macro scores; ECPICK left 915 of 7,884 validation proteins unannotated. Click a dataset to see its scores.",
+        subs: [[0.2, "DeepECtransformer scored an F1 of about 0.9 on every dataset."], [3.8, "HUMAnN3 found most enzymes, but with many false hits: F1 around 0.1."], [7.6, "Click a dataset to compare."]],
+        draw(g, t, s) {
+          room(g);
+          const D = { VALIDATION: [0.91, 0.81, 0.71, 0.76, 0.81, null], AIRWAYS: [0.90, 0.69, 0.73, 0.64, 0.64, 0.16], GASTRO: [0.89, 0.79, 0.80, 0.71, 0.71, 0.10], ORAL: [0.91, 0.73, 0.80, 0.61, 0.76, 0.10], SKIN: [0.91, 0.67, 0.80, 0.61, 0.68, 0.17], URO: [0.89, 0.78, 0.82, 0.68, 0.73, 0.09] };
+          const keys = Object.keys(D), cur = s.d ?? keys[Math.floor(Math.max(0, t - 0.2) / 2) % keys.length];
+          let x = 34; s.btn = keys.map((k) => { const w = g.textW(k) + 6, on = k === cur; g.rect(x, 16, w, 10, on ? SKY.accent : "#2c313c"); g.text(k, x + 3, 18, on ? SKY.bg : SKY.ink); const b = [x, 16, w, 10, k]; x += w + 3; return b; });
+          const v = D[cur], t0 = s.d ? s.t0 : Math.floor(Math.max(0, t - 0.2) / 2) * 2 + 0.2;
+          hbars(g, 34, 36, [["PROTBERT MICRO", v[0], SKY.accent], ["PROTBERT MACRO", v[1], "#c98a5f"], ["PROTT5 MICRO", v[2], SKY.wave], ["PROTT5 MACRO", v[3], "#5d86b8"], ["ECPICK MICRO", v[4], SKY.ok], ["HUMANN3", v[5], SKY.bad]], { lw: 72, bw: 140, rh: 12, t, t0 });
+          if (t > 7 && s.d == null && blinkOn(t, 1)) g.text("CLICK A DATASET", 153, 112, SKY.ink, 1, "c");
+          if (cur === "VALIDATION") g.text("HUMANN3 STARTS FROM RAW READS: NOT RUN HERE", 153, 112, SKY.muted, 1, "c");
+        },
+        click(s, x, y, t) { (s.btn || []).forEach(([bx, by, bw, bh, k]) => { if (x >= bx && x < bx + bw && y >= by && y < by + bh) { s.d = k; s.t0 = t; } }); } },
+      { ch: 2, title: "Why rare enzymes are missed", dur: 13.4, cap: "Macro-F1, which weights every EC class equally, was up to 24 points lower than micro-F1: EC classes are long-tailed, and the model is weaker on rare ones. Misclassified proteins share little sequence with correctly classified ones (average 3-mer Jaccard similarity 0.03–0.04, maximum at most 0.20). Swapping in the ProtT5 encoder narrowed the micro–macro gap to about 10–13 points.",
+        subs: [[0.3, "But enzyme classes are long-tailed: a few common, many rare."], [3.7, "Scored class by class, the model drops by up to 24 points."], [7.0, "The proteins it misses look unlike anything it got right."], [10.3, "A different encoder, ProtT5, narrowed that gap."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 16, 116, 70, CARD, EDGE, LITE); g.text("EXAMPLES PER EC CLASS", 90, 20, SKY.muted, 1, "c");
+          for (let i = 0; i < 36; i++) { const h = Math.round(52 / (1 + i * 0.45)), lit = i > 12 && t > 2.6; if (t < 0.3 + i * 0.03) break; g.rect(38 + i * 3, 80 - h, 2, h, lit ? SKY.bad : SKY.wave); }
+          if (t > 1) g.text("COMMON", 50, 30, SKY.wave); if (t > 2.6) g.text("RARE (LONG TAIL)", 140, 64, SKY.bad, 1, "r");
+          if (t > 2.6) g.alpha(ease((t - 2.6) / 0.4), () => { g.text("SKIN, PROTBERT", 90, 92, SKY.muted, 1, "c"); g.tag("MICRO 0.91", 64, 100, SKY.accent, "#fff", "c"); g.tag("MACRO 0.67", 116, 100, "#c98a5f", "#fff", "c"); });
+          if (t > 5) g.alpha(ease((t - 5) / 0.4), () => {
+            g.box(154, 16, 122, 70, CARD, EDGE, LITE); g.text("SEQUENCE SIMILARITY", 215, 20, SKY.muted, 1, "c");
+            for (let i = 0; i < 26; i++) { const a = rnd(i) * Math.PI * 2, r = rnd(i + 40) * 12; g.rect(194 + Math.cos(a) * r, 52 + Math.sin(a) * r * 0.8, 2, 2, SKY.ok); }
+            [[250, 30], [262, 70], [168, 74], [256, 50], [172, 32]].forEach(([x, y]) => g.rect(x, y, 3, 3, SKY.bad));
+            g.text("CORRECT", 194, 70, SKY.ok, 1, "c"); g.text("MISSED", 258, 78, SKY.bad, 1, "c");
+            g.text("3-MER JACCARD: AVG 0.03-0.04, MAX <= 0.20", 215, 92, SKY.ink, 1, "c");
+          });
+          if (t > 7) g.alpha(ease((t - 7) / 0.4), () => g.tag("PROTT5: GAP NARROWS TO 10-13 POINTS", 215, 106, SKY.wave, SKY.bg, "c"));
+        } },
+      { ch: 2, title: "Takeaways", dur: 7, cap: "Takeaways: transformers can complement alignment, being far more precise than HUMAnN3 on well-characterized enzymes at a fraction of the compute; micro scores hide the long tail, so macro metrics matter; the encoder shapes the trade-off; and labels built by alignment may favour alignment tools. The benchmark is public on Zenodo.",
+        subs: [[0.3, "Transformers can complement alignment-based tools."], [3.6, "Just remember: averages can hide the rare cases."]],
+        draw(g, t) {
+          room(g);
+          g.box(42, 20, 222, 88, CARD, EDGE, LITE); g.text("TAKEAWAYS", 153, 26, SKY.accent, 1, "c");
+          ["TRANSFORMERS CAN COMPLEMENT ALIGNMENT", "MICRO SCORES HIDE THE LONG TAIL", "THE ENCODER SHAPES THE TRADE-OFF", "ALIGNMENT-BUILT LABELS MAY FAVOUR ALIGNMENT"].forEach((l, i) => { if (t > 0.5 + i * 0.8) { g.text("+", 52, 42 + i * 13, SKY.ok); g.text(l, 60, 42 + i * 13, SKY.ink); } });
+          if (t > 4) g.text("BENCHMARK PUBLIC ON ZENODO", 153, 98, SKY.muted, 1, "c");
+        } },
+    ],
+  },
 };
 
 // ---------- the window and its player
 const TourPlayer = (() => {
-  let trans = null, curSub = "", sub, head, dlg, cv, ctx, g, cap, dots, bar, playBtn, linkEl, tour, idx = 0, t = 0, playing = false, last = 0, raf = 0, imgs = {}, states = [];
-  const W = 256, H = 144, SHIFT = 24, reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let scrubbing = false, lastSec = -1, track, knob, trans = null, curSub = "", sub, head, dlg, cv, ctx, g, cap, dots, bar, playBtn, linkEl, tour, idx = 0, t = 0, playing = false, last = 0, raf = 0, imgs = {}, states = [];
+  const W = 256, H = 132, SHIFT = 24, reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function build() {
     dlg = document.createElement("dialog");
     dlg.className = "pxwin";
@@ -786,7 +1298,7 @@ const TourPlayer = (() => {
         <button type="button" class="pxb" data-act="prev" aria-label="Previous scene">◀◀</button>
         <button type="button" class="pxb play" data-act="play" aria-label="Pause">❚❚</button>
         <button type="button" class="pxb" data-act="next" aria-label="Next scene">▶▶</button>
-        <div class="pxwin-track"><div class="pxwin-bar-fill"></div><div class="pxwin-dots"></div></div>
+        <div class="pxwin-track" role="slider" tabindex="0" aria-label="Position in the tour"><div class="pxwin-bar-fill"></div><div class="pxwin-dots" aria-hidden="true"></div><div class="pxwin-knob"></div></div>
         <a class="pxwin-link" target="_blank" rel="noopener"></a>
       </div>`;
     document.body.append(dlg);
@@ -803,6 +1315,14 @@ const TourPlayer = (() => {
       if (e.key === " " && e.target.tagName !== "A") { e.preventDefault(); setPlaying(!playing); }
       if (e.key === "ArrowRight") go(idx + 1); if (e.key === "ArrowLeft") go(idx - 1);
     });
+    // the progress bar can be dragged (or clicked) to any moment of the tour
+    track = dlg.querySelector(".pxwin-track"); knob = dlg.querySelector(".pxwin-knob");
+    const at = (e) => { const r = track.getBoundingClientRect(); seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); };
+    track.addEventListener("pointerdown", (e) => { e.preventDefault(); scrubbing = true; track.classList.add("drag"); track.setPointerCapture(e.pointerId); at(e); });
+    track.addEventListener("pointermove", (e) => { if (scrubbing) at(e); });
+    const end = () => { scrubbing = false; track.classList.remove("drag"); last = performance.now(); };
+    track.addEventListener("pointerup", end); track.addEventListener("pointercancel", end);
+    track.addEventListener("keydown", (e) => { const k = { Home: 0, End: 0.999 }[e.key]; if (k !== undefined) { e.preventDefault(); seek(k); } });
     cv.addEventListener("pointerdown", (e) => {
       const sc = tour.scenes[idx]; if (!sc.click) return;
       const r = cv.getBoundingClientRect(); sc.click(states[idx], ((e.clientX - r.left) / r.width) * W + SHIFT, ((e.clientY - r.top) / r.height) * H, t);
@@ -825,7 +1345,9 @@ const TourPlayer = (() => {
     const p = trans ? Math.min(1, (performance.now() - trans.t0) / 520) : 1, e = ease(p), dx = Math.round(18 * (1 - e));
     ctx.setTransform(PXK, 0, 0, PXK, (-SHIFT + dx) * PXK, 0); sc.draw(g, t, states[idx], imgs); ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (trans && p < 1) { ctx.globalAlpha = 1 - e; ctx.drawImage(trans.img, -Math.round(18 * e) * PXK, 0, cv.width, cv.height); ctx.globalAlpha = 1; } else trans = null;
-    bar.style.width = (100 * elapsed()) / total() + "%";
+    const pct = (100 * elapsed()) / total(), sec = Math.floor(elapsed()), mmss = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, "0")}`;
+    bar.style.width = pct + "%"; knob.style.left = pct + "%";
+    if (sec !== lastSec) { lastSec = sec; track.setAttribute("aria-valuenow", sec); track.setAttribute("aria-valuetext", `${mmss(sec)} of ${mmss(total())}`); }
     // the subtitle for this moment of the scene
     const cue = (sc.subs || []).filter(([t0]) => t >= t0).pop(), text = cue ? cue[1] : "";
     if (text !== curSub) { curSub = text; sub.classList.remove("in"); void sub.offsetWidth; sub.textContent = text; sub.classList.add("in"); }
@@ -833,7 +1355,7 @@ const TourPlayer = (() => {
   }
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    if (playing) {
+    if (playing && !scrubbing) {
       t += dt;
       const sc = tour.scenes[idx];
       if (t >= sc.dur) { if (idx < tour.scenes.length - 1) go(idx + 1, true); else { t = sc.dur - 0.001; setPlaying(false); } }
@@ -841,15 +1363,22 @@ const TourPlayer = (() => {
     draw();
     raf = requestAnimationFrame(frame);
   }
-  function go(i, keepPlaying) {
+  // jump to a fraction of the whole tour (from the progress bar)
+  function seek(f) {
+    let T = f * total(), i = 0;
+    while (i < tour.scenes.length - 1 && T >= tour.scenes[i].dur) { T -= tour.scenes[i].dur; i++; }
+    if (i !== idx) go(i, true, true);
+    t = Math.min(T, tour.scenes[i].dur - 0.001); draw();
+  }
+  function go(i, keepPlaying, quiet) {
     const to = Math.max(0, Math.min(tour.scenes.length - 1, i));
-    if (to !== idx && !reduced && cv.width) { const img = document.createElement("canvas"); img.width = cv.width; img.height = cv.height; img.getContext("2d").drawImage(cv, 0, 0); trans = { img, t0: performance.now() }; }
+    if (to !== idx && !reduced && !quiet && cv.width) { const img = document.createElement("canvas"); img.width = cv.width; img.height = cv.height; img.getContext("2d").drawImage(cv, 0, 0); trans = { img, t0: performance.now() }; }
     idx = to; t = 0; states[idx] = {};
     const sc = tour.scenes[idx];
     cap.textContent = sc.cap;
     head.querySelector(".pxwin-eyebrow").textContent = `${tour.chapters[sc.ch]} · ${idx + 1} / ${tour.scenes.length}`;
     head.querySelector(".pxwin-h").textContent = sc.title;
-    head.classList.remove("in"); void head.offsetWidth; head.classList.add("in");
+    if (!quiet) { head.classList.remove("in"); void head.offsetWidth; head.classList.add("in"); }
     [...dots.children].forEach((d, k) => d.classList.toggle("on", k === sc.ch));
     if (reduced && !keepPlaying) t = sc.dur - 0.01; // without motion: each scene shown complete
     draw();
@@ -865,8 +1394,8 @@ const TourPlayer = (() => {
     tour = TOURS[slug]; if (!tour) return;
     if (!dlg) build();
     dlg.querySelector(".pxwin-title").textContent = tour.title;
-    dots.innerHTML = tour.chapters.map((c, k) => `<button type="button" data-ch="${k}" style="flex:${tour.scenes.filter((s) => s.ch === k).reduce((n, s) => n + s.dur, 0)}">${c}</button>`).join("");
-    dots.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => go(tour.scenes.findIndex((s) => s.ch === +b.dataset.ch))));
+    dots.innerHTML = tour.chapters.map((c, k) => `<span style="flex:${tour.scenes.filter((s) => s.ch === k).reduce((n, s) => n + s.dur, 0)}">${c}</span>`).join("");
+    track.setAttribute("aria-valuemin", 0); track.setAttribute("aria-valuemax", Math.round(total())); lastSec = -1;
     linkEl.hidden = !tour.link; if (tour.link) { linkEl.textContent = tour.link.label + " ↗"; linkEl.href = tour.link.url; }
     states = tour.scenes.map(() => ({}));
     dlg.showModal(); fit();
