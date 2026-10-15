@@ -182,8 +182,7 @@ const years = (d) => d.match(/\d{4}/g)?.join("–").replace(/(\d{4})–\1/, "$1"
 $("#rail-left").innerHTML =
   card("Focus", `<ul class="plain">${P.tagline.split(" · ").map((f) => `<li>${f}</li>`).join("")}</ul>`) +
   card("Timeline", `<ol class="timeline">${CONTENT.experience.map((e) => `<li><span class="when">${years(e.date)}</span><b>${e.role}</b><span class="where">${e.orgShort}</span></li>`).join("")}</ol>`) +
-  card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>` +
-    `<p><button class="msg-btn" type="button">Get in touch</button></p>`, "contact");
+  card(`Contact<button class="msg-btn" type="button">Get in touch →</button>`, `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`, "contact");
 const mainPaper = CONTENT.papers.find((p) => p.link), talk = CONTENT.papers.find((p) => p.badge);
 $("#rail-right").innerHTML =
   card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.short}</span></a></li>`).join("")}</ul>`) +
