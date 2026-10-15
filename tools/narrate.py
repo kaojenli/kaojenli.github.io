@@ -14,6 +14,7 @@ from kokoro_onnx import Kokoro
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS, VOICE = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "af_heart")
 SPEED, GAP, TAIL, SR = 1.1, 0.3, 0.7, 24000  # speech rate; silence after each line, and after a scene's last line
+RMS = 0.1  # loudness of every line (about -20 dBFS); the rare peaks above -1 dBFS are caught by a gentle limiter
 
 # the scenes and their subtitles, straight from tours.js
 DUMP = """const vm = require("vm"), fs = require("fs");
@@ -33,11 +34,15 @@ def spoken(text):
     return text
 
 tts = Kokoro(os.path.join(MODELS, "kokoro-v1.0.onnx"), os.path.join(MODELS, "voices-v1.0.bin"))
-def say(text):  # a spoken line, with the silence around it trimmed
+def say(text):  # a spoken line: silence around it trimmed, every line at the same loudness, faded in and out (no clicks)
     a, sr = tts.create(spoken(text), voice=VOICE, speed=SPEED, lang="en-us")
     assert sr == SR
     loud = np.nonzero(np.abs(a) > 2e-3)[0]
-    return a[max(0, loud[0] - 480): loud[-1] + 960] if len(loud) else a
+    a = np.asarray(a[max(0, loud[0] - 480): loud[-1] + 960] if len(loud) else a, dtype=np.float32)
+    a *= RMS / max(1e-6, float(np.sqrt(np.mean(a ** 2))))
+    f = min(len(a) // 2, int(0.01 * SR)); ramp = np.linspace(0, 1, f, dtype=np.float32)
+    a[:f] *= ramp; a[len(a) - f:] *= ramp[::-1]
+    return a
 
 os.makedirs(os.path.join(ROOT, "audio"), exist_ok=True)
 out = {}
@@ -57,11 +62,12 @@ for slug, scenes in tours.items():
     for start, c in parts: i = int(start * SR); track[i:i + len(c)] += c[: len(track) - i]
     path = os.path.join(ROOT, "audio", slug + ".mp3")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
-                    "-af", "loudnorm=I=-18:TP=-2", "-ar", str(SR), "-codec:a", "libmp3lame", "-b:a", "48k", path],
-                   input=np.clip(track, -1, 1).tobytes(), check=True)
+                    "-af", "alimiter=limit=0.89:attack=2:release=30:level=disabled", "-codec:a", "libmp3lame", "-b:a", "64k", path],
+                   input=track.tobytes(), check=True)
+    over = float(np.mean(np.abs(track) > 0.89)) * 100
     ver = hashlib.sha1(open(path, "rb").read()).hexdigest()[:8]
     out[slug] = {"src": f"audio/{slug}.mp3?v={ver}", "pace": pace}
-    print(f"{slug}: {at:.1f} s of narration ({sum(s['dur'] for s in scenes):.1f} s before)")
+    print(f"{slug}: {at:.1f} s of narration ({sum(s['dur'] for s in scenes):.1f} s before), peak {np.abs(track).max():.2f}, {over:.3f}% of samples limited")
 
 with open(os.path.join(ROOT, "js", "narration.js"), "w") as f:
     f.write("// Written by tools/narrate.py: don't edit by hand. For each tour, the voice-over track and, per scene,\n"

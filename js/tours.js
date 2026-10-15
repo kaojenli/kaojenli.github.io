@@ -1353,7 +1353,7 @@ const TourPlayer = (() => {
     if (playing && !scrubbing && sound && voice && dlg.open) {
       const at = elapsed();
       if (at >= audio.duration) { if (!audio.paused) audio.pause(); return; }
-      if (!audio.seeking && Math.abs(audio.currentTime - at) > 0.3) audio.currentTime = at;
+      if (!audio.seeking && Math.abs(audio.currentTime - at) > 0.5) audio.currentTime = at;
       if (audio.paused) audio.play().catch(() => {});
     } else if (!audio.paused) audio.pause();
   }
@@ -1380,6 +1380,8 @@ const TourPlayer = (() => {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing && !scrubbing) {
       r += dt;
+      // while the voice plays in step, its clock leads: frames can stall or lag, and moving the voice to catch up would stutter
+      if (sound && voice && !audio.paused && !audio.seeking) { const d = audio.currentTime - elapsed(); if (Math.abs(d) < 0.5) r = Math.max(0, r + d); }
       const sc = tour.scenes[idx], R = len(idx);
       // at the end of an interactive scene, wait for the reader to try it (press ▶ to carry on)
       if (r >= R && sc.click && !states[idx].waited && !reduced) { states[idx].waited = true; r = R - 0.001; setPlaying(false); }
