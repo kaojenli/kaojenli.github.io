@@ -369,3 +369,12 @@ figure { margin: 12px 0; }
 .msg-send { flex: none; padding: 8px 20px; border: 0; border-radius: 99px; background: var(--ink); color: var(--bg); font: 600 14px var(--font); cursor: pointer; }
 .msg-send:hover { background: var(--accent); }
 .msg-send:disabled { opacity: .6; cursor: wait; }
+.msg-done { display: grid; justify-items: center; gap: 10px; padding: 34px 28px 28px; text-align: center; }
+.msg-done[hidden], .msg-form[hidden] { display: none; }
+.msg-done h2 { margin: 4px 0 0; font-size: 22px; font-weight: 600; outline: none; }
+.msg-done p { max-width: 34ch; margin: 0 0 8px; color: var(--muted); font-size: 15px; }
+.msg-done b { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.msg-check { width: 52px; height: 52px; fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.msg-check path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: msgTick .5s .15s ease-out forwards; }
+@keyframes msgTick { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .msg-check path { animation: none; stroke-dashoffset: 0; } }

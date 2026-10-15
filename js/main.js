@@ -219,13 +219,21 @@ msgWin.innerHTML = `<form class="msg-form" novalidate>
   <label><span>Message</span><textarea name="message" rows="6" required maxlength="5000"></textarea></label>
   <input class="msg-honey" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
   <div class="msg-foot"><p class="msg-status" role="status"></p><button class="msg-send" type="submit">Send inquiry</button></div>
-</form>`;
+</form>
+<div class="msg-done" hidden>
+  <svg class="msg-check" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"/><path d="M14 25l7 7 13-15"/></svg>
+  <h2 tabindex="-1">Thank you<span class="msg-who"></span></h2>
+  <p>Your message has been sent. I will reply to <b class="msg-to"></b> as soon as I can, usually within a few days.</p>
+  <button class="msg-send msg-close" type="button">Close</button>
+</div>`;
 document.body.append(msgWin);
 const msgForm = msgWin.querySelector("form"), msgStatus = msgWin.querySelector(".msg-status"), msgSend = msgWin.querySelector(".msg-send");
 const msgSay = (text, kind = "") => { msgStatus.textContent = text; msgStatus.className = "msg-status " + kind; };
+const msgDone = msgWin.querySelector(".msg-done");
+const msgShow = (done) => { msgForm.hidden = done; msgDone.hidden = !done; };
 document.addEventListener("click", (e) => {
-  if (e.target.closest(".msg-btn")) { msgSay(""); msgWin.showModal(); msgForm.elements.name.focus(); }
-  if (e.target.closest(".msg-x") || e.target === msgWin) msgWin.close();
+  if (e.target.closest(".msg-btn")) { msgSay(""); msgShow(false); msgWin.showModal(); msgForm.elements.name.focus(); }
+  if (e.target.closest(".msg-x, .msg-close") || e.target === msgWin) msgWin.close();
 });
 msgForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -243,7 +251,10 @@ msgForm.addEventListener("submit", async (e) => {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || String(j.success) !== "true") throw new Error(j.message || r.status);
-    msgForm.reset(); msgSay("Thank you. Your message has been sent, and I will get back to you by email.", "ok");
+    // a thank-you in place of the form (the form is cleared for next time)
+    msgWin.querySelector(".msg-who").textContent = ", " + v("name");
+    msgWin.querySelector(".msg-to").textContent = v("email");
+    msgForm.reset(); msgSay(""); msgShow(true); msgDone.querySelector("h2").focus();
   } catch (err) {
     console.warn("Inquiry form:", err.message); // e.g. FormSubmit's "This form needs Activation" before the address is confirmed
     msgStatus.innerHTML = `The message could not be sent. Please write to <a href="mailto:${P.email}">${P.email}</a> instead.`; msgStatus.className = "msg-status bad";

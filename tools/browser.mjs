@@ -151,7 +151,11 @@ ok(await p.ev(`document.querySelector('.msgwin').open && document.activeElement.
 await p.ev(`document.querySelector('.msg-form').requestSubmit()`); await p.sleep(100);
 ok(await p.ev(`sent === null && document.querySelector('.msg-status').classList.contains('bad')`), "message: an inquiry without name, email or message is not sent");
 await p.ev(`(() => { const f = document.querySelector('.msg-form').elements; f.name.value = "A. Visitor"; f.email.value = "visitor@example.com"; f.message.value = "Hello!"; document.querySelector('.msg-form').requestSubmit(); })()`); await p.sleep(300);
-ok(await p.ev(`sent?.u === CONTENT.person.messageForm && sent.body.message === "Hello!" && sent.body.email === "visitor@example.com" && sent.body._replyto === "visitor@example.com" && sent.body.subject === "Research collaboration" && document.querySelector('.msg-status').classList.contains('ok') && !document.querySelector('.msg-form').elements.message.value`), "message: a message is posted, thanked for, and the form cleared");
+ok(await p.ev(`sent?.u === CONTENT.person.messageForm && sent.body.message === "Hello!" && sent.body.email === "visitor@example.com" && sent.body._replyto === "visitor@example.com" && sent.body.subject === "Research collaboration" && document.querySelector('.msg-form').hidden && !document.querySelector('.msg-done').hidden && document.querySelector('.msg-to').textContent === "visitor@example.com" && !document.querySelector('.msg-form').elements.message.value`), "message: a message is posted, a thank-you replaces the form, and the form is cleared");
+await p.ev(`document.querySelector('.msg-close').click()`);
+ok(await p.ev(`!document.querySelector('.msgwin').open`), "message: Close shuts the thank-you");
+await p.ev(`document.querySelector('.card.contact .msg-btn').click()`); await p.sleep(100);
+ok(await p.ev(`!document.querySelector('.msg-form').hidden && document.querySelector('.msg-done').hidden`), "message: opened again, it shows a fresh form");
 await p.ev(`document.querySelector('.msg-x').click(); fetch = realFetch`);
 ok(await p.ev(`!document.querySelector('.msgwin').open`), "message: × closes the form");
 ok(p.logs.length === 0, "no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
