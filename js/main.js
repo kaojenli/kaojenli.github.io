@@ -245,7 +245,8 @@ msgForm.addEventListener("submit", async (e) => {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || String(j.success) !== "true") throw new Error(j.message || r.status);
     msgForm.reset(); msgSay("Thank you. Your message has been sent, and I will get back to you by email.", "ok");
-  } catch {
+  } catch (err) {
+    console.warn("Inquiry form:", err.message); // e.g. FormSubmit's "This form needs Activation" before the address is confirmed
     msgStatus.innerHTML = `The message could not be sent. Please write to <a href="mailto:${P.email}">${P.email}</a> instead.`; msgStatus.className = "msg-status bad";
   }
   msgSend.disabled = false;
