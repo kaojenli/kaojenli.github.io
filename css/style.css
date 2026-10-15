@@ -340,3 +340,31 @@ figure { margin: 12px 0; }
   .pxwin-ctl { padding: 8px 12px 14px; }
   .pxwin-link { margin-left: 0; flex-basis: 100%; }
 }
+
+/* ---------- "Get in touch": a button in the contact card, and its window (main.js) */
+.msg-btn { margin-top: 4px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px; background: var(--bg); color: var(--ink); font: 500 13px var(--font); cursor: pointer; }
+.msg-btn:hover { border-color: var(--accent); color: var(--accent); }
+.msg-btn:focus-visible, .msgwin :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.msgwin { width: min(500px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); box-shadow: 0 24px 70px rgba(0, 0, 0, .35); }
+.msgwin::backdrop { background: rgba(10, 9, 8, .55); backdrop-filter: blur(2px); }
+.msg-form { display: grid; gap: 12px; padding: 18px 20px 20px; }
+.msg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.msg-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.msg-x { display: grid; place-items: center; width: 28px; height: 28px; padding: 0 0 2px; border: 1px solid var(--line); border-radius: 50%; background: var(--bg); color: var(--ink); font: 400 18px/1 var(--font); cursor: pointer; }
+.msg-note { margin: -4px 0 0; color: var(--muted); font-size: 14px; }
+.msg-form label { display: grid; gap: 4px; color: var(--ink); font-size: 13.5px; font-weight: 500; }
+.msg-form label small { color: var(--muted); font-size: inherit; font-weight: 400; }
+.msg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .msg-row { grid-template-columns: 1fr; } }
+.msg-form input, .msg-form textarea, .msg-form select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font); }
+.msg-form textarea { resize: vertical; min-height: 110px; }
+.msg-form input::placeholder { color: var(--muted); opacity: .7; }
+.msg-form input:focus, .msg-form textarea:focus, .msg-form select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.msg-honey { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.msg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.msg-status { margin: 0; color: var(--muted); font-size: 13.5px; }
+.msg-status.ok { color: #3f8f5f; }
+.msg-status.bad { color: #c0483c; }
+.msg-send { flex: none; padding: 8px 20px; border: 0; border-radius: 99px; background: var(--ink); color: var(--bg); font: 600 14px var(--font); cursor: pointer; }
+.msg-send:hover { background: var(--accent); }
+.msg-send:disabled { opacity: .6; cursor: wait; }

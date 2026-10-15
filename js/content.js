@@ -5,6 +5,9 @@ const CONTENT = {
     tagline: "Computer Vision & 3D Reconstruction · Signal Processing & Sensing · Machine Learning & Evaluation",
     now: "AI Engineer @ We Share Baseball",
     email: "kaojenli@gmail.com",
+    // the "Get in touch" form posts here (FormSubmit: emails each message to the address; the very first inquiry
+    // sends an activation email instead, and messages arrive once its link is clicked)
+    messageForm: "https://formsubmit.co/ajax/kaojenli@gmail.com",
     intro:
       "My research interests center on building intelligent systems that can perceive, understand, and learn from people. " +
       "My research draws on sensing, signal processing, computer vision, and machine learning to infer human states and " +

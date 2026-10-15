@@ -144,6 +144,16 @@ await p.click(...(await p.ev(`(() => { const r = document.querySelector('.pxwin-
 ok(await p.ev(`!voice.paused && Math.abs(voice.currentTime - +document.querySelector('.pxwin-track').getAttribute('aria-valuenow')) < 1.5`), "tour: after a jump on the progress bar the narration is at the same moment");
 await p.key("Escape"); await p.sleep(200);
 ok(await p.ev(`voice.paused`), "tour: closing the window stops the narration");
+// "Get in touch": the contact card's button opens the form; an incomplete inquiry is refused; a message is posted to the form service
+await p.ev(`window.sent = null; window.realFetch = fetch; window.fetch = async (u, o) => { sent = { u, body: JSON.parse(o.body) }; return new Response('{"success":"true"}'); }`);
+await p.ev(`document.querySelector('.card.contact .msg-btn').click()`); await p.sleep(200);
+ok(await p.ev(`document.querySelector('.msgwin').open && document.activeElement.name === 'name'`), "message: the button opens the form, ready to type");
+await p.ev(`document.querySelector('.msg-form').requestSubmit()`); await p.sleep(100);
+ok(await p.ev(`sent === null && document.querySelector('.msg-status').classList.contains('bad')`), "message: an inquiry without name, email or message is not sent");
+await p.ev(`(() => { const f = document.querySelector('.msg-form').elements; f.name.value = "A. Visitor"; f.email.value = "visitor@example.com"; f.message.value = "Hello!"; document.querySelector('.msg-form').requestSubmit(); })()`); await p.sleep(300);
+ok(await p.ev(`sent?.u === CONTENT.person.messageForm && sent.body.message === "Hello!" && sent.body.email === "visitor@example.com" && sent.body._replyto === "visitor@example.com" && sent.body.subject === "Research collaboration" && document.querySelector('.msg-status').classList.contains('ok') && !document.querySelector('.msg-form').elements.message.value`), "message: a message is posted, thanked for, and the form cleared");
+await p.ev(`document.querySelector('.msg-x').click(); fetch = realFetch`);
+ok(await p.ev(`!document.querySelector('.msgwin').open`), "message: × closes the form");
 ok(p.logs.length === 0, "no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
 p.close();
 

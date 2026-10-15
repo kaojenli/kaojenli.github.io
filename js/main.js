@@ -182,7 +182,8 @@ const years = (d) => d.match(/\d{4}/g)?.join("–").replace(/(\d{4})–\1/, "$1"
 $("#rail-left").innerHTML =
   card("Focus", `<ul class="plain">${P.tagline.split(" · ").map((f) => `<li>${f}</li>`).join("")}</ul>`) +
   card("Timeline", `<ol class="timeline">${CONTENT.experience.map((e) => `<li><span class="when">${years(e.date)}</span><b>${e.role}</b><span class="where">${e.orgShort}</span></li>`).join("")}</ol>`) +
-  card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`, "contact");
+  card("Contact", `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>` +
+    `<p><button class="msg-btn" type="button">Get in touch</button></p>`, "contact");
 const mainPaper = CONTENT.papers.find((p) => p.link), talk = CONTENT.papers.find((p) => p.badge);
 $("#rail-right").innerHTML =
   card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.short}</span></a></li>`).join("")}</ul>`) +
@@ -200,4 +201,52 @@ document.addEventListener("click", (e) => {
   if (!b || typeof TourPlayer === "undefined") return;
   const slug = b.dataset.tour || b.closest(".proj")?.id.replace("project-", "");
   if (TOURS[slug]) TourPlayer.open(slug);
+});
+
+// ---------- "Get in touch" (in the contact card): an inquiry form in a small window, sent by FormSubmit (see content.js)
+const TOPICS = ["Research collaboration", "Position or opportunity", "Question about a project or paper", "Other"];
+const msgWin = document.createElement("dialog");
+msgWin.className = "msgwin";
+msgWin.setAttribute("aria-labelledby", "msg-h");
+msgWin.innerHTML = `<form class="msg-form" novalidate>
+  <div class="msg-head"><h2 id="msg-h">Get in touch</h2><button class="msg-x" type="button" aria-label="Close">×</button></div>
+  <p class="msg-note">For research collaborations, opportunities or questions about my work. I usually reply by email within a few days.</p>
+  <div class="msg-row">
+    <label><span>Name</span><input name="name" required autocomplete="name" maxlength="100"></label>
+    <label><span>Email</span><input name="email" type="email" required autocomplete="email" maxlength="200"></label>
+  </div>
+  <label><span>Affiliation <small>(optional)</small></span><input name="affiliation" autocomplete="organization" maxlength="200" placeholder="University, lab or company"></label>
+  <label><span>Subject</span><select name="topic">${TOPICS.map((t) => `<option>${t}</option>`).join("")}</select></label>
+  <label><span>Message</span><textarea name="message" rows="6" required maxlength="5000"></textarea></label>
+  <input class="msg-honey" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <div class="msg-foot"><p class="msg-status" role="status"></p><button class="msg-send" type="submit">Send inquiry</button></div>
+</form>`;
+document.body.append(msgWin);
+const msgForm = msgWin.querySelector("form"), msgStatus = msgWin.querySelector(".msg-status"), msgSend = msgWin.querySelector(".msg-send");
+const msgSay = (text, kind = "") => { msgStatus.textContent = text; msgStatus.className = "msg-status " + kind; };
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".msg-btn")) { msgSay(""); msgWin.showModal(); msgForm.elements.name.focus(); }
+  if (e.target.closest(".msg-x") || e.target === msgWin) msgWin.close();
+});
+msgForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = msgForm.elements, v = (k) => f[k].value.trim();
+  const missing = [["name", "your name"], ["email", "your email address"], ["message", "a message"]].find(([k]) => !v(k));
+  if (missing) { msgSay(`Please add ${missing[1]}.`, "bad"); f[missing[0]].focus(); return; }
+  if (!f.email.checkValidity()) { msgSay("Please check the email address.", "bad"); f.email.focus(); return; }
+  if (f._honey.value) return; // a bot filled the hidden field
+  msgSend.disabled = true; msgSay("Sending…");
+  try {
+    const r = await fetch(P.messageForm, {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ name: v("name"), email: v("email"), affiliation: v("affiliation") || "—", subject: f.topic.value, message: v("message"),
+        _subject: `Website inquiry: ${f.topic.value} (${v("name")})`, _replyto: v("email"), _template: "table", _captcha: "false" }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || String(j.success) !== "true") throw new Error(j.message || r.status);
+    msgForm.reset(); msgSay("Thank you. Your message has been sent, and I will get back to you by email.", "ok");
+  } catch {
+    msgStatus.innerHTML = `The message could not be sent. Please write to <a href="mailto:${P.email}">${P.email}</a> instead.`; msgStatus.className = "msg-status bad";
+  }
+  msgSend.disabled = false;
 });
