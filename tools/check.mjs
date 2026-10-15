@@ -14,7 +14,7 @@ const fail = (msg) => errors.push(msg);
 // --- cache busting: index.html asks for the stylesheet and scripts with ?v=<hash of their contents>, so a browser never
 // pairs a new page with an old cached stylesheet (Pages lets each file be cached for 10 minutes on its own).
 // `node tools/check.mjs --stamp` writes the current hash in; run it before every commit that touches these files.
-const ASSETS = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "tours", "main"].map((f) => `js/${f}.js`)];
+const ASSETS = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "narration", "tours", "main"].map((f) => `js/${f}.js`)];
 const ver = createHash("sha1").update(ASSETS.map((f) => readFileSync(f, "utf8")).join("")).digest("hex").slice(0, 8);
 let html = readFileSync("index.html", "utf8");
 if (process.argv.includes("--stamp")) {
@@ -54,12 +54,24 @@ for (const u of urls) if (!/^(https:\/\/|mailto:)/.test(u)) fail(`link is not ht
   for (const k of Object.keys(C.npcs)) if (!AVATAR_LOOKS[k] && !PROPS[SPRITE[k] || k]) fail(`npc "${k}" has no avatar look (avatar.js) or prop (props.js)`);
 }
 
+// --- tour voice-overs: one track per tour, made for the tour's current scenes (else run tools/narrate.py again)
+{
+  const T = vm.runInNewContext(readFileSync("js/tours.js", "utf8") + ";TOURS", { matchMedia: () => ({ matches: false }) });
+  const N = load("js/narration.js", "NARRATION");
+  for (const [slug, tour] of Object.entries(T)) {
+    const n = N[slug];
+    if (!n) { fail(`tour "${slug}" has no narration (run tools/narrate.py)`); continue; }
+    if (n.pace.length !== tour.scenes.length) fail(`narration for "${slug}" is for ${n.pace.length} scenes, the tour has ${tour.scenes.length} (run tools/narrate.py)`);
+    if (!existsSync(n.src.split("?")[0])) fail(`narration track missing: ${n.src}`);
+  }
+}
+
 // --- privacy: nothing private gets published
 const published = execSync("git ls-files --cached --others --exclude-standard", { encoding: "utf8" }).split("\n").filter(Boolean);
 for (const f of ["CV_JLK.pdf", "me.jpeg", "template.rtf"]) if (published.includes(f)) fail(`private file would be published: ${f}`);
 const phone = /\(?\d{3}\)?[\s.-]\d{3}-\d{4}/;
 for (const f of published) {
-  if (/\.(png|jpe?g|gif|webp|ico|pdf)$/i.test(f) || !existsSync(f)) continue;
+  if (/\.(png|jpe?g|gif|webp|ico|pdf|mp3)$/i.test(f) || !existsSync(f)) continue;
   if (phone.test(readFileSync(f, "utf8"))) fail(`phone-number-like string in ${f}`);
 }
 

@@ -316,6 +316,11 @@ figure { margin: 12px 0; }
 .pxb { min-width: 36px; height: 32px; padding: 0 10px; border: 1px solid #2c313c; border-radius: 8px; background: #161920; color: #e9ecf1; font: 600 12px var(--mono); cursor: pointer; }
 .pxb:hover { background: #222631; }
 .pxb.play { min-width: 44px; background: #f2f2f0; border-color: #f2f2f0; color: #101114; }
+.pxb.snd { display: inline-grid; place-items: center; }
+.pxb.snd[hidden] { display: none; }
+.pxb.snd svg { display: block; }
+.pxb.snd[aria-pressed="true"] .off, .pxb.snd[aria-pressed="false"] .on { display: none; }
+.pxb.snd[aria-pressed="false"] { color: #8a919c; }
 .pxwin-track { position: relative; flex: 1 1 240px; min-width: 180px; height: 32px; border: 1px solid #2c313c; border-radius: 8px; background: #121418; overflow: hidden; cursor: pointer; touch-action: none; user-select: none; }
 .pxwin-track.drag { cursor: grabbing; }
 .pxwin-knob { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #e8915f; box-shadow: 0 0 0 3px rgba(232, 145, 95, .25); pointer-events: none; opacity: 0; transition: opacity .15s; }

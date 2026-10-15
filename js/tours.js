@@ -1279,7 +1279,7 @@ const TOURS = {
 
 // ---------- the window and its player
 const TourPlayer = (() => {
-  let tryEl, scrubbing = false, lastSec = -1, track, knob, trans = null, curSub = "", sub, head, dlg, cv, ctx, g, cap, dots, bar, playBtn, linkEl, tour, idx = 0, t = 0, playing = false, last = 0, raf = 0, imgs = {}, states = [];
+  let tryEl, scrubbing = false, r = 0, voice = null, audio = null, soundBtn, sound = true, lastSec = -1, track, knob, trans = null, curSub = "", sub, head, dlg, cv, ctx, g, cap, dots, bar, playBtn, linkEl, tour, idx = 0, t = 0, playing = false, last = 0, raf = 0, imgs = {}, states = [];
   const W = 256, H = 132, SHIFT = 24, reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function build() {
     dlg = document.createElement("dialog");
@@ -1293,6 +1293,7 @@ const TourPlayer = (() => {
         <button type="button" class="pxb" data-act="prev" aria-label="Previous scene">◀◀</button>
         <button type="button" class="pxb play" data-act="play" aria-label="Pause">❚❚</button>
         <button type="button" class="pxb" data-act="next" aria-label="Next scene">▶▶</button>
+        <button type="button" class="pxb snd" data-act="sound" aria-label="Narration" aria-pressed="true"><svg viewBox="0 0 16 12" width="20" height="15" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor"><path d="M1 4h3v4H1zM4 3h1v6H4zM5 2h1v8H5zM6 1h1v10H6z"/><path class="on" d="M9 4h1v4H9zM11 2h1v2h-1zM11 8h1v2h-1zM12 4h1v4h-1zM13 1h1v1h-1zM13 10h1v1h-1zM14 2h1v8h-1z"/><path class="off" d="M9 3h1v1H9zM10 4h1v1h-1zM11 5h2v2h-2zM13 4h1v1h-1zM14 3h1v1h-1zM10 7h1v1h-1zM9 8h1v1H9zM13 7h1v1h-1zM14 8h1v1h-1z"/></svg></button>
         <div class="pxwin-track" role="slider" tabindex="0" aria-label="Position in the tour"><div class="pxwin-bar-fill"></div><div class="pxwin-dots" aria-hidden="true"></div><div class="pxwin-knob"></div></div>
         <a class="pxwin-link" target="_blank" rel="noopener"></a>
       </div>`;
@@ -1306,9 +1307,15 @@ const TourPlayer = (() => {
     dlg.querySelector('[data-act="prev"]').addEventListener("click", () => go(idx - 1));
     dlg.querySelector('[data-act="next"]').addEventListener("click", () => go(idx + 1));
     playBtn.addEventListener("click", () => setPlaying(!playing));
+    // the voice-over (narration.js, made by tools/narrate.py): on unless the reader turned it off last time
+    soundBtn = dlg.querySelector(".snd"); audio = new Audio(); audio.preload = "auto";
+    try { sound = localStorage.getItem("tourSound") !== "off"; } catch {}
+    const setSound = (on) => { sound = on; soundBtn.setAttribute("aria-pressed", on); soundBtn.setAttribute("aria-label", on ? "Narration on" : "Narration off"); try { localStorage.setItem("tourSound", on ? "on" : "off"); } catch {} syncAudio(); };
+    soundBtn.addEventListener("click", () => setSound(!sound)); setSound(sound);
     dlg.addEventListener("keydown", (e) => {
       if (e.key === " " && e.target.tagName !== "A") { e.preventDefault(); setPlaying(!playing); }
       if (e.key === "ArrowRight") go(idx + 1); if (e.key === "ArrowLeft") go(idx - 1);
+      if (e.key === "m" || e.key === "M") soundBtn.click();
     });
     // the progress bar can be dragged (or clicked) to any moment of the tour
     track = dlg.querySelector(".pxwin-track"); knob = dlg.querySelector(".pxwin-knob"); tryEl = dlg.querySelector(".pxwin-try");
@@ -1333,10 +1340,25 @@ const TourPlayer = (() => {
     cv.style.width = (W * PXK) / dpr + "px"; cv.style.height = (H * PXK) / dpr + "px";
     ctx.imageSmoothingEnabled = false; trans = null;
   }
-  function total() { return tour.scenes.reduce((n, s) => n + s.dur, 0); }
-  function elapsed() { return tour.scenes.slice(0, idx).reduce((n, s) => n + s.dur, 0) + t; }
+  // with a voice-over, a scene runs k times slower than written (so each spoken line fits) and then holds its last picture
+  // a little; r is real seconds into the scene, t the scene's own (written) time that the drawing uses
+  const pace = (i) => voice?.pace[i] || [1, 0];
+  const len = (i) => tour.scenes[i].dur * pace(i)[0] + pace(i)[1];
+  const sceneT = () => Math.min(r / pace(idx)[0], tour.scenes[idx].dur - 0.001);
+  function total() { return tour.scenes.reduce((n, s, i) => n + len(i), 0); }
+  function elapsed() { return tour.scenes.slice(0, idx).reduce((n, s, i) => n + len(i), 0) + r; }
+  // the narration track follows the tour's clock: it plays while the tour plays, and is moved when they drift apart
+  function syncAudio() {
+    if (!audio) return;
+    if (playing && !scrubbing && sound && voice && dlg.open) {
+      const at = elapsed();
+      if (at >= audio.duration) { if (!audio.paused) audio.pause(); return; }
+      if (!audio.seeking && Math.abs(audio.currentTime - at) > 0.3) audio.currentTime = at;
+      if (audio.paused) audio.play().catch(() => {});
+    } else if (!audio.paused) audio.pause();
+  }
   function draw() {
-    const sc = tour.scenes[idx];
+    const sc = tour.scenes[idx]; t = sceneT();
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     // between scenes, keynote style: the old slide slides off to the left and dissolves while the new one slides in
     const p = trans ? Math.min(1, (performance.now() - trans.t0) / 520) : 1, e = ease(p), dx = Math.round(18 * (1 - e));
@@ -1357,47 +1379,52 @@ const TourPlayer = (() => {
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing && !scrubbing) {
-      t += dt;
-      const sc = tour.scenes[idx];
+      r += dt;
+      const sc = tour.scenes[idx], R = len(idx);
       // at the end of an interactive scene, wait for the reader to try it (press ▶ to carry on)
-      if (t >= sc.dur && sc.click && !states[idx].waited && !reduced) { states[idx].waited = true; t = sc.dur - 0.001; setPlaying(false); }
-      else if (t >= sc.dur) { if (idx < tour.scenes.length - 1) go(idx + 1, true); else { t = sc.dur - 0.001; setPlaying(false); } }
+      if (r >= R && sc.click && !states[idx].waited && !reduced) { states[idx].waited = true; r = R - 0.001; setPlaying(false); }
+      else if (r >= R) { if (idx < tour.scenes.length - 1) go(idx + 1, true); else { r = R - 0.001; setPlaying(false); } }
     }
+    syncAudio();
     draw();
     raf = requestAnimationFrame(frame);
   }
   // jump to a fraction of the whole tour (from the progress bar)
   function seek(f) {
     let T = f * total(), i = 0;
-    while (i < tour.scenes.length - 1 && T >= tour.scenes[i].dur) { T -= tour.scenes[i].dur; i++; }
+    while (i < tour.scenes.length - 1 && T >= len(i)) { T -= len(i); i++; }
     if (i !== idx) go(i, true, true);
-    t = Math.min(T, tour.scenes[i].dur - 0.001); draw();
+    r = Math.min(T, len(i) - 0.001); draw();
   }
   function go(i, keepPlaying, quiet) {
     const to = Math.max(0, Math.min(tour.scenes.length - 1, i));
     if (to !== idx && !reduced && !quiet && cv.width) { const img = document.createElement("canvas"); img.width = cv.width; img.height = cv.height; img.getContext("2d").drawImage(cv, 0, 0); trans = { img, t0: performance.now() }; }
-    idx = to; t = 0; states[idx] = {};
+    idx = to; r = 0; states[idx] = {};
     const sc = tour.scenes[idx];
     cap.textContent = sc.cap;
     head.querySelector(".pxwin-eyebrow").textContent = `${tour.chapters[sc.ch]} · ${idx + 1} / ${tour.scenes.length}`;
     head.querySelector(".pxwin-h").textContent = sc.title;
     if (!quiet) { head.classList.remove("in"); void head.offsetWidth; head.classList.add("in"); }
     [...dots.children].forEach((d, k) => d.classList.toggle("on", k === sc.ch));
-    if (reduced && !keepPlaying) t = sc.dur - 0.01; // without motion: each scene shown complete
+    if (reduced && !keepPlaying) r = len(idx) - 0.01; // without motion: each scene shown complete
     draw();
   }
   function setPlaying(p) {
     playing = p && !reduced;
     playBtn.textContent = playing ? "❚❚" : "▶"; playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
-    if (p && t >= tour.scenes[idx].dur - 0.01) go(idx === tour.scenes.length - 1 ? 0 : idx + 1, true);
+    if (p && r >= len(idx) - 0.01) go(idx === tour.scenes.length - 1 ? 0 : idx + 1, true);
+    syncAudio();
   }
-  function stop() { cancelAnimationFrame(raf); playing = false; }
+  function stop() { cancelAnimationFrame(raf); playing = false; syncAudio(); }
   function close() { dlg.close(); }
   function open(slug) {
     tour = TOURS[slug]; if (!tour) return;
     if (!dlg) build();
+    voice = typeof NARRATION !== "undefined" && NARRATION[slug] && NARRATION[slug].pace.length === tour.scenes.length ? NARRATION[slug] : null;
+    soundBtn.hidden = !voice; audio.pause();
+    if (voice && !audio.src.endsWith(voice.src)) audio.src = voice.src;
     dlg.querySelector(".pxwin-title").textContent = tour.title;
-    dots.innerHTML = tour.chapters.map((c, k) => `<span style="flex:${tour.scenes.filter((s) => s.ch === k).reduce((n, s) => n + s.dur, 0)}">${c}</span>`).join("");
+    dots.innerHTML = tour.chapters.map((c, k) => `<span style="flex:${tour.scenes.reduce((n, s, i) => n + (s.ch === k ? len(i) : 0), 0)}">${c}</span>`).join("");
     track.setAttribute("aria-valuemin", 0); track.setAttribute("aria-valuemax", Math.round(total())); lastSec = -1;
     linkEl.hidden = !tour.link; if (tour.link) { linkEl.textContent = tour.link.label + " ↗"; linkEl.href = tour.link.url; }
     states = tour.scenes.map(() => ({}));

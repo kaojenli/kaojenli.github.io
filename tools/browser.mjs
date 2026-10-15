@@ -133,6 +133,17 @@ ok(await p.ev(`(() => { const s = seatOf.get(1), shown = scene.querySelector(".c
 ok(bad.length === 0 && steps.every((s) => !s.taken), "walkers stay off furniture and each other; cat indoors, dog outdoors" + (bad.length ? ": " + bad.slice(0, 3).join("; ") : ""));
 const through = steps.filter((s) => Math.abs(s.from[0] - s.to[0]) + Math.abs(s.from[1] - s.to[1]) !== 1 || !s.ok).length;
 ok(through === 0, "every step goes to a neighbouring tile through a door, never through a wall");
+// a tour's voice-over plays with it, follows the progress bar, mutes (and remembers it) and stops when the window closes
+await p.ev(`(() => { const play = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { window.voice = this; return play.call(this); }; })()`);
+await p.ev(`document.querySelector('.tour-btn[data-tour="mri"]').click()`); await p.sleep(2500);
+ok(await p.ev(`!!window.voice && !voice.paused && voice.src.includes("audio/mri.mp3") && voice.currentTime > 1`), "tour: the narration plays");
+await p.ev(`document.querySelector('.pxwin .snd').click()`); await p.sleep(200);
+ok(await p.ev(`voice.paused && localStorage.getItem("tourSound") === "off"`), "tour: the sound button mutes it and remembers");
+await p.ev(`document.querySelector('.pxwin .snd').click()`);
+await p.click(...(await p.ev(`(() => { const r = document.querySelector('.pxwin-track').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`))); await p.sleep(1200);
+ok(await p.ev(`!voice.paused && Math.abs(voice.currentTime - +document.querySelector('.pxwin-track').getAttribute('aria-valuenow')) < 1.5`), "tour: after a jump on the progress bar the narration is at the same moment");
+await p.key("Escape"); await p.sleep(200);
+ok(await p.ev(`voice.paused`), "tour: closing the window stops the narration");
 ok(p.logs.length === 0, "no console errors" + (p.logs.length ? ": " + p.logs.join(" | ") : ""));
 p.close();
 
