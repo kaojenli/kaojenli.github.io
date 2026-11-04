@@ -57,6 +57,11 @@ h1, h2, h3, h4 { color: var(--ink); }
 .theme-toggle .sun, [data-theme="dark"] .theme-toggle .moon { display: none; }
 [data-theme="dark"] .theme-toggle .sun { display: block; }
 #nav a { color: var(--muted); text-decoration: none; }
+/* which version of the site: this pixel one, or the ASCII one in ascii/ */
+.versions { align-self: center; flex: none; display: flex; padding: 2px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); }
+.versions a { padding: 3px 10px; border-radius: 99px; color: var(--muted); font: 500 12px/1.4 var(--mono); text-decoration: none; }
+.versions a:hover { color: var(--ink); }
+.versions a[aria-current="page"] { background: var(--ink); color: var(--bg); }
 #nav a:hover { color: var(--ink); }
 
 /* ---------- intro and the cabin */
@@ -179,6 +184,7 @@ figure { margin: 12px 0; }
 .facts dd { margin: 0; }
 
 .proj { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 40px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+.proj:not(:has(.scene-box)) { grid-template-columns: 1fr; }
 .proj:last-child { border-bottom: 0; }
 .proj h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; line-height: 1.35; }
 .meta { color: var(--muted); font-size: 14px; }

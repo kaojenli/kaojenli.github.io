@@ -14,14 +14,20 @@ const fail = (msg) => errors.push(msg);
 // --- cache busting: index.html asks for the stylesheet and scripts with ?v=<hash of their contents>, so a browser never
 // pairs a new page with an old cached stylesheet (Pages lets each file be cached for 10 minutes on its own).
 // `node tools/check.mjs --stamp` writes the current hash in; run it before every commit that touches these files.
-const ASSETS = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "narration", "tours", "main"].map((f) => `js/${f}.js`)];
-const ver = createHash("sha1").update(ASSETS.map((f) => readFileSync(f, "utf8")).join("")).digest("hex").slice(0, 8);
-let html = readFileSync("index.html", "utf8");
-if (process.argv.includes("--stamp")) {
-  html = html.replace(/(href|src)="([\w/-]+\.(?:css|js))(?:\?v=\w+)?"/g, (m, attr, f) => (ASSETS.includes(f) ? `${attr}="${f}?v=${ver}"` : m));
-  writeFileSync("index.html", html);
+const PIXEL = ["css/style.css", ...["content", "avatar", "props", "furni", "cabin", "narration", "tours", "main"].map((f) => `js/${f}.js`)];
+const ASCII = ["ascii/style.css", "js/content.js", "js/narration.js", "js/tours.js", "ascii/main.js"];
+const ALL = [...new Set([...PIXEL, ...ASCII])];
+const ver = createHash("sha1").update(ALL.map((f) => readFileSync(f, "utf8")).join("")).digest("hex").slice(0, 8);
+// the ASCII version is the home page; the pixel cabin lives at pixel/ and reaches the shared files with ../
+for (const [page, assets, up] of [["index.html", ASCII, ""], ["pixel/index.html", PIXEL, "../"]]) {
+  let html = readFileSync(page, "utf8");
+  if (process.argv.includes("--stamp")) {
+    html = html.replace(/(href|src)="((?:\.\.\/)?[\w/-]+\.(?:css|js))(?:\?v=\w+)?"/g, (m, attr, f) => (assets.includes(f.replace(up, "")) ? `${attr}="${f}?v=${ver}"` : m));
+    writeFileSync(page, html);
+  }
+  for (const f of assets) if (!html.includes(`"${up}${f}?v=${ver}"`)) fail(`${page} loads ${f} without ?v=${ver} (run: node tools/check.mjs --stamp)`);
 }
-for (const f of ASSETS) if (!html.includes(`"${f}?v=${ver}"`)) fail(`index.html loads ${f} without ?v=${ver} (run: node tools/check.mjs --stamp)`);
+let html = readFileSync("index.html", "utf8");
 
 // --- content wiring
 const C = load("js/content.js", "CONTENT");

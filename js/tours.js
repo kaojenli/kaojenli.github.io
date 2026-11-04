@@ -295,6 +295,30 @@ const MRI = (() => {
 })();
 // a grey-level image drawn cell by cell; fn(i) gives 0..1
 function gray(g, x, y, nx, ny, cw, ch, fn, tint = null) { for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const v = Math.max(0, Math.min(1, fn(i, j))), c = Math.round(v * 255); g.rect(x + i * cw, y + j * ch, cw, ch, tint ? tint(v) : `rgb(${c},${c},${c})`); } }
+// a Fashion-MNIST garment: a 28 × 28 silhouette (kind 0..9: T-shirt, trouser, pullover, dress, coat, sandal, shirt, sneaker, bag, boot)
+// drawn k picture pixels per image pixel, shaded like the dataset's grey images
+function garment(g, x, y, kind, k = 1) {
+  const S = 28, inside = (u, v) => { const du = Math.abs(u - 0.5);
+    switch (kind) {
+      case 0: return (v > 0.15 && v < 0.9 && du < 0.27) || (v > 0.15 && v < 0.36 && du < 0.46);
+      case 1: return v > 0.05 && v < 0.95 && du < 0.3 && (v < 0.38 || du > 0.05);
+      case 2: return (v > 0.12 && v < 0.92 && du < 0.3) || (v > 0.12 && v < 0.6 && du < 0.47);
+      case 3: return v > 0.08 && v < 0.95 && du < 0.14 + (v > 0.4 ? (v - 0.4) * 0.5 : 0) + (v < 0.2 ? 0.1 : 0);
+      case 4: return (v > 0.1 && v < 0.95 && du < 0.33) || (v > 0.1 && v < 0.62 && du < 0.48);
+      case 5: return (v > 0.72 && v < 0.85 && u > 0.08 && u < 0.92) || (v > 0.4 && v < 0.72 && Math.abs(du - 0.22) < 0.03);
+      case 6: return (v > 0.12 && v < 0.92 && du < 0.27) || (v > 0.12 && v < 0.5 && du < 0.46);
+      case 7: return v > 0.55 && v < 0.85 && u > 0.08 && u < 0.92 && (v > 0.68 || u > 0.3 + (0.85 - v) * 1.2) && !(v > 0.8 && u < 0.2);
+      case 8: return (v > 0.3 && v < 0.9 && du < 0.4) || (v > 0.1 && v <= 0.3 && Math.abs(du - 0.2) < 0.035);
+      default: return (v > 0.25 && v < 0.88 && u > 0.12 && u < 0.9 && (v > 0.62 || u > 0.4)) && !(v > 0.82 && u < 0.25);
+    } };
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const u = (i + 0.5) / S, v = (j + 0.5) / S;
+    if (!inside(u, v)) continue;
+    const edge = !inside((i - 0.5) / S, v) || !inside((i + 1.5) / S, v) || !inside(u, (j - 0.5) / S) || !inside(u, (j + 1.5) / S);
+    const c = Math.round(edge ? 120 : 150 + 70 * rnd(i * 7 + j * 13 + kind * 97) + (kind === 6 && i % 5 === 0 ? 40 : 0));
+    const x0 = Math.round(x + i * k), y0 = Math.round(y + j * k); g.rect(x0, y0, Math.round(x + (i + 1) * k) - x0, Math.round(y + (j + 1) * k) - y0, `rgb(${c},${c},${c})`); // edges snapped, so no seams
+  }
+}
 // ---------- the tours
 const TOURS = {
   mmwave: {
@@ -311,7 +335,7 @@ const TOURS = {
           [a, d] = up(0.4); g.alpha(a, () => g.text("breast imaging", 153, 37 + d, SKY.accent, 2, "c"));
           [a, d] = up(1.0); g.alpha(a, () => g.text("MULTI-CHANNEL 3D RECONSTRUCTION", 153, 60 + d, SKY.ink, 1, "c"));
           [a, d] = up(1.3); g.alpha(a, () => g.text("62-69 GHz  .  20 TX X 20 RX MIMO", 153, 70 + d, SKY.muted, 1, "c"));
-          [a, d] = up(1.6); g.alpha(a, () => g.text("M.S. THESIS, CHANG GUNG UNIV., 2022", 153, 80 + d, SKY.muted, 1, "c"));
+          [a, d] = up(1.6); g.alpha(a, () => g.text("M.S. THESIS, 2022", 153, 80 + d, SKY.muted, 1, "c"));
           radarBoard(g, 129, 106, 48, t); waves(g, 153, 106, tick(t, 8) * 24 % 30 + 4, SKY.wave, true, 2, 10, 14);
         } },
       { ch: 0, title: "Why another imaging modality?", dur: 13.6, cap: "Each breast imaging method has its own limitations: X-ray exposure and compression (mammography), limited resolution (ultrasound), cost and frequent use of contrast agents (MRI). This work explores what millimeter-wave sensing could add alongside them.",
@@ -432,8 +456,8 @@ const TOURS = {
           g.text("TUMOR: DIELECTRIC CONTRAST", 152, 92, SKY.tumor); g.line(150, 95, 108, 96, SKY.tumor);
           // signal strength against depth: steady in air, a drop at the surface, decaying in tissue
           if (t > 2.5) {
-            g.box(186, 102, 66, 26, CARD, EDGE); g.text("AMPLITUDE VS. DEPTH", 189, 104, SKY.muted);
-            let py = 112; for (let x = 0; x < 58; x++) { const v = x < 14 ? 112 : Math.round(116 + (1 - Math.exp(-(x - 14) / 16)) * 8); if (x) g.line(189 + x - 1, py, 189 + x, v, SKY.wave); py = v; }
+            g.box(168, 104, 84, 26, CARD, EDGE); g.text("AMPLITUDE VS. DEPTH", 210, 106, SKY.muted, 1, "c");
+            let py = 115; for (let x = 0; x < 76; x++) { const v = x < 18 ? 115 : Math.round(119 + (1 - Math.exp(-(x - 18) / 20)) * 8); if (x) g.line(172 + x - 1, py, 172 + x, v, SKY.wave); py = v; }
           }
         } },
       { ch: 1, title: "Signal model: 20 × 20 MIMO", dur: 14.4, cap: "Signal model: each of the 20 transmitters fires in turn while all 20 receivers listen, giving 20 × 20 = 400 channels. Each channel is a 150-point frequency sweep (I/Q) from 62 to 69 GHz; an inverse FFT turns it into a 512-sample echo in time, where each peak is a reflector at a given distance.",
@@ -616,15 +640,15 @@ const TOURS = {
     title: "Automatic Sigma rule generation · overview",
     chapters: ["Motivation", "Method", "Evaluation"],
     scenes: [
-      { ch: 0, title: "Introduction", dur: 8.8, cap: "Research project: generating Sigma detection rules automatically with language and vision models, Applied Machine Learning Research, Texas A&M (2025 to 2026).",
-        subs: [[0.3, "This project asks whether language models can help write security detection rules."], [4.9, "It was carried out with Texas A&M's Applied ML Research group."]],
+      { ch: 0, title: "Introduction", dur: 8.8, cap: "Research project: generating Sigma detection rules automatically with language and vision models (2025 to present).",
+        subs: [[0.3, "This project asks whether language models can help write security detection rules."]],
         draw(g, t) {
           room(g);
           const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
           let [a, d] = up(0.1); g.alpha(a, () => g.text("Sigma rule", 153, 18 + d, SKY.ink, 2, "c"));
           [a, d] = up(0.4); g.alpha(a, () => g.text("generation", 153, 33 + d, SKY.accent, 2, "c"));
           [a, d] = up(1.0); g.alpha(a, () => g.text("WITH LANGUAGE AND VISION MODELS", 153, 55 + d, SKY.ink, 1, "c"));
-          [a, d] = up(1.3); g.alpha(a, () => g.text("APPLIED ML RESEARCH, TEXAS A&M, 2025-2026", 153, 65 + d, SKY.muted, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("RESEARCH PROJECT, 2025-2026", 153, 65 + d, SKY.muted, 1, "c"));
           // a small terminal writing a rule
           g.box(104, 80, 98, 44, "#0b0c0f", "#3a3f4a"); g.rect(105, 81, 96, 6, "#1d2027"); [0, 1, 2].forEach((i) => g.rect(108 + i * 5, 83, 3, 2, ["#e06a5f", "#e8c35f", "#6cc49a"][i]));
           const n = Math.min(5, Math.floor(Math.max(0, t - 1.6) * 2.2));
@@ -642,11 +666,11 @@ const TOURS = {
           analyst(g, 130, 82, t); g.text("ANALYST", 152, 108, SKY.muted, 1, "c");
           // threat reports piling up; rules trickling out
           const reps = Math.min(14, Math.floor(t * 2.2));
-          g.text("NEW THREAT REPORTS", 236, 16, SKY.ink, 1, "c");
+          g.text("NEW THREAT REPORTS", 236, 20, SKY.ink, 1, "c");
           for (let i = 0; i < reps; i++) { const x = 212 + (i % 2) * 22 + ((i * 7) % 5), y = 92 - Math.floor(i / 2) * 9; g.rect(x, y, 20, 8, OUT); g.rect(x + 1, y + 1, 18, 6, "#e9ecef"); g.rect(x + 3, y + 3, 10, 1, SKY.bad); }
           g.rect(206, 101, 54, 2, "#3a3f4a");
           const rules = t > 3 ? 1 : 0, prog = Math.min(1, Math.max(0, (t - 3) / 5));
-          g.text("RULES WRITTEN", 236, 110, SKY.ink, 1, "c"); g.rect(212, 119, 48, 4, "#2c3038"); g.rect(212, 119, Math.round(48 * prog), 4, SKY.ok);
+          g.text("RULES WRITTEN", 236, 108, SKY.ink, 1, "c"); g.rect(212, 119, 48, 4, "#2c3038"); g.rect(212, 119, Math.round(48 * prog), 4, SKY.ok);
           if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => g.tag(`${reps} REPORTS : ${rules} RULE`, 152, 117, SKY.bad, "#fff", "c"));
         } },
       { ch: 0, title: "What is a Sigma rule?", dur: 11.5, cap: "Sigma is an open, YAML-based format for detection rules. A rule names the log source to look at and the pattern to match (selections combined by a condition), and converts into queries for many security tools.",
@@ -829,7 +853,7 @@ const TOURS = {
             g.tag("MATCH", 214, 89, SKY.ok, "#fff", "c");
             g.rect(226, 51, 22, 1, SKY.muted); g.rect(226, 73, 22, 1, SKY.muted); g.rect(248, 51, 1, 39, SKY.muted); g.text("NO", 232, 45, SKY.bad); g.text("YES", 230, 67, SKY.bad);
             g.tag("NO MATCH", 248, 92, SKY.bad, "#fff", "c");
-            if (t > 7.6) g.text("2 DECISIONS > M = 2 + 1 = 3 PATHS", 214, 112, SKY.accent, 1, "c");
+            if (t > 7.6) g.text("2 DECISIONS > M = 2 + 1 = 3 PATHS", 214, 116, SKY.accent, 1, "c");
           });
         } },
       { ch: 2, title: "The pipeline, end to end", dur: 8, cap: "End to end: public rules are crawled and validated, turned into syntax trees and prompts, generated under five settings, and scored for validity and structural complexity, to compare prompt-only and structure-aware models.",
@@ -839,7 +863,7 @@ const TOURS = {
           let x = 36; SIGMA_CHAIN.forEach((lab, i) => { const w = g.textW(lab) + 8, on = t > 0.3 + i * 0.4; g.rect(x, 22, w, 11, on ? SKY.accent : CARD); g.text(lab, x + 4, 25, on ? SKY.bg : SKY.muted); x += w; if (i < 5) { g.text(">", x + 2, 25, SKY.trim); x += 9; } });
           g.box(52, 46, 202, 62, CARD, EDGE, LITE); g.text("QUESTIONS IT ANSWERS", 153, 52, SKY.accent, 1, "c");
           ["CAN OPEN LLMS WRITE VALID SIGMA RULES?", "DOES SEEING THE STRUCTURE (AST) HELP?", "HOW CLOSE IS THE COMPLEXITY TO EXPERT RULES?"].forEach((l, i) => { if (t > 2.8 + i * 0.8) { g.text("+", 62, 66 + i * 12, SKY.ok); g.text(l, 70, 66 + i * 12, SKY.ink); } });
-          if (t > 5.6) g.text("APPLIED ML RESEARCH, TEXAS A&M · 2025-2026", 153, 116, SKY.muted, 1, "c");
+          if (t > 5.6) g.text("2025-2026", 153, 116, SKY.muted, 1, "c");
         } },
     ],
   },
@@ -848,15 +872,15 @@ const TOURS = {
     link: { label: "GitHub", url: "https://github.com/Dino-Boooo/Instrumentation-and-System-Design-for-Advanced-MRI-Imaging" },
     chapters: ["Motivation", "Method", "Results"],
     scenes: [
-      { ch: 0, title: "Introduction", dur: 8, cap: "Course project (MR Engineering, Texas A&M, Fall 2024): a benchtop MRI system built from two Analog Discovery 2 boards, a permanent magnet, a hand-wound RF coil and custom Python software.",
-        subs: [[0.3, "This course project set out to build a working MRI system from basic components,"], [4.8, "as part of the MR Engineering course at Texas A&M."]],
+      { ch: 0, title: "Introduction", dur: 8, cap: "Course project (Fall 2024): a benchtop MRI system built from two Analog Discovery 2 boards, a permanent magnet, a hand-wound RF coil and custom Python software.",
+        subs: [[0.3, "This project set out to build a working MRI system from basic components:"], [4.8, "two instrument boards, a permanent magnet and a hand-wound coil."]],
         draw(g, t) {
           room(g);
           const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
           let [a, d] = up(0.1); g.alpha(a, () => g.text("Benchtop MRI", 153, 16 + d, SKY.ink, 2, "c"));
           [a, d] = up(0.4); g.alpha(a, () => g.text("from scratch", 153, 31 + d, SKY.accent, 2, "c"));
           [a, d] = up(1.0); g.alpha(a, () => g.text("2 INSTRUMENT BOARDS, A MAGNET, A HAND-WOUND COIL", 153, 53 + d, SKY.ink, 1, "c"));
-          [a, d] = up(1.3); g.alpha(a, () => g.text("MR ENGINEERING, TEXAS A&M, FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
           ad2(g, 82, 92, "AD2 #1"); ad2(g, 192, 92, "AD2 #2"); magnet(g, 128, 82);
           for (let x = 114; x < 144; x++) g.px(x, 100 + Math.round(2 * Math.sin(x * 0.9 - t * 12)), SKY.accent);
           for (let x = 178; x < 192; x++) g.px(x, 106 + Math.round(2 * Math.sin(x * 0.5 - t * 6)), SKY.ok);
@@ -935,7 +959,7 @@ const TOURS = {
           g.text(clean > 0.5 ? "FILTERED + WINDOWED" : "RAW CAPTURE", 158, 20, clean > 0.5 ? SKY.ok : SKY.muted);
           let py = 60; for (let x = 0; x < 112; x++) { const s = 16 * Math.exp(-(((x - 56) / 18) ** 2)) * Math.cos(x * 0.9), nz = (rnd(x * 3 + Math.floor(t * 8)) - 0.5) * 22 * (1 - clean), v = 60 - Math.round(s + nz); if (x) g.line(158 + x - 1, py, 158 + x, v, clean > 0.5 ? SKY.wave : "#7d8590"); py = v; }
           if (t > 4.8) g.text("CHEBYSHEV II, filtfilt, HAMMING", 215, 92, SKY.muted, 1, "c");
-          if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => { g.tag("ECHO SNR 26 dB", 120, 112, SKY.ok, SKY.bg, "c"); g.tag("T2* 0.28 ms", 190, 112, "#2c313c", SKY.ink, "c"); });
+          if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => { g.tag("ECHO SNR 26 dB", 90, 112, SKY.ok, SKY.bg, "c"); g.tag("T2* 0.28 ms", 215, 112, "#2c313c", SKY.ink, "c"); });
         } },
       { ch: 1, title: "Shimming", dur: 11.7, cap: "An uneven main field (B0) broadens the spectral line. DC offsets on the shim coils, tuned with the line width as feedback, narrowed it from 1953 Hz to about 1220 Hz.",
         subs: [[0.3, "The main field is not perfectly uniform, which broadens the spectral line."], [4.4, "Small shim currents compensate for this, guided by the measured line width,"], [8.6, "which narrowed from 1953 Hz to about 1220 Hz."]],
@@ -1022,15 +1046,15 @@ const TOURS = {
     link: { label: "GitHub", url: "https://github.com/xoumyax/Breast-Cancer-Classification" },
     chapters: ["Motivation", "Method", "Results"],
     scenes: [
-      { ch: 0, title: "Introduction", dur: 8.8, cap: "Course project (Texas A&M, Fall 2024): classifying mammograms as benign or malignant on the CBIS-DDSM dataset, comparing texture-feature SVMs with deep convolutional networks.",
-        subs: [[0.3, "This course project studied how to classify mammogram findings as benign or malignant,"], [5.1, "comparing texture-based features with deep neural networks."]],
+      { ch: 0, title: "Introduction", dur: 8.8, cap: "Course project (Fall 2024): classifying mammograms as benign or malignant on the CBIS-DDSM dataset, comparing texture-feature SVMs with deep convolutional networks.",
+        subs: [[0.3, "This project studied how to classify mammogram findings as benign or malignant,"], [5.1, "comparing texture-based features with deep neural networks."]],
         draw(g, t) {
           room(g);
           const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
           let [a, d] = up(0.1); g.alpha(a, () => g.text("Mammogram", 153, 16 + d, SKY.ink, 2, "c"));
           [a, d] = up(0.4); g.alpha(a, () => g.text("classification", 153, 31 + d, SKY.accent, 2, "c"));
           [a, d] = up(1.0); g.alpha(a, () => g.text("TEXTURE FEATURES VS. DEEP NETWORKS", 153, 53 + d, SKY.ink, 1, "c"));
-          [a, d] = up(1.3); g.alpha(a, () => g.text("CBIS-DDSM, TEXAS A&M, FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("CBIS-DDSM, FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
           mammo(g, 112, 72, 40, 42, 3); mammo(g, 160, 72, 40, 42, 7, false);
           g.tag("BENIGN?", 132, 118, "#2c313c", SKY.ink, "c"); g.tag("MALIGNANT?", 180, 118, "#2c313c", SKY.ink, "c");
         } },
@@ -1044,7 +1068,7 @@ const TOURS = {
             g.alpha(z, () => { g.line(76, 50, 104, 18, "#5d626b"); g.line(76, 63, 104, 70, "#5d626b"); g.box(104, 16, 56, 56, "#050506", SKY.accent);
               gray(g, 106, 18, 26, 26, 2, 2, (i, j) => 0.35 + 0.25 * rnd(i * 13 + j * 71) + 0.25 * Math.exp(-((i - 13) ** 2 + (j - 13) ** 2) / 90));
               [[14, 12], [18, 16], [11, 19], [20, 22], [24, 14], [16, 25]].forEach(([i, j]) => g.rect(106 + i * 2, 18 + j * 2, 2, 2, "#ffffff")); g.text("CALCIFICATIONS", 132, 76, SKY.muted, 1, "c"); }); }
-          if (t > 2.6) g.alpha(ease((t - 2.6) / 0.4), () => { g.tag("BENIGN", 168, 30, SKY.ok, SKY.bg); g.tag("MALIGNANT", 168, 44, SKY.bad, "#fff"); g.text("?", 214, 36, SKY.ink, 2); });
+          if (t > 2.6) g.alpha(ease((t - 2.6) / 0.4), () => { g.tag("BENIGN", 168, 30, SKY.ok, SKY.bg); g.tag("MALIGNANT", 168, 44, SKY.bad, "#fff"); g.text("?", 204, 32, SKY.ink, 2); });
           if (t > 4.8) g.alpha(ease((t - 4.8) / 0.4), () => {
             ["1  CAN A PUBLISHED GLCM + SVM BE REPRODUCED?", "2  HOW MUCH DO PREPROCESSING CHOICES MATTER?", "3  HOW DO DEEP MODELS COMPARE?"].forEach((l, i) => g.text(l, 104, 88 + i * 10, i === 0 ? SKY.ink : SKY.ink));
           });
@@ -1121,7 +1145,7 @@ const TOURS = {
           for (let y = 28; y < 110; y++) { const b = bx(y); g.rect(180, y, b - 180, 1, "rgba(108,196,154,.08)"); g.rect(b, y, 272 - b, 1, "rgba(224,106,95,.08)"); if (t > 6) g.px(b, y, SKY.ink); }
           for (let i = 0; i < 34; i++) { const ben = i % 2 === 0, x = 226 + (ben ? -10 : 10) + (rnd(i * 7) - 0.5) * 70, y = 30 + rnd(i * 13 + 5) * 76; g.rect(x - 1, y - 1, 3, 3, ben ? SKY.ok : SKY.bad); }
           if (t > 6) g.tag("CLASSES OVERLAP", 226, 102, "#2c313c", SKY.ink, "c");
-          if (t > 6) g.alpha(ease((t - 6) / 0.4), () => { g.tag("BASELINES: RANDOM FOREST, XGBOOST", 103, 96, "#2c313c", SKY.ink, "c"); });
+          if (t > 6) g.alpha(ease((t - 6) / 0.4), () => { g.tag("BASELINES: RANDOM FOREST, XGBOOST", 103, 102, "#2c313c", SKY.ink, "c"); });
         } },
       { ch: 1, title: "Deep models", dur: 12.7, cap: "Deep models: a two-view EfficientNet-B0 reads both standard mammogram views (CC and MLO) together, but was too compute-intensive to train fully on the available hardware, so a residual network (Xception-style, with shortcut connections) was trained instead, its hyperparameters tuned with Optuna.",
         subs: [[0.3, "We also considered a two-view network that reads both mammogram views together."], [4.7, "It was too computationally demanding to train fully, so we trained a residual network instead,"], [9.9, "with hyperparameters tuned using Optuna."]],
@@ -1145,7 +1169,7 @@ const TOURS = {
           g.text("ACCURACY", 153, 16, SKY.muted, 1, "c");
           hbars(g, 34, 28, [["GLCM + SVM, AS PUBLISHED", 0.50, SKY.bad], ["SVM + YEO-JOHNSON, 135°", 0.57, SKY.wave], ["RANDOM FOREST / XGBOOST", 0.51, "#7d8590"], ["RESIDUAL CNN (VALIDATION)", 0.80, SKY.ok]], { lw: 104, bw: 110, rh: 16, t, t0: 0.3, max: 1 });
           for (let y = 24; y < 94; y += 3) g.px(138 + 55, y, SKY.muted); g.text("CHANCE 0.5", 193, 96, SKY.muted, 1, "c");
-          if (t > 4.6) g.text("/ 0.78", 138 + 88 + 22, 77, SKY.ok);
+          if (t > 4.6) g.text("/ 0.78", 228, 77, SKY.ok);
           if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => g.tag("SVM: BEST CV FOLD 0.79, HELD-OUT ABOUT 0.56", 153, 110, SKY.accent, "#fff", "c"));
         } },
       { ch: 2, title: "Takeaways", dur: 9.4, cap: "Takeaways: reproducibility depends on which cases are selected; normalization matters for distance-based SVMs; held-out accuracy, not the best fold, is the realistic figure; learned features beat global texture statistics, at far more compute.",
@@ -1162,15 +1186,15 @@ const TOURS = {
     link: { label: "GitHub", url: "https://github.com/Dino-Boooo/Metagenomic-Functional-Profiling" },
     chapters: ["Motivation", "Method", "Results"],
     scenes: [
-      { ch: 0, title: "Introduction", dur: 7.4, cap: "Course project (Texas A&M, Spring 2025): benchmarking a transformer-based enzyme classifier, DeepECtransformer, against alignment-based and machine-learning methods for annotating enzyme functions in metagenomes.",
-        subs: [[0.3, "This course project evaluated how reliably a transformer model"], [3.8, "can annotate enzyme functions in microbial communities."]],
+      { ch: 0, title: "Introduction", dur: 7.4, cap: "Course project (Spring 2025): benchmarking a transformer-based enzyme classifier, DeepECtransformer, against alignment-based and machine-learning methods for annotating enzyme functions in metagenomes.",
+        subs: [[0.3, "This project evaluated how reliably a transformer model"], [3.8, "can annotate enzyme functions in microbial communities."]],
         draw(g, t) {
           room(g);
           const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
           let [a, d] = up(0.1); g.alpha(a, () => g.text("Enzyme function", 153, 16 + d, SKY.ink, 2, "c"));
           [a, d] = up(0.4); g.alpha(a, () => g.text("from metagenomes", 153, 31 + d, SKY.accent, 2, "c"));
           [a, d] = up(1.0); g.alpha(a, () => g.text("BENCHMARKING A TRANSFORMER EC CLASSIFIER", 153, 53 + d, SKY.ink, 1, "c"));
-          [a, d] = up(1.3); g.alpha(a, () => g.text("TEXAS A&M, SPRING 2025", 153, 63 + d, SKY.muted, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("SPRING 2025", 153, 63 + d, SKY.muted, 1, "c"));
           for (let x = 0; x < 120; x++) { const y1 = 100 + Math.round(8 * Math.sin(x * 0.18 + t * 2)), y2 = 100 - Math.round(8 * Math.sin(x * 0.18 + t * 2)); g.px(94 + x, y1, SKY.wave); g.px(94 + x, y2, SKY.accent); if (x % 6 === 0) g.rect(94 + x, Math.min(y1, y2), 1, Math.abs(y1 - y2), "#3a3f4a"); }
           [[70, 92, 1, SKY.ok], [78, 108, 0, "#e8c35f"], [236, 94, 0, SKY.ok], [244, 108, 1, "#e8c35f"]].forEach(([x, y, k, c], i) => microbe(g, x + Math.round(Math.sin(t * 2 + i) * 2), y, k, c));
         } },
@@ -1225,14 +1249,14 @@ const TOURS = {
           if (t > 5.8) g.alpha(ease((t - 5.8) / 0.4), () => { g.box(196, 38, 80, 40, CARD, SKY.accent); g.text("LOW CONFIDENCE?", 236, 44, SKY.accent, 1, "c"); g.text("HOMOLOGY SEARCH", 236, 56, SKY.ink, 1, "c"); g.text("(FALLBACK)", 236, 66, SKY.muted, 1, "c"); });
           g.text("TRAINED: 22M ENZYMES, 2,802 ECS", 106, 108, SKY.muted, 1, "c");
         } },
-      { ch: 1, title: "A 2023 model on 2025 hardware", dur: 13.3, cap: "DeepECtransformer was released for Python 3.6, CUDA 10.2 and Transformers 3.5.1, which no longer run on current clusters. It was rebuilt on Texas A&M's Grace HPC cluster; the newer Transformers library changed the model's behaviour, so the original configuration was restored by hand (attention settings, zeroed and frozen positional embeddings, tokenizer files downloaded in advance). It then ran on both CPU and GPU.",
-        subs: [[0.3, "The model was released in 2023 for software versions that no longer run on current systems."], [5.3, "We rebuilt the environment on Texas A&M's Grace HPC cluster"], [8.7, "and restored the original configuration so that its behavior was preserved."]],
+      { ch: 1, title: "A 2023 model on 2025 hardware", dur: 13.3, cap: "DeepECtransformer was released for Python 3.6, CUDA 10.2 and Transformers 3.5.1, which no longer run on current clusters. It was rebuilt on a university HPC cluster; the newer Transformers library changed the model's behaviour, so the original configuration was restored by hand (attention settings, zeroed and frozen positional embeddings, tokenizer files downloaded in advance). It then ran on both CPU and GPU.",
+        subs: [[0.3, "The model was released in 2023 for software versions that no longer run on current systems."], [5.3, "We rebuilt the environment on a university HPC cluster"], [8.7, "and restored the original configuration so that its behavior was preserved."]],
         draw(g, t) {
           room(g);
           g.box(32, 16, 132, 66, CARD, EDGE, LITE); g.text("ORIGINAL", 100, 20, SKY.bad, 1, "c"); g.text("OURS", 146, 20, SKY.ok, 1, "c");
           [["PYTHON", "3.6", "3.8"], ["CUDA", "10.2", "11.3.1"], ["TRANSFORMERS", "3.5.1", "4.2.2"], ["PYTORCH", "1.7.0", "1.12.1"]].forEach(([n, a, b], i) => { if (t < 0.4 + i * 0.4) return; const y = 32 + i * 11; g.text(n, 38, y, SKY.muted); g.text(a, 100, y, SKY.ink, 1, "c"); if (t > 3) { g.text(">", 123, y, SKY.trim, 1, "c"); g.text(b, 146, y, SKY.ok, 1, "c"); } });
           // the cluster
-          g.box(176, 16, 100, 66, CARD, EDGE, LITE); g.text("GRACE HPC", 226, 20, SKY.muted, 1, "c");
+          g.box(176, 16, 100, 66, CARD, EDGE, LITE); g.text("HPC CLUSTER", 226, 20, SKY.muted, 1, "c");
           for (let r = 0; r < 4; r++) { g.rect(196, 30 + r * 11, 60, 9, "#22262e"); g.rect(197, 31 + r * 11, 58, 1, "#3a3f4a"); for (let k = 0; k < 6; k++) g.rect(200 + k * 4, 34 + r * 11, 2, 2, t > 3 && blinkOn(t + r * 0.3 + k * 0.17, 0.6) ? (k % 2 ? SKY.ok : SKY.wave) : "#2c3038"); g.text(r < 2 ? "CPU" : "GPU", 252, 33 + r * 11, SKY.muted, 1, "r"); }
           if (t > 5.4) ["RESTORE ATTENTION SETTINGS", "ZERO + FREEZE POSITIONAL EMBEDDINGS", "TOKENIZER DOWNLOADED IN ADVANCE"].forEach((l, i) => { if (t < 5.4 + i * 0.5) return; g.tag("✓", 36, 88 + i * 11, SKY.ok, "#fff"); g.text(l, 50, 90 + i * 11, SKY.ink); });
         } },
@@ -1263,7 +1287,7 @@ const TOURS = {
             g.text("CORRECT", 194, 70, SKY.ok, 1, "c"); g.text("MISSED", 258, 78, SKY.bad, 1, "c");
             g.text("3-MER JACCARD: AVG 0.03-0.04, MAX <= 0.20", 215, 92, SKY.ink, 1, "c");
           });
-          if (t > 7) g.alpha(ease((t - 7) / 0.4), () => g.tag("PROTT5: GAP NARROWS TO 10-13 POINTS", 215, 106, SKY.wave, SKY.bg, "c"));
+          if (t > 7) g.alpha(ease((t - 7) / 0.4), () => g.tag("PROTT5: GAP NARROWS TO 10-13 POINTS", 215, 100, SKY.wave, SKY.bg, "c"));
         } },
       { ch: 2, title: "Takeaways", dur: 8.8, cap: "Takeaways: transformers can complement alignment, being far more precise than HUMAnN3 on well-characterized enzymes at a fraction of the compute; micro scores hide the long tail, so macro metrics matter; the encoder shapes the trade-off; and labels built by alignment may favour alignment tools. The benchmark is public on Zenodo.",
         subs: [[0.3, "Our results suggest that transformers can complement alignment-based tools,"], [4.5, "and that macro-level metrics are important for assessing rare classes."]],
@@ -1275,11 +1299,146 @@ const TOURS = {
         } },
     ],
   },
+  fashion: {
+    title: "CNN vs. LightGBM on Fashion-MNIST · overview",
+    link: { label: "GitHub", url: "https://github.com/Dino-Boooo/Fashion-MNIST-Model-Comparison" },
+    chapters: ["Motivation", "Method", "Results"],
+    scenes: [
+      { ch: 0, title: "Introduction", dur: 8, cap: "Course project (Fall 2024): a head-to-head comparison of a convolutional neural network and LightGBM, a gradient-boosted tree model, on Fashion-MNIST clothing images, weighing accuracy against training cost.",
+        subs: [[0.3, "This project compared two very different models on the same clothing-image task:"], [4.6, "a convolutional neural network and a gradient-boosted tree model."]],
+        draw(g, t) {
+          room(g);
+          const up = (t0) => [ease((t - t0) / 0.6), Math.round(6 * (1 - ease((t - t0) / 0.6)))];
+          let [a, d] = up(0.1); g.alpha(a, () => g.text("CNN vs. LightGBM", 153, 16 + d, SKY.ink, 2, "c"));
+          [a, d] = up(0.4); g.alpha(a, () => g.text("on Fashion-MNIST", 153, 31 + d, SKY.accent, 2, "c"));
+          [a, d] = up(1.0); g.alpha(a, () => g.text("ACCURACY AGAINST TRAINING COST", 153, 53 + d, SKY.ink, 1, "c"));
+          [a, d] = up(1.3); g.alpha(a, () => g.text("FALL 2024", 153, 63 + d, SKY.muted, 1, "c"));
+          [0, 1, 2, 3, 4, 5].forEach((k, i) => { if (t > 1.6 + i * 0.25) garment(g, 46 + i * 38, 78, k, 1.2); });
+        } },
+      { ch: 0, title: "Why compare two model families?", dur: 12, cap: "Choosing the right model matters as much as tuning it. A CNN learns spatial features from pixels; LightGBM treats each pixel as an independent tabular feature. The project asks which is more accurate, what each costs to train, where they fail, and what a tree model looks at.",
+        subs: [[0.3, "Choosing a model family matters as much as tuning it."], [3.4, "A CNN learns spatial features directly from pixels,"], [6.4, "while LightGBM treats every pixel as an independent feature in a table."], [10.0, "We asked which is more accurate, what each costs, and where each fails."]],
+        draw(g, t) {
+          room(g);
+          garment(g, 134, 10, 2, 1.4);
+          if (t > 3.2) g.alpha(ease((t - 3.2) / 0.5), () => { g.line(134, 50, 70, 58, "#5d626b"); g.box(32, 56, 76, 54, CARD, SKY.wave); g.text("CNN", 70, 60, SKY.wave, 1, "c");
+            for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) g.rect(54 + i * 7, 72 + j * 7, 6, 6, (i + j) % 2 ? SKY.wave : "#3a5f8f"); g.text("3×3 FILTERS SEE NEIGHBOURS", 70, 96, SKY.muted, 1, "c"); });
+          if (t > 6.2) g.alpha(ease((t - 6.2) / 0.5), () => { g.line(172, 50, 196, 58, "#5d626b"); g.box(158, 56, 76, 54, CARD, SKY.accent); g.text("LIGHTGBM", 196, 60, SKY.accent, 1, "c");
+            for (let i = 0; i < 8; i++) g.rect(166 + i * 8, 74, 6, 6, i % 3 ? "#8e9198" : SKY.accent); g.text("784 PIXELS AS COLUMNS", 196, 86, SKY.muted, 1, "c"); g.text("TREES SPLIT ON ANY ONE", 196, 96, SKY.muted, 1, "c"); });
+          if (t > 9.8) g.alpha(ease((t - 9.8) / 0.4), () => g.tag("ACCURACY · COST · ERRORS · WHAT THEY LOOK AT", 153, 122, "#2c313c", SKY.ink, "c"));
+        } },
+      { ch: 1, title: "Dataset and splits", dur: 11, cap: "Fashion-MNIST: 70,000 grayscale 28 × 28 images in 10 balanced clothing classes. The 60,000 training images are split 70 / 30 into 42,000 for fitting and 18,000 for validation and early stopping; the 10,000 test images are kept for the final evaluation. Pixels are scaled to 0–1.",
+        subs: [[0.3, "Fashion-MNIST has seventy thousand small grayscale images in ten balanced clothing classes."], [5.6, "We split the training set seventy-thirty for fitting and validation,"], [8.6, "and kept the ten thousand test images for the final evaluation."]],
+        draw(g, t) {
+          room(g);
+          g.text("70,000 IMAGES · 28 × 28 · 10 CLASSES", 153, 16, SKY.ink, 1, "c");
+          const names = ["T-SHIRT", "TROUSER", "PULLOVER", "DRESS", "COAT", "SANDAL", "SHIRT", "SNEAKER", "BAG", "BOOT"];
+          names.forEach((n, i) => { if (t < 0.4 + i * 0.25) return; const x = 40 + i * 23; garment(g, x, 26, i, 0.7); g.text(n, x + 10, 48, SKY.muted, 1, "c"); });
+          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.5), () => {
+            g.text("60,000 TRAINING", 118, 66, SKY.muted, 1, "c"); g.text("10,000 TEST", 232, 66, SKY.muted, 1, "c");
+            const k = ease((t - 5.8) / 0.8); g.rect(34, 76, Math.round(118 * k), 14, SKY.wave); g.rect(34 + Math.round(118 * k), 76, Math.round(50 * k), 14, "#3a5f8f"); g.rect(206, 76, Math.round(56 * k), 14, SKY.accent);
+            if (k > 0.9) { g.text("TRAIN 42,000", 93, 80, SKY.bg, 1, "c"); g.text("VAL 18,000", 177, 80, SKY.ink, 1, "c"); g.text("TEST", 234, 80, SKY.bg, 1, "c"); }
+          });
+          if (t > 8.4) g.alpha(ease((t - 8.4) / 0.4), () => { g.text("VALIDATION: EARLY STOPPING AND MODEL SELECTION", 153, 100, SKY.ink, 1, "c"); g.text("PIXELS SCALED TO 0–1", 153, 112, SKY.muted, 1, "c"); });
+        } },
+      { ch: 1, title: "A first look: t-SNE of raw pixels", dur: 10.5, cap: "A t-SNE projection of the raw pixels already separates footwear and bags from garments, while the upper-body garments (T-shirt, shirt, pullover, coat) overlap heavily, previewing where both models will struggle.",
+        subs: [[0.3, "Before training anything, a t-SNE projection of the raw pixels is telling:"], [4.6, "footwear and bags form their own islands,"], [7.0, "while T-shirts, shirts, pullovers and coats pile on top of each other."]],
+        draw(g, t) {
+          room(g);
+          g.box(40, 14, 120, 112, CARD, EDGE, LITE); g.text("T-SNE OF RAW PIXELS", 100, 18, SKY.muted, 1, "c");
+          const C = [[62, 48, SKY.wave, 1], [70, 56, "#9fd0f0", 1], [58, 60, "#5f8fd0", 1], [66, 42, "#7d8590", 1], [128, 44, SKY.accent, 0], [136, 60, "#e8c35f", 0], [120, 100, SKY.ok, 0], [142, 96, "#6cc4c4", 0], [86, 102, SKY.hot, 0], [104, 78, "#c58fe8", 0]];
+          C.forEach(([cx, cy, col, up], k) => { const r = up ? 12 : 8, n = Math.round(26 * ease((t - 0.3 - k * 0.08) / 1.2)); for (let i = 0; i < n; i++) { const a = rnd(i * 7 + k * 101) * 6.28, d = Math.sqrt(rnd(i * 3 + k * 37)) * r; g.px(cx + Math.cos(a) * d * 1.2, cy + Math.sin(a) * d, col); } });
+          if (t > 4.4) g.alpha(ease((t - 4.4) / 0.4), () => { g.ring(131, 72, 26, SKY.ok, 0, 6.3, 34); g.tag("FOOTWEAR, BAGS: SEPARATE", 276, 44, SKY.ok, SKY.bg, "r"); });
+          if (t > 6.8) g.alpha(ease((t - 6.8) / 0.4), () => { g.ring(64, 52, 18, SKY.bad, 0, 6.3, 16); g.tag("UPPER-BODY GARMENTS: OVERLAP", 276, 60, SKY.bad, "#fff", "r"); g.text("T-SHIRT · SHIRT · PULLOVER · COAT", 218, 74, SKY.muted, 1, "c"); });
+          if (t > 8.6) g.text("WHERE BOTH MODELS WILL STRUGGLE", 218, 100, SKY.ink, 1, "c");
+        } },
+      { ch: 1, title: "The convolutional network", dur: 12.5, cap: "The CNN (PyTorch): two convolution layers (1 → 16 → 32 channels, 3 × 3 kernels), each with ReLU and 2 × 2 max pooling, then fully connected layers 1568 → 512 → 256 → 10 with dropout 0.2. Trained with Adam (lr 0.001), cross-entropy, batch size 32, up to 50 epochs with early stopping.",
+        subs: [[0.3, "The network has two convolution layers, each followed by pooling,"], [4.0, "then three fully connected layers with dropout."], [7.0, "It was trained with Adam and cross-entropy loss, with early stopping on the validation set."]],
+        draw(g, t) {
+          room(g);
+          garment(g, 28, 56, 7, 1.1);
+          const L = [["CONV 16", 68, 40, SKY.wave], ["POOL", 92, 30, "#3a5f8f"], ["CONV 32", 112, 26, SKY.wave], ["POOL", 136, 18, "#3a5f8f"], ["FC 512", 162, 46, SKY.ok], ["FC 256", 190, 34, SKY.ok], ["FC 10", 218, 16, SKY.accent]];
+          L.forEach(([l, x, h, c], i) => { if (t < 0.3 + i * 0.5) return; const on = Math.floor(t * 3) % L.length === i; g.rect(x, 70 - h / 2, 16, h, on ? "#f2f2f0" : c); g.text(l, x + 8, 98, SKY.muted, 1, "c"); if (i < L.length - 1) g.rect(x + 16, 69, 8, 1, "#5d626b"); });
+          if (t > 0.8) { for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) g.rect(32 + i * 4 + Math.round(((t * 8) % 5) * 2), 62 + j * 4, 3, 3, (i + j) % 2 ? "rgba(127,176,240,.8)" : "rgba(127,176,240,.4)"); g.text("3×3", 44, 46, SKY.wave, 1, "c"); }
+          if (t > 4.2) g.text("RELU · 2×2 MAX POOL", 100, 108, SKY.muted, 1, "c");
+          if (t > 4.4) g.text("DROPOUT 0.2", 190, 108, SKY.muted, 1, "c");
+          if (t > 7.2) g.alpha(ease((t - 7.2) / 0.4), () => { g.tag("ADAM 0.001 · BATCH 32 · ≤ 50 EPOCHS", 153, 117, "#2c313c", SKY.ink, "c"); g.text("EARLY STOPPING, PATIENCE 5", 153, 128, SKY.ok, 1, "c"); });
+          g.text("10 CLASS SCORES", 226, 46, SKY.accent, 1, "c");
+        } },
+      { ch: 1, title: "LightGBM on pixels", dur: 12, cap: "LightGBM: gradient-boosted decision trees with a multiclass objective, 31 leaves per tree, learning rate 0.05, feature and bagging fractions 0.9 / 0.8, early stopping after 5 rounds (best iteration 211). Each image is flattened into 784 pixel features. It speeds up boosting with gradient-based one-side sampling and exclusive feature bundling.",
+        subs: [[0.3, "LightGBM sees each image as a row of 784 pixel values,"], [3.6, "and grows a sequence of small decision trees, each correcting the last."], [7.4, "It stays fast by sampling the hardest examples and bundling sparse features."]],
+        draw(g, t) {
+          room(g);
+          garment(g, 30, 16, 6, 1.4); g.text("→", 72, 30, SKY.muted, 2);
+          for (let i = 0; i < 24; i++) g.rect(88 + i * 7, 26, 6, 10, i % 5 === 2 ? SKY.accent : i % 3 ? "#5d626b" : "#8e9198"); g.text("784 PIXEL COLUMNS", 172, 40, SKY.muted, 1, "c");
+          if (t > 3.4) { const n = Math.min(6, Math.floor((t - 3.4) / 0.6) + 1); for (let k = 0; k < n; k++) { const x = 44 + k * 36, y = 60; g.rect(x + 8, y, 4, 4, SKY.accent); g.line(x + 10, y + 4, x + 3, y + 12, "#5d626b"); g.line(x + 10, y + 4, x + 17, y + 12, "#5d626b"); g.rect(x + 1, y + 12, 4, 4, k % 2 ? SKY.ok : SKY.bad); g.rect(x + 15, y + 12, 4, 4, k % 2 ? SKY.bad : SKY.ok); g.line(x + 3, y + 16, x - 1, y + 24, "#5d626b"); g.line(x + 3, y + 16, x + 7, y + 24, "#5d626b"); if (k < n - 1) g.text("+", x + 28, y + 10, SKY.muted); } g.text("TREES, 31 LEAVES EACH · LR 0.05", 153, 92, SKY.muted, 1, "c"); }
+          if (t > 7.2) g.alpha(ease((t - 7.2) / 0.4), () => { g.tag("GOSS: KEEP HIGH-GRADIENT SAMPLES", 90, 108, "#2c313c", SKY.ink, "c"); g.tag("EFB: BUNDLE SPARSE FEATURES", 214, 108, "#2c313c", SKY.ink, "c"); g.text("EARLY STOPPING: BEST ITERATION 211", 153, 124, SKY.ok, 1, "c"); });
+        } },
+      { ch: 1, title: "Training", dur: 10, cap: "Both models were trained with early stopping on the validation split. The CNN's validation loss flattens after a handful of epochs; LightGBM's log-loss keeps improving slowly until round 211. Wall-clock: 1176 s for the CNN, 446 s for LightGBM.",
+        subs: [[0.3, "Both models stopped early on the validation split."], [3.2, "The network's loss flattened after a few epochs; the trees kept improving slowly for about two hundred rounds."], [8.0, "In wall-clock time, LightGBM finished in well under half the time."]],
+        draw(g, t) {
+          room(g);
+          const panel = (x, title, col, f, n) => { g.box(x, 16, 110, 72, CARD, EDGE, LITE); g.text(title, x + 55, 20, SKY.muted, 1, "c"); const k = Math.round(n * ease((t - 0.6) / 4)); let py = 0; for (let i = 0; i < k; i++) { const u = i / n, y = 80 - Math.round(50 * f(u)); if (i) g.line(x + 8 + (i - 1) * 94 / n, py, x + 8 + i * 94 / n, y, col); py = y; } };
+          panel(32, "CNN LOSS", SKY.wave, (u) => 0.95 * Math.exp(-u * 9) + 0.12 + 0.03 * Math.sin(u * 40), 50);
+          panel(152, "LIGHTGBM LOG-LOSS", SKY.accent, (u) => 0.9 * Math.exp(-u * 3.2) + 0.1, 211);
+          g.text("EPOCHS", 87, 92, SKY.muted, 1, "c"); g.text("ROUNDS", 207, 92, SKY.muted, 1, "c");
+          if (t > 7.8) g.alpha(ease((t - 7.8) / 0.5), () => hbars(g, 60, 104, [["CNN", 1176, SKY.wave], ["LIGHTGBM", 446, SKY.accent]], { lw: 50, bw: 110, rh: 12, max: 1200, t: t, t0: 7.8, fmt: (v) => v + " S" }));
+        } },
+      { ch: 2, title: "Results", dur: 11, cap: "Results: the CNN reached 92.25 % accuracy on the validation split (91 % on the test set); LightGBM reached 89.26 % on the test set. The CNN is about three points more accurate; LightGBM trained 2.6 times faster.",
+        subs: [[0.3, "The network was about three points more accurate,"], [3.2, "ninety-two percent against eighty-nine,"], [5.6, "while LightGBM trained two and a half times faster."]],
+        draw(g, t) {
+          room(g);
+          g.text("ACCURACY", 100, 16, SKY.muted, 1, "c"); g.text("TRAINING TIME", 212, 16, SKY.muted, 1, "c");
+          const bar = (x, y, h, c, label, val, t0) => { const k = ease((t - t0) / 0.8), hh = Math.round(h * k); g.rect(x, y + h - hh, 30, hh, c); g.text(label, x + 15, y + h + 4, SKY.ink, 1, "c"); if (k > 0.95) g.text(val, x + 15, y + h - hh - 9, c, 1, "c"); };
+          bar(60, 30, 74, SKY.wave, "CNN", "92.3 %", 0.3); bar(110, 30, 71, SKY.accent, "LIGHTGBM", "89.3 %", 0.6);
+          bar(176, 30, 74, SKY.wave, "CNN", "1176 S", 2.8); bar(226, 30, 28, SKY.accent, "LIGHTGBM", "446 S", 3.1);
+          for (let y = 30; y < 104; y += 3) g.px(100, y, EDGE);
+          if (t > 5.4) g.alpha(ease((t - 5.4) / 0.4), () => { g.tag("+3 POINTS", 100, 120, SKY.wave, SKY.bg, "c"); g.tag("2.6× FASTER", 212, 120, SKY.accent, SKY.bg, "c"); });
+        } },
+      { ch: 2, title: "Where both models fail", dur: 12, interactive: true, hint: "Click the matrix to switch between the CNN and LightGBM", cap: "Both models are near-perfect on trousers, bags and footwear, and both struggle with Shirt, which is most often mistaken for T-shirt, Coat or Pullover because of their similar silhouettes at 28 × 28. Click the matrix to switch models.",
+        subs: [[0.3, "Both models are nearly perfect on trousers, bags and shoes."], [4.0, "Both stumble on the same classes: shirts are confused with T-shirts, coats and pullovers,"], [9.0, "which look alike at this resolution."]],
+        draw(g, t, s) {
+          room(g);
+          const cnn = s.m == null ? Math.floor(t / 4) % 2 === 0 : s.m === 0, N = 10, short = ["TS", "TR", "PU", "DR", "CO", "SA", "SH", "SN", "BG", "BO"];
+          const hard = [0, 2, 4, 6], val = (i, j) => { if (i === j) return hard.includes(i) ? (cnn ? 0.8 : 0.72) : cnn ? 0.98 : 0.96; if (hard.includes(i) && hard.includes(j)) return cnn ? 0.06 : 0.09; if ((i === 5 && j === 7) || (i === 7 && j === 9) || (i === 9 && j === 7)) return 0.03; return 0; };
+          g.text(cnn ? "CNN CONFUSION MATRIX" : "LIGHTGBM CONFUSION MATRIX", 86, 14, cnn ? SKY.wave : SKY.accent, 1, "c");
+          const x0 = 46, y0 = 28, c = 8;
+          for (let i = 0; i < N; i++) { g.text(short[i], x0 - 4, y0 + i * c + 1, SKY.muted, 1, "r"); g.text(short[i], x0 + i * c + 4, y0 - 8, SKY.muted, 1, "c"); for (let j = 0; j < N; j++) { const v = val(i, j), k = Math.round(255 * Math.min(1, v * 1.1)); g.rect(x0 + j * c, y0 + i * c, c - 1, c - 1, v ? `rgb(${k},${Math.round(k * 0.75)},${Math.round(k * 0.45)})` : "#1c1f25"); } }
+          s.box = [x0, y0, N * c, N * c];
+          if (t > 3.8) g.alpha(ease((t - 3.8) / 0.4), () => { [0, 2, 4, 6].forEach((i) => { g.rect(x0 + i * c - 1, y0 - 1, c + 1, 1, SKY.bad); g.rect(x0 + i * c - 1, y0 + N * c - 1, c + 1, 1, SKY.bad); }); g.text("SHIRT · T-SHIRT · COAT · PULLOVER", 86, 118, SKY.bad, 1, "c"); });
+          g.box(150, 28, 112, 80, CARD, EDGE, LITE); g.text("SHIRT IS MISTAKEN FOR", 206, 32, SKY.muted, 1, "c");
+          [[0, "T-SHIRT"], [4, "COAT"], [2, "PULLOVER"]].forEach(([k, n], i) => { garment(g, 160 + i * 36, 40, k, 0.9); g.text(n, 172 + i * 36, 68, SKY.ink, 1, "c"); });
+          garment(g, 194, 78, 6, 0.9); g.text("SHIRT", 206, 101, SKY.accent, 1, "c");
+          if (t > 8.8) g.text("SIMILAR SILHOUETTES AT 28 × 28", 206, 118, SKY.ink, 1, "c");
+        },
+        click(s, x, y) { const [bx, by, bw, bh] = s.box || [0, 0, 0, 0]; if (x >= bx && x < bx + bw && y >= by && y < by + bh) s.m = s.m === 0 ? 1 : 0; } },
+      { ch: 2, title: "What LightGBM looks at", dur: 11, cap: "LightGBM's top-gain pixels sit where shoes and garments differ in outline, so the tree model relies mainly on coarse shape cues rather than texture: it learns to tell footwear from clothing first.",
+        subs: [[0.3, "Mapping LightGBM's most important pixels back onto the images"], [3.8, "shows they sit where shoes and garments differ in outline."], [7.2, "The tree model relies on coarse shape cues, not texture."]],
+        draw(g, t) {
+          room(g);
+          g.box(32, 14, 112, 100, CARD, EDGE, LITE); g.text("TOP-15 FEATURES BY GAIN", 88, 18, SKY.muted, 1, "c");
+          const imp = [490, 346, 655, 433, 518, 372, 601, 204, 711, 289, 460, 150, 540, 318, 623];
+          imp.forEach((p, i) => { const w = Math.round(80 * (1 - i * 0.055) * ease((t - 0.3 - i * 0.1) / 0.6)); g.text("PX " + p, 60, 28 + i * 5.4, SKY.muted, 1, "r"); g.rect(64, 28 + i * 5.4, w, 4, i < 3 ? SKY.accent : "#8e9198"); });
+          [[6, 170], [7, 212], [0, 170], [2, 212]].forEach(([k, x], i) => { const y = i < 2 ? 24 : 70; garment(g, x, y, k, 1.4); if (t > 3.6) { const n = Math.min(10, Math.floor((t - 3.6) / 0.25)); for (let q = 0; q < n; q++) { const [u, v] = [[0.2, 0.62], [0.5, 0.58], [0.75, 0.6], [0.3, 0.3], [0.6, 0.25], [0.5, 0.88], [0.15, 0.85], [0.85, 0.4], [0.5, 0.1], [0.4, 0.72]][q]; g.rect(x + Math.round(u * 39), y + Math.round(v * 39), 2, 2, SKY.hot); } } });
+          if (t > 7) g.alpha(ease((t - 7) / 0.4), () => g.tag("OUTLINE, NOT TEXTURE", 212, 118, SKY.accent, SKY.bg, "c"));
+        } },
+      { ch: 2, title: "Takeaways", dur: 9.5, cap: "Takeaways: spatial structure matters, so the CNN wins on accuracy; speed is LightGBM's strength, which can outweigh a few points when models are retrained often; and some errors are in the data itself, since shirt, coat and pullover look alike at 28 × 28.",
+        subs: [[0.3, "Spatial structure gives the network its edge in accuracy;"], [3.6, "speed is the tree model's strength when retraining is frequent;"], [6.8, "and some errors live in the data itself."]],
+        draw(g, t) {
+          room(g);
+          g.box(40, 22, 226, 84, CARD, EDGE, LITE); g.text("TAKEAWAYS", 153, 28, SKY.accent, 1, "c");
+          ["SPATIAL STRUCTURE MATTERS: THE CNN IS MORE ACCURATE", "SPEED IS LIGHTGBM'S STRENGTH FOR FREQUENT RETRAINING", "SOME ERRORS ARE IN THE DATA: SHIRT, COAT, PULLOVER"].forEach((l, i) => { if (t > 0.6 + i * 3) g.alpha(ease((t - 0.6 - i * 3) / 0.5), () => { g.rect(50, 46 + i * 16, 4, 4, SKY.accent); g.text(l, 60, 44 + i * 16, SKY.ink); }); });
+        } },
+    ],
+  },
 };
 
 // ---------- the window and its player
+// A page can hand the player a skin (window.TOUR_SKIN) that shows each picture its own way, as the text-art version
+// does: the scene is still drawn on the canvas, then the skin turns it into something else. TOUR_BASE prefixes the
+// voice-over files when the page lives in a subfolder.
 const TourPlayer = (() => {
-  let tryEl, scrubbing = false, r = 0, voice = null, audio = null, soundBtn, sound = true, lastSec = -1, track, knob, trans = null, curSub = "", sub, head, dlg, cv, ctx, g, cap, dots, bar, playBtn, linkEl, tour, idx = 0, t = 0, playing = false, last = 0, raf = 0, imgs = {}, states = [];
+  const skin = () => (typeof window !== "undefined" && window.TOUR_SKIN) || null;
+  let stage, labels = [], tryEl, scrubbing = false, r = 0, voice = null, audio = null, soundBtn, sound = true, lastSec = -1, track, knob, trans = null, curSub = "", sub, head, dlg, cv, ctx, g, cap, dots, bar, playBtn, linkEl, tour, idx = 0, t = 0, playing = false, last = 0, raf = 0, imgs = {}, states = [];
   const W = 256, H = 132, SHIFT = 24, reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function build() {
     dlg = document.createElement("dialog");
@@ -1299,7 +1458,13 @@ const TourPlayer = (() => {
       </div>`;
     document.body.append(dlg);
     addEventListener("resize", () => { if (dlg.open) { fit(); draw(); } });
-    cv = dlg.querySelector("canvas"); ctx = cv.getContext("2d"); g = pxKit(ctx);
+    cv = dlg.querySelector("canvas"); ctx = cv.getContext("2d"); g = pxKit(ctx); stage = cv;
+    if (skin()) { // the skin draws the picture: the canvas stays hidden, and the labels are handed over as text
+      dlg.classList.add("skinned"); cv.hidden = true; stage = skin().mount(cv.parentElement);
+      g.textW = (str, k = 1) => Math.ceil(String(str).length * 2.52 * k); // the skin sets labels in a monospace face at 4.2 px per k: pieces laid out by width then line up
+      g.text = (str, x, y, c, k = 1, align = "l") => { const w = g.textW(str, k); labels.push({ str: String(str), x: x - SHIFT, y, c, k, w, align, plate: null }); };
+      g.tag = (str, x, y, bg, fg = "#fff", align = "l") => { const w = g.textW(str) + 6, X = align === "c" ? x - w / 2 : align === "r" ? x - w : x; labels.push({ str: String(str), x: X + 3 - SHIFT, y: y + 2, c: fg, k: 1, w: w - 6, align: "l", plate: bg }); };
+    }
     cap = dlg.querySelector(".pxwin-cap"); sub = dlg.querySelector(".pxwin-sub"); head = dlg.querySelector(".pxwin-head"); dots = dlg.querySelector(".pxwin-dots"); bar = dlg.querySelector(".pxwin-bar-fill"); playBtn = dlg.querySelector(".play"); linkEl = dlg.querySelector(".pxwin-link");
     dlg.querySelector(".pxwin-x").addEventListener("click", close);
     dlg.addEventListener("close", stop);
@@ -1325,15 +1490,16 @@ const TourPlayer = (() => {
     const end = () => { scrubbing = false; track.classList.remove("drag"); last = performance.now(); };
     track.addEventListener("pointerup", end); track.addEventListener("pointercancel", end);
     track.addEventListener("keydown", (e) => { const k = { Home: 0, End: 0.999 }[e.key]; if (k !== undefined) { e.preventDefault(); seek(k); } });
-    cv.addEventListener("pointerdown", (e) => {
+    stage.addEventListener("pointerdown", (e) => {
       const sc = tour.scenes[idx]; if (!sc.click) return;
       // the reader is exploring: pause here so the result stays on screen
       if (playing) setPlaying(false); states[idx].touched = true;
-      const r = cv.getBoundingClientRect(); sc.click(states[idx], ((e.clientX - r.left) / r.width) * W + SHIFT, ((e.clientY - r.top) / r.height) * H, t, performance.now() / 1000);
+      const r = stage.getBoundingClientRect(); sc.click(states[idx], ((e.clientX - r.left) / r.width) * W + SHIFT, ((e.clientY - r.top) / r.height) * H, t, performance.now() / 1000);
       draw();
     });
   }
   function fit() {
+    if (skin()) { PXK = 1; cv.width = W; cv.height = H; skin().fit(stage, W, H); trans = null; return; }
     const dpr = window.devicePixelRatio || 1, avail = cv.parentElement.clientWidth * dpr;
     PXK = Math.max(1, Math.floor(avail / W));
     cv.width = W * PXK; cv.height = H * PXK;
@@ -1362,15 +1528,17 @@ const TourPlayer = (() => {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     // between scenes, keynote style: the old slide slides off to the left and dissolves while the new one slides in
     const p = trans ? Math.min(1, (performance.now() - trans.t0) / 520) : 1, e = ease(p), dx = Math.round(18 * (1 - e));
+    labels.length = 0;
     ctx.setTransform(PXK, 0, 0, PXK, (-SHIFT + dx) * PXK, 0); sc.draw(g, t, states[idx], imgs, performance.now() / 1000); ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (trans && p < 1) { ctx.globalAlpha = 1 - e; ctx.drawImage(trans.img, -Math.round(18 * e) * PXK, 0, cv.width, cv.height); ctx.globalAlpha = 1; } else trans = null;
+    if (skin()) skin().render(stage, cv, labels, { sx: dx });
+    else if (trans && p < 1) { ctx.globalAlpha = 1 - e; ctx.drawImage(trans.img, -Math.round(18 * e) * PXK, 0, cv.width, cv.height); ctx.globalAlpha = 1; } else trans = null;
     const pct = (100 * elapsed()) / total(), sec = Math.floor(elapsed()), mmss = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, "0")}`;
     bar.style.width = pct + "%"; knob.style.left = pct + "%";
     if (sec !== lastSec) { lastSec = sec; track.setAttribute("aria-valuenow", sec); track.setAttribute("aria-valuetext", `${mmss(sec)} of ${mmss(total())}`); }
     // the subtitle for this moment of the scene
     const cue = (sc.subs || []).filter(([t0]) => t >= t0).pop(), text = cue ? cue[1] : "";
     if (text !== curSub) { curSub = text; sub.classList.remove("in"); void sub.offsetWidth; sub.textContent = text; sub.classList.add("in"); }
-    cv.style.cursor = sc.click ? "pointer" : "default";
+    stage.style.cursor = sc.click ? "pointer" : "default";
     // interactive scenes: a hint above the picture; when paused there, it says how to carry on
     const st = states[idx], hint = !sc.click ? "" : !playing && (st.touched || st.waited) ? `${sc.hint}, then press ▶ to continue` : `Interactive: ${sc.hint.toLowerCase()}`;
     if (tryEl.textContent !== hint) tryEl.textContent = hint;
@@ -1424,7 +1592,8 @@ const TourPlayer = (() => {
     if (!dlg) build();
     voice = typeof NARRATION !== "undefined" && NARRATION[slug] && NARRATION[slug].pace.length === tour.scenes.length ? NARRATION[slug] : null;
     soundBtn.hidden = !voice; audio.pause();
-    if (voice && !audio.src.endsWith(voice.src)) audio.src = voice.src;
+    const vsrc = ((typeof window !== "undefined" && window.TOUR_BASE) || "") + (voice ? voice.src : "");
+    if (voice && !audio.src.endsWith(voice.src)) audio.src = vsrc;
     dlg.querySelector(".pxwin-title").textContent = tour.title;
     dots.innerHTML = tour.chapters.map((c, k) => `<span style="flex:${tour.scenes.reduce((n, s, i) => n + (s.ch === k ? len(i) : 0), 0)}">${c}</span>`).join("");
     track.setAttribute("aria-valuemin", 0); track.setAttribute("aria-valuemax", Math.round(total())); lastSec = -1;
@@ -1435,7 +1604,9 @@ const TourPlayer = (() => {
     go(0); setPlaying(!reduced);
     last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
   }
-  return { open };
+  // for checking the pictures: show scene i of the open tour at a fraction of its length, paused
+  const peek = (i, f = 0.7) => { if (!tour) return; setPlaying(false); go(i, true, true); r = len(i) * f; draw(); };
+  return { open, peek };
 })();
 return { TOURS, TourPlayer };
 })();

@@ -136,8 +136,9 @@ darkMQ.addEventListener("change", (e) => {
 showTheme();
 
 // ---------- sections
+const hasRoom = (p) => typeof ROOMS !== "undefined" && ROOMS.some((r) => r.slug === p.slug); // not every project has a room in the cabin
 const project = (p) => `<article class="proj" id="project-${p.slug}">
-  <div class="scene-box">${closeupSVG(p.slug)}</div>
+  ${hasRoom(p) ? `<div class="scene-box">${closeupSVG(p.slug)}</div>` : ""}
   <div class="proj-text">
     <h4>${p.title}</h4>
     <p class="meta">${p.org} · ${p.date}</p>
@@ -185,7 +186,7 @@ $("#rail-left").innerHTML =
   card(`Contact<button class="msg-btn" type="button">Get in touch →</button>`, `<p><a href="mailto:${P.email}">${P.email}</a></p><p class="links">${P.links.filter((l) => l.url.startsWith("http")).map(link).join("")}</p>`, "contact");
 const mainPaper = CONTENT.papers.find((p) => p.link), talk = CONTENT.papers.find((p) => p.badge);
 $("#rail-right").innerHTML =
-  card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.short}</span></a></li>`).join("")}</ul>`) +
+  card("Rooms in the cabin", `<ul class="rooms">${CONTENT.projects.filter(hasRoom).map((p) => `<li><a href="#project-${p.slug}"><img src="${$(`#project-${p.slug} .scene-box img`).src}" alt=""><span><b>${p.room}</b>${p.short}</span></a></li>`).join("")}</ul>`) +
   card("Publication", `<p>${mainPaper.cite.split("“")[1]?.split("”")[0].replace(/,$/, "") || mainPaper.cite}</p><p class="where">IEEE ECBIOS 2022${talk ? ` · talk: ${talk.badge}` : ""}</p><p>${link({ label: "Read on IEEE Xplore", url: mainPaper.link.url })}</p>`) +
   card("Stack", `<p class="tags">${CONTENT.stack.slice(0, 10).map((t) => `<span class="tag">${t}</span>`).join("")}</p>`);
 
@@ -209,12 +210,12 @@ msgWin.className = "msgwin";
 msgWin.setAttribute("aria-labelledby", "msg-h");
 msgWin.innerHTML = `<form class="msg-form" novalidate>
   <div class="msg-head"><h2 id="msg-h">Get in touch</h2><button class="msg-x" type="button" aria-label="Close">×</button></div>
-  <p class="msg-note">For research collaborations, opportunities or questions about my work. I usually reply by email within a few days.</p>
+  <p class="msg-note">Please feel free to reach out about research collaborations, opportunities, or any questions about my work. I will do my best to reply within a few days.</p>
   <div class="msg-row">
     <label><span>Name</span><input name="name" required autocomplete="name" maxlength="100"></label>
     <label><span>Email</span><input name="email" type="email" required autocomplete="email" maxlength="200"></label>
   </div>
-  <label><span>Affiliation <small>(optional)</small></span><input name="affiliation" autocomplete="organization" maxlength="200" placeholder="University, lab or company"></label>
+  <label><span>Affiliation</span><input name="affiliation" required autocomplete="organization" maxlength="200" placeholder="University, lab or company"></label>
   <label><span>Subject</span><select name="topic">${TOPICS.map((t) => `<option>${t}</option>`).join("")}</select></label>
   <label><span>Message</span><textarea name="message" rows="6" required maxlength="5000"></textarea></label>
   <input class="msg-honey" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -238,7 +239,7 @@ document.addEventListener("click", (e) => {
 msgForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = msgForm.elements, v = (k) => f[k].value.trim();
-  const missing = [["name", "your name"], ["email", "your email address"], ["message", "a message"]].find(([k]) => !v(k));
+  const missing = [["name", "your name"], ["email", "your email address"], ["affiliation", "your affiliation"], ["message", "a message"]].find(([k]) => !v(k));
   if (missing) { msgSay(`Please add ${missing[1]}.`, "bad"); f[missing[0]].focus(); return; }
   if (!f.email.checkValidity()) { msgSay("Please check the email address.", "bad"); f.email.focus(); return; }
   if (f._honey.value) return; // a bot filled the hidden field

@@ -5,85 +5,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jen Li Kao · Computer Vision & Sensing</title>
   <meta name="description" content="Jen Li Kao: computer vision, 3D reconstruction, signal processing and sensing. Projects, experience and papers.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23f7a21b' d='M1 1h2v1h2V1h2v1h1v2H7v1H6v1H5v1H3V6H2V5H1V4H0V2h1z'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext x='1' y='13' font-family='monospace' font-size='14' fill='%238b93ff'%3E%40%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Pixelify+Sans:wght@500;600&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=2301e7c4">
-  <!-- light or dark: the visitor's choice if they made one, else their system's (before anything draws, so no flash) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="ascii/style.css?v=49eefaba">
+  <!-- light or dark: the visitor's choice if they made one, else their system's; the pixel version shares the key -->
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch (e) {}</script>
 </head>
 <body>
-  <!-- shared gradients for the pixel scenes -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <defs id="img-defs">
-      <linearGradient id="shadeL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".22" stop-color="#fff" stop-opacity=".12"/><stop offset=".22" stop-color="#000" stop-opacity="0"/><stop offset=".7" stop-color="#000" stop-opacity="0"/><stop offset=".7" stop-color="#000" stop-opacity=".14"/><stop offset="1" stop-color="#000" stop-opacity=".14"/></linearGradient>
-      <linearGradient id="shadeR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".06"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".6" stop-color="#000" stop-opacity=".22"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>
-      <linearGradient id="aoX" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
-      <linearGradient id="aoY" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
-      <pattern id="rugWeave" width=".08" height=".06" patternUnits="userSpaceOnUse"><rect width=".08" height=".015" fill="rgba(0,0,0,.16)"/><rect y=".03" width=".08" height=".012" fill="rgba(255,255,255,.07)"/><rect x=".02" y=".015" width=".02" height=".015" fill="rgba(0,0,0,.1)"/><rect x=".06" y=".045" width=".02" height=".015" fill="rgba(0,0,0,.1)"/></pattern>
-      <pattern id="weave" width="1" height="1" patternUnits="userSpaceOnUse"><rect width=".5" height=".5" fill="rgba(0,0,0,.14)"/><rect x=".5" y=".5" width=".5" height=".5" fill="rgba(0,0,0,.14)"/></pattern>
-      <pattern id="weaveTop" width=".06" height=".06" patternUnits="userSpaceOnUse"><rect width=".03" height=".03" fill="rgba(255,255,255,.12)"/><rect x=".03" y=".03" width=".03" height=".03" fill="rgba(255,255,255,.12)"/></pattern>
-      <radialGradient id="glow"><stop offset="0" stop-color="#ffe9a0" stop-opacity=".6"/><stop offset=".3" stop-color="#ffe0a0" stop-opacity=".2"/><stop offset="1" stop-color="#ffe0a0" stop-opacity="0"/></radialGradient>
-    </defs>
-  </svg>
-
-  <div class="layout">
-  <header class="masthead">
-    <a class="wordmark" href="#top">Jen Li Kao</a>
-    <nav id="nav" aria-label="Sections"></nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
-      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
-      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-    </button>
+  <header class="bar">
+    <a class="mark" href="#top" aria-label="Jen Li Kao, back to top"><span class="ascii ascii-name" id="hero-name" data-art="sense" data-fs="5" aria-hidden="true"></span></a>
+    <nav class="nav" id="nav" aria-label="Sections"></nav>
+    <div class="controls">
+      <nav class="versions" aria-label="Site version">
+        <a href="./" aria-current="page">ASCII</a><a href="pixel/">Pixel</a>
+      </nav>
+      <button class="theme" id="theme" type="button" aria-label="Dark mode" aria-pressed="false">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
   </header>
 
-  <main>
-    <section class="hero" id="top" aria-labelledby="h-top">
-      <div class="hero-head">
-        <figure class="framed" id="hero-portrait" role="img" aria-label="Pixel portrait of Jen in a framed painting under a picture light"></figure>
-        <div class="intro">
-          <p class="eyebrow" id="hero-eyebrow"></p>
-          <h1 id="h-top">Jen Li Kao</h1>
-          <p class="lede" id="hero-lede"></p>
-        </div>
+  <main id="top">
+    <section class="hero" aria-labelledby="h-name">
+      <div class="hero-text">
+        <p class="eyebrow" id="eyebrow"></p>
+        <h1 class="sr-only" id="h-name"></h1>
+        <p class="lede" id="lede"></p>
+        <p class="now" id="now"></p>
+        <ul class="links" id="links"></ul>
       </div>
-      <figure class="stage">
-        <div class="room-scroll">
-          <div class="room" id="room">
-            <svg id="scene" viewBox="0 0 592 488" shape-rendering="crispEdges" role="group" aria-label="Pixel art: Jen's two-storey cabin, one room per project. Downstairs a living room with a fireplace, stairs up from the entrance hall, and a café where cameras track the customers while a queue waits outside and a hacker next door watches the foot traffic on screens; a pitcher throws on the practice field. Upstairs in the loft are an mmWave lab where a mouse's tumor is being scanned, an MRI lab, a mammogram reading room, a server room and a security room. A cat, a dog and a parrot live there too."></svg>
-          </div>
-        </div>
-        <figcaption id="hero-caption"></figcaption>
-      </figure>
+      <div class="ascii ascii-city" data-art="city" data-fs="8" role="img" aria-label="A small isometric city at night in text. People walk the streets and a sensor tower in the middle watches them four ways in turn: a radar sweep, pulses that echo off people, four corner cameras that count a person only when two agree, and a learning pass that misses people at first and fewer as it goes. Moving the pointer over the city adds your own light, and whoever it touches is picked out too."></div>
     </section>
 
-    <div class="sections" id="panels"></div>
-  </main>
-  <!-- small cards beside the page on wide screens (filled by main.js) -->
-  <aside class="rail rail-left" id="rail-left" aria-label="At a glance"></aside>
-  <aside class="rail rail-right" id="rail-right" aria-label="Rooms and highlights"></aside>
+    <section class="block" id="projects" aria-labelledby="h-projects">
+      <header class="block-head"><h2 id="h-projects">Projects</h2></header>
+      <div id="project-list"></div>
+    </section>
 
-  </div>
-  <footer class="footer">
-    <p>© <span id="year">2026</span> Jen Li Kao</p>
+    <section class="block" id="experience" aria-labelledby="h-experience">
+      <header class="block-head"><h2 id="h-experience">Experience</h2></header>
+      <ol class="timeline" id="exp-list"></ol>
+    </section>
+
+    <section class="block" id="education" aria-labelledby="h-education">
+      <header class="block-head"><h2 id="h-education">Education</h2></header>
+      <ol class="timeline" id="edu-list"></ol>
+    </section>
+
+    <section class="block" id="papers" aria-labelledby="h-papers">
+      <header class="block-head"><h2 id="h-papers">Papers &amp; Talks</h2></header>
+      <ul class="papers" id="paper-list"></ul>
+    </section>
+
+    <section class="block" id="skills" aria-labelledby="h-skills">
+      <header class="block-head"><h2 id="h-skills">Skills</h2></header>
+      <div>
+        <div class="credits" id="credits"></div>
+        <p class="stack" id="stack"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot" id="contact">
+    <div class="ascii ascii-sky" data-art="skyline" aria-hidden="true"></div>
+    <div class="foot-row">
+      <p class="foot-copy">© <span id="year">2026</span> Jen Li Kao</p>
+      <p class="render"><span>render:</span> <span class="look" role="group" aria-label="Text art style" id="look"></span></p>
+      <a class="to-top" href="#top">Back to top <span aria-hidden="true">↑</span></a>
+    </div>
   </footer>
 
-  <noscript>
-    <p class="noscript">This page needs JavaScript. Quick links:
-      <a href="https://github.com/Dino-Boooo">GitHub</a> ·
-      <a href="https://www.linkedin.com/in/jenlikao/">LinkedIn</a> ·
-      <a href="mailto:kaojenli@gmail.com">kaojenli@gmail.com</a></p>
-  </noscript>
+  <noscript><p class="noscript">This page needs JavaScript. <a href="../">The pixel version</a> · <a href="https://github.com/Dino-Boooo">GitHub</a> · kaojenli@gmail.com</p></noscript>
 
-  <script src="js/content.js?v=2301e7c4"></script>
-  <script src="js/avatar.js?v=2301e7c4"></script>
-  <script src="js/props.js?v=2301e7c4"></script>
-  <script src="js/furni.js?v=2301e7c4"></script>
-  <script src="js/cabin.js?v=2301e7c4"></script>
-  <script src="js/narration.js?v=2301e7c4"></script>
-  <script src="js/tours.js?v=2301e7c4"></script>
-  <script src="js/main.js?v=2301e7c4"></script>
-  <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "8a59bbaee7224c959636c7af0a5ff909"}'></script><!-- End Cloudflare Web Analytics -->
+  <script src="js/content.js?v=49eefaba"></script>
+  <script src="js/narration.js?v=49eefaba"></script>
+  <script src="js/tours.js?v=49eefaba"></script>
+  <script src="ascii/main.js?v=49eefaba"></script>
 </body>
 </html>
