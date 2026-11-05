@@ -275,7 +275,7 @@ details li { margin: 4px 0; text-align: justify; }
   main { padding: 0 16px; }
   .timeline > li { grid-template-columns: 1fr; gap: 2px; }
   .foot-row { padding: 16px; }
-  .fortune { position: static; width: auto; margin: 12px 16px 0; transform: none; backdrop-filter: none; }
+  .fortune { right: 12px; width: min(230px, 62vw); }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
