@@ -224,8 +224,8 @@ details li { margin: 4px 0; text-align: justify; }
 
 /* footer */
 .foot { margin-top: 24px; border-top: 1px solid var(--line); }
-.ascii-sky { height: 190px; }
-.foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; max-width: var(--wide); margin: 0 auto; padding: 18px 284px 32px 24px; font-size: 14px; } /* room on the right for the cookie sign */
+.ascii-sky { height: 200px; }
+.foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; max-width: var(--wide); margin: 0 auto; padding: 18px 24px 32px; font-size: 14px; }
 .foot-copy { margin: 0; color: var(--muted); }
 .render { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; color: var(--muted); font: 12px var(--mono); opacity: .7; }
 .render:hover { opacity: 1; }
@@ -235,7 +235,7 @@ details li { margin: 4px 0; text-align: justify; }
 .look button[aria-pressed="true"] { color: var(--accent); }
 /* a fortune cookie at the end: a small sign at the right edge of the city, a thank-you for reading this far; the cookie cracks open on a click, and a paper slip comes out */
 .foot { position: relative; }
-.fortune { position: absolute; right: max(24px, calc((100% - var(--wide)) / 2 + 24px)); bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 230px; padding: 10px 12px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(2px); }
+.fortune { position: absolute; right: max(24px, calc((100% - var(--wide)) / 2 + 24px)); top: 100px; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 230px; padding: 10px 12px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(2px); }
 .fortune-note { margin: 0 0 4px; color: var(--muted); font: 12px/1.45 var(--mono); text-align: center; }
 .fortune.done .fortune-note { display: none; }
 .cookie { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; opacity: .85; transition: opacity .15s, transform .15s; }
@@ -275,8 +275,7 @@ details li { margin: 4px 0; text-align: justify; }
   main { padding: 0 16px; }
   .timeline > li { grid-template-columns: 1fr; gap: 2px; }
   .foot-row { padding: 16px; }
-  .fortune { position: static; width: auto; margin: 12px 16px 0; backdrop-filter: none; }
-  .foot-row { padding-right: 16px; }
+  .fortune { position: static; width: auto; margin: 12px 16px 0; transform: none; backdrop-filter: none; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 

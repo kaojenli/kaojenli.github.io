@@ -935,7 +935,7 @@ ARTS.skyline = (g, t) => {
     const h = hash2(x, y);
     if (h > .985) star(g, x, y, .5 + .5 * Math.sin(t * (1 + h * 3) + x));
   }
-  const mx = g.c * .82, my = 3;
+  const mx = g.c * .6, my = 3; // the moon sits left of the cookie sign
   for (let y = 0; y < 7; y++) for (let x = -6; x <= 6; x++) {
     const d = Math.hypot(x * CHAR_W / LINE_H, y - my); if (d < 2.2) g.set(mx + x, y, d < 1.6 ? .95 : .5);
   }
