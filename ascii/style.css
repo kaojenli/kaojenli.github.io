@@ -233,6 +233,19 @@ details li { margin: 4px 0; text-align: justify; }
 .look button { padding: 0; border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; }
 .look button:hover { color: var(--ink); }
 .look button[aria-pressed="true"] { color: var(--accent); }
+/* a fortune cookie in the footer: a small text drawing that cracks open on a click, and a paper slip with a line on it */
+.fortune { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; }
+.cookie { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; opacity: .75; transition: opacity .15s, transform .15s; }
+.cookie:hover { opacity: 1; transform: rotate(-6deg); }
+.cookie:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.cookie pre { margin: 0; font: 500 11px/1.05 var(--mono); white-space: pre; }
+.cookie.shaking { animation: cookie-shake .5s ease-in-out; }
+@keyframes cookie-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-7deg); } 80% { transform: rotate(5deg); } }
+.slip { display: inline-block; max-width: 320px; padding: 3px 9px; border: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--ink); font: 12px/1.5 var(--mono); white-space: pre-wrap; }
+.slip[hidden] { display: none; }
+.slip small { display: block; color: var(--accent); font-size: 11px; letter-spacing: .06em; }
+.slip.in { animation: slip-out .35s ease-out; }
+@keyframes slip-out { from { opacity: 0; transform: translateX(-8px); } }
 .to-top { margin-left: auto; color: var(--muted); font: 13px var(--mono); text-decoration: none; }
 .to-top:hover { color: var(--accent); }
 .noscript { padding: 24px; }

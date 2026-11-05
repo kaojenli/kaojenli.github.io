@@ -231,6 +231,59 @@ const RAMPS = {
 let look = "Mix";
 try { if (RAMPS[localStorage.getItem("look2")]) look = localStorage.getItem("look2"); } catch (e) {}
 // a small easter egg in the footer: every figure on the page re-renders in the chosen style
+/* ---------- the fortune cookie in the footer: three drawings (whole, cracked, open), a slip with a line, and a typewriter */
+const FORTUNES = [
+  "A good measurement is worth a hundred opinions.",
+  "The bug you are looking for is in the line you are sure about.",
+  "Your next idea will arrive while you are away from the keyboard.",
+  "Noise is only signal you have not understood yet.",
+  "Calibrate before you conclude.",
+  "Someone will cite you for a footnote.",
+  "The shortest path through the data is rarely a straight line.",
+  "You will find the missing minus sign.",
+  "A well-named variable brings quiet luck.",
+  "Today the baseline wins. Tomorrow, you.",
+  "Ask the sensor what it saw, not what you wanted it to see.",
+  "Your plots will be clearer than your slides. Fix the slides.",
+  "An old notebook holds the answer. Read the margins.",
+  "The experiment that fails on Friday works on Monday.",
+  "Somewhere, a GPU is free. Go now.",
+  "You will be interrupted by a very good question.",
+  "Low resolution, great patience.",
+  "The phantom knows more than it says.",
+  "Keep the raw data. Future you is counting on it.",
+  "What you cannot see, you can still detect.",
+  "A clean dataset is a love letter to the next reader.",
+  "Reconstruction begins with admitting the picture is incomplete.",
+  "Label less, look more.",
+  "The echo you ignored was the one that mattered.",
+];
+const LUCKY = [3, 7, 11, 16, 20, 28, 32, 62, 69, 74, 150, 400, 512, 784]; // numbers borrowed from the projects
+const COOKIE = {
+  whole: [" ,-'''-.", "(  .~.  )", " '-.,.-'"].join("\n"),
+  cracked: [" ,-'''-.", "(  ./\\.  )", " '-.,.-'"].join("\n"),
+  open: [" ,-'  '-.", "( (    ) )", " '-.  .-'"].join("\n"),
+};
+{
+  const box = $(".fortune"), btn = box.querySelector(".cookie"), pre = btn.querySelector("pre"), slip = box.querySelector(".slip");
+  let busy = false, timer = 0, used = [];
+  pre.textContent = COOKIE.whole;
+  const pick = () => { if (used.length >= FORTUNES.length) used = []; let i; do i = Math.floor(Math.random() * FORTUNES.length); while (used.includes(i)); used.push(i); return FORTUNES[i]; };
+  const lucky = () => [...LUCKY].sort(() => Math.random() - .5).slice(0, 5).sort((a, b) => a - b).join("  ");
+  btn.addEventListener("click", () => {
+    if (busy) return; busy = true; clearTimeout(timer);
+    slip.hidden = true; slip.classList.remove("in");
+    btn.classList.remove("shaking"); void btn.offsetWidth; btn.classList.add("shaking"); pre.textContent = COOKIE.cracked;
+    setTimeout(() => {
+      pre.textContent = COOKIE.open; btn.classList.remove("shaking");
+      const line = pick(), nums = lucky(); slip.hidden = false; slip.classList.add("in"); slip.innerHTML = ""; const t = document.createTextNode(""), sm = document.createElement("small"); slip.append(t, sm);
+      let k = 0; const type = () => { t.data = line.slice(0, ++k); if (k < line.length) timer = setTimeout(type, reduced ? 0 : 22); else { sm.textContent = "lucky numbers  " + nums; busy = false; } };
+      if (reduced) { t.data = line; sm.textContent = "lucky numbers  " + nums; busy = false; } else type();
+      btn.setAttribute("aria-label", "Another fortune cookie. Crack it open.");
+    }, reduced ? 0 : 500);
+  });
+}
+
 $("#look").innerHTML = Object.keys(RAMPS).map((k) => `<button type="button" data-look="${k}" aria-pressed="${k === look}">${k.toLowerCase()}</button>`).join(`<span aria-hidden="true">·</span>`);
 $("#look").addEventListener("click", (ev) => {
   const b = ev.target.closest("button"); if (!b) return;
