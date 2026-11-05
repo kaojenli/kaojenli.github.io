@@ -235,7 +235,7 @@ details li { margin: 4px 0; text-align: justify; }
 .look button[aria-pressed="true"] { color: var(--accent); }
 /* a fortune cookie at the end: a small sign at the right edge of the city, a thank-you for reading this far; the cookie cracks open on a click, and a paper slip comes out */
 .foot { position: relative; }
-.fortune { position: absolute; right: 28px; top: 100px; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 230px; padding: 10px 12px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(2px); }
+.fortune { position: absolute; right: 28px; top: 100px; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 300px; padding: 10px 14px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(2px); }
 .fortune-note { margin: 0 0 4px; color: var(--muted); font: 12px/1.45 var(--mono); text-align: center; }
 .fortune.done .fortune-note { display: none; }
 .cookie { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; opacity: .85; transition: opacity .15s, transform .15s; }
@@ -248,7 +248,7 @@ details li { margin: 4px 0; text-align: justify; }
 @keyframes cookie-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-7deg); } 80% { transform: rotate(5deg); } }
 .slip { display: block; width: 100%; margin-top: 6px; padding: 5px 9px; background: #fbf8f1; color: #b3261e; font: 12px/1.5 var(--mono); white-space: pre-wrap; box-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
 .slip[hidden] { display: none; }
-.slip small { display: block; margin-top: 2px; color: #c0392b; font-size: 11px; letter-spacing: .06em; }
+.slip small { display: block; margin-top: 2px; color: #c0392b; font-size: 11px; letter-spacing: .06em; white-space: nowrap; }
 .slip.in { animation: slip-out .35s ease-out; }
 @keyframes slip-out { from { opacity: 0; transform: translateY(6px); } }
 .to-top { margin-left: auto; color: var(--muted); font: 13px var(--mono); text-decoration: none; }
@@ -275,7 +275,7 @@ details li { margin: 4px 0; text-align: justify; }
   main { padding: 0 16px; }
   .timeline > li { grid-template-columns: 1fr; gap: 2px; }
   .foot-row { padding: 16px; }
-  .fortune { right: 12px; width: min(230px, 62vw); }
+  .fortune { right: 12px; width: min(300px, 72vw); }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
