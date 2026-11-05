@@ -235,7 +235,7 @@ details li { margin: 4px 0; text-align: justify; }
 .look button[aria-pressed="true"] { color: var(--accent); }
 /* a fortune cookie at the end: a small sign at the right edge of the city, a thank-you for reading this far; the cookie cracks open on a click, and a paper slip comes out */
 .foot { position: relative; }
-.fortune { position: absolute; right: max(24px, calc((100% - var(--wide)) / 2 + 24px)); top: 100px; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 230px; padding: 10px 12px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(2px); }
+.fortune { position: absolute; right: 28px; top: 100px; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 230px; padding: 10px 12px 12px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(2px); }
 .fortune-note { margin: 0 0 4px; color: var(--muted); font: 12px/1.45 var(--mono); text-align: center; }
 .fortune.done .fortune-note { display: none; }
 .cookie { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; opacity: .85; transition: opacity .15s, transform .15s; }
