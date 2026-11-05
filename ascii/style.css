@@ -238,7 +238,8 @@ details li { margin: 4px 0; text-align: justify; }
 .cookie { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; opacity: .75; transition: opacity .15s, transform .15s; }
 .cookie:hover { opacity: 1; transform: rotate(-6deg); }
 .cookie:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-.cookie pre { margin: 0; font: 500 11px/1.05 var(--mono); white-space: pre; }
+.cookie .ascii { display: block; width: 142px; height: 62px; }
+.cookie .ascii .t0 { color: var(--accent); opacity: .35; } .cookie .ascii .t1 { color: var(--accent); opacity: .7; } .cookie .ascii .t2 { color: var(--accent); } .cookie .ascii .acc { color: var(--ink); }
 .cookie.shaking { animation: cookie-shake .5s ease-in-out; }
 @keyframes cookie-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-7deg); } 80% { transform: rotate(5deg); } }
 .slip { display: inline-block; max-width: 320px; padding: 3px 9px; border: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); color: var(--ink); font: 12px/1.5 var(--mono); white-space: pre-wrap; }

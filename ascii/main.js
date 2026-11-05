@@ -259,23 +259,18 @@ const FORTUNES = [
   "The echo you ignored was the one that mattered.",
 ];
 const LUCKY = [3, 7, 11, 16, 20, 28, 32, 62, 69, 74, 150, 400, 512, 784]; // numbers borrowed from the projects
-const COOKIE = {
-  whole: [" ,-'''-.", "(  .~.  )", " '-.,.-'"].join("\n"),
-  cracked: [" ,-'''-.", "(  ./\\.  )", " '-.,.-'"].join("\n"),
-  open: [" ,-'  '-.", "( (    ) )", " '-.  .-'"].join("\n"),
-};
 {
-  const box = $(".fortune"), btn = box.querySelector(".cookie"), pre = btn.querySelector("pre"), slip = box.querySelector(".slip");
+  const box = $(".fortune"), btn = box.querySelector(".cookie"), slip = box.querySelector(".slip");
   let busy = false, timer = 0, used = [];
-  pre.textContent = COOKIE.whole;
+  const show = (phase) => { COOKIE_STATE.phase = phase; COOKIE_STATE.t0 = performance.now() / 1000; const p = panels.find((q) => q.name === "cookie"); if (p) p.dirty = true; };
   const pick = () => { if (used.length >= FORTUNES.length) used = []; let i; do i = Math.floor(Math.random() * FORTUNES.length); while (used.includes(i)); used.push(i); return FORTUNES[i]; };
   const lucky = () => [...LUCKY].sort(() => Math.random() - .5).slice(0, 5).sort((a, b) => a - b).join("  ");
   btn.addEventListener("click", () => {
     if (busy) return; busy = true; clearTimeout(timer);
     slip.hidden = true; slip.classList.remove("in");
-    btn.classList.remove("shaking"); void btn.offsetWidth; btn.classList.add("shaking"); pre.textContent = COOKIE.cracked;
+    btn.classList.remove("shaking"); void btn.offsetWidth; btn.classList.add("shaking"); show("cracked");
     setTimeout(() => {
-      pre.textContent = COOKIE.open; btn.classList.remove("shaking");
+      show("open"); btn.classList.remove("shaking");
       const line = pick(), nums = lucky(); slip.hidden = false; slip.classList.add("in"); slip.innerHTML = ""; const t = document.createTextNode(""), sm = document.createElement("small"); slip.append(t, sm);
       let k = 0; const type = () => { t.data = line.slice(0, ++k); if (k < line.length) timer = setTimeout(type, reduced ? 0 : 22); else { sm.textContent = "lucky numbers  " + nums; busy = false; } };
       if (reduced) { t.data = line; sm.textContent = "lucky numbers  " + nums; busy = false; } else type();
@@ -325,6 +320,44 @@ class Grid {
 }
 
 const ARTS = {}; // name -> (grid, t, state, panel) draws one frame
+// the cookie, as pixel art seen from the front: L lit, B body, S shade, D the dark rim, with the fold opening at the centre; each pixel is two cells wide, since a cell is about twice as tall as wide
+const COOKIE_PX = [
+  "..........DDDDDD..........",
+  "........DDLLLBBBDD........",
+  "......DDLLLBBBBBBBDD......",
+  ".....DLLLBBBBBDBBBBBD.....",
+  "....DLLBBBBBBBDDBBBBBD....",
+  "...DLBBBBBBBBBD.DBBBBSD...",
+  "..DLBBBBBBBBBD...DBBBSSD..",
+  "..DBBBBBBBBBD.....DBBSSD..",
+  "..DBBBBBBBBD.......DBSSD..",
+  "..DBBBBBBDD.........DSSD..",
+  "..DBBBBDD............DSD..",
+  "...DDDD...............DD..",
+];
+const COOKIE_TONE = { L: 1, B: .72, S: .5, D: .26 };
+const COOKIE_STATE = { phase: "whole", t0: 0 };
+ARTS.cookie = (g, t, st) => {
+  const H = COOKIE_PX.length, W = COOKIE_PX[0].length, mid = W / 2, ox = Math.floor((g.c - 2 * W) / 2), oy = Math.floor((g.r - H) / 2) - 1;
+  const ph = COOKIE_STATE.phase, k = Math.min(1, (t - COOKIE_STATE.t0) / .4), gap = ph === "open" ? Math.round(3 * k) : 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = COOKIE_PX[y][x]; if (c === ".") continue;
+    let v = COOKIE_TONE[c];
+    if (c === "L" && ph === "whole" && Math.sin(t * 1.6 + x * .9 + y) > .85) v = .72; // a glint wanders over the lit side
+    const left = x < mid, shift = ph === "open" ? (left ? -gap : gap) : 0, tilt = ph === "open" ? Math.round(k * (left ? 1 : -1) * .6) : 0;
+    const X = ox + 2 * x + shift, Y = oy + y + tilt;
+    g.set(X, Y, v); g.set(X + 1, Y, v);
+  }
+  if (ph === "cracked") { // sparks along the fold while it gives way
+    const f = Math.floor(t * 14);
+    for (let y = 2; y < H - 1; y++) { const e = 2 * (13 + Math.floor((y - 2) / 1.2)) + ((f + y) % 3) - 1; g.set(ox + e, oy + y, (f + y) % 2 ? 1 : .5); g.set(ox + e - 2 * (y - 1) - ((f + y) % 2), oy + y, (f + y) % 2 ? .5 : 1); }
+  }
+  if (ph === "open") { // the paper slip rises out of the fold
+    const rise = Math.round(6 * k), px = ox + 2 * 13 - 2, top = oy + H - 1 - rise;
+    for (let y = top; y < oy + H + 1; y++) for (let x = px; x < px + 5; x++) g.set(x, y, 1, 1);
+    for (let y = top + 1; y < oy + H; y += 2) for (let x = px + 1; x < px + 4; x++) g.set(x, y, .55, 1); // faint lines of writing
+  }
+};
 const panels = [];
 function mount(el) {
   const art = ARTS[el.dataset.art]; if (!art) return;
