@@ -270,7 +270,7 @@ const LUCKY = [3, 7, 11, 16, 20, 28, 32, 62, 69, 74, 150, 400, 512, 784]; // num
     slip.hidden = true; slip.classList.remove("in");
     btn.classList.remove("shaking"); void btn.offsetWidth; btn.classList.add("shaking"); show("cracked");
     setTimeout(() => {
-      show("open"); btn.classList.remove("shaking");
+      show("open"); btn.classList.remove("shaking"); box.classList.add("done");
       const line = pick(), nums = lucky(); slip.hidden = false; slip.classList.add("in"); slip.innerHTML = ""; const t = document.createTextNode(""), sm = document.createElement("small"); slip.append(t, sm);
       let k = 0; const type = () => { t.data = line.slice(0, ++k); if (k < line.length) timer = setTimeout(type, reduced ? 0 : 22); else { sm.textContent = "lucky numbers  " + nums; busy = false; } };
       if (reduced) { t.data = line; sm.textContent = "lucky numbers  " + nums; busy = false; } else type();
@@ -355,7 +355,7 @@ ARTS.cookie = (g, t, st) => {
   if (ph === "open") { // the paper slip rises out of the fold
     const rise = Math.round(6 * k), px = ox + 2 * 13 - 2, top = oy + H - 1 - rise;
     for (let y = top; y < oy + H + 1; y++) for (let x = px; x < px + 5; x++) g.set(x, y, 1, 1);
-    for (let y = top + 1; y < oy + H; y += 2) for (let x = px + 1; x < px + 4; x++) g.set(x, y, .55, 1); // faint lines of writing
+    for (let y = top + 1; y < oy + H; y += 2) for (let x = px + 1; x < px + 4; x++) g.set(x, y, 1, 2); // lines of red writing
   }
 };
 const panels = [];
