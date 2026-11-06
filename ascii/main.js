@@ -946,12 +946,10 @@ ARTS.fashion = (g, t) => {
 // Every so often a saucer comes for the cow in the one empty lot in town. Nobody in the buildings seems to mind.
 const UFO_PERIOD = 34; // seconds per visit
 const COW_PX = [ // W white hide, B black patch (a hole), H head, n horn, e eye, L leg, T tail
-  "...........n.n",
-  "...........HHH",
-  "T.WWWWWWWWWHeH",
-  "TWWBBWWWBBWWHH",
-  ".WWWWBWWWWBW..",
-  ".L...L...L.L..",
+  "T.......n.n",
+  "TWWBWWWBWHH",
+  ".WBWWBWWWHe",
+  ".L..L..L.HH",
 ];
 const COW_TONE = { W: .9, B: 0, H: .9, n: .55, L: .8, T: .5 };
 ARTS.skyline = (g, t) => {
@@ -964,7 +962,7 @@ ARTS.skyline = (g, t) => {
   for (let y = 0; y < 7; y++) for (let x = -6; x <= 6; x++) {
     const d = Math.hypot(x * CHAR_W / LINE_H, y - my); if (d < 2.2) g.set(mx + x, y, d < 1.6 ? .95 : .5);
   }
-  const lotX = Math.floor(g.c * .28), lotW = 38; // the empty lot
+  const lotX = Math.floor(g.c * .28), lotW = 32; // the empty lot
   let x = 0;
   while (x < g.c) {
     const w = 4 + Math.floor(hash(x * .7) * 7), hgt = 2 + Math.floor(hash(x * 1.3 + 4) * (g.r * .55));
@@ -985,12 +983,12 @@ ARTS.skyline = (g, t) => {
   const tx = lotX + 3;
   g.set(tx, ground - 1, .65); g.set(tx + 1, ground - 1, .65); g.set(tx, ground - 2, .65); g.set(tx + 1, ground - 2, .65); // trunk
   for (let y = ground - 6; y <= ground - 3; y++) { const hw = y === ground - 6 ? 2 : y === ground - 3 ? 3 : 4; for (let dx = -hw; dx <= hw + 1; dx++) g.set(tx + dx, y, .4 + .25 * hash2(tx + dx, y)); } // canopy
-  const cx = lotX + 23; // where the cow likes to stand
+  const cx = lotX + 20; // where the cow likes to stand
 
   // the visit, on a loop: arrive, hover, beam, lift, leave
   const ph = ((t % UFO_PERIOD) + UFO_PERIOD) % UFO_PERIOD, sky = 2;
   let ux = null, uy = sky, beam = 0, cowY = ground - 1, cowOn = true, cowFlip = false, cowX = cx;
-  if (ph < 4) { const u = ease(Math.min(1, ph / 3.4)); cowX = Math.round(lotX + lotW - 15 + (cx - lotX - lotW + 15) * u); } // the cow wanders in from the right
+  if (ph < 4) { const u = ease(Math.min(1, ph / 3.4)); cowX = Math.round(lotX + lotW - 11 + (cx - lotX - lotW + 11) * u); } // the cow wanders in from the right
   else if (ph < 9) { ux = -8 + (cx + 8) * ease((ph - 4) / 5); uy = sky + Math.sin(ph * 2) * .6; } // the saucer arrives
   else if (ph < 10.5) { ux = cx; uy = sky + Math.sin(ph * 2) * .4; beam = Math.min(1, (ph - 9) / 1); } // the beam opens
   else if (ph < 15) { ux = cx; uy = sky + Math.sin(ph * 2) * .3; beam = 1; const u = ease((ph - 10.5) / 4.5); cowY = ground - 1 - (ground - 1 - (sky + 2)) * u; cowFlip = u > .5 && u < .8; } // up she goes
@@ -1001,7 +999,7 @@ ARTS.skyline = (g, t) => {
   if (beam > 0 && ux !== null) { // a cone of light, widening toward the ground
     const top = Math.round(uy) + 2, span = Math.round((ground - top) * beam);
     for (let y = top; y <= top + span; y++) {
-      const half = 1 + (y - top) * .95;
+      const half = 1 + (y - top) * .75;
       for (let dx = -Math.floor(half); dx <= Math.floor(half); dx++) {
         const i = y * g.c + Math.round(ux) + dx; if (i < 0 || i >= g.v.length) continue;
         const fl = (.3 + .25 * hash2(Math.round(ux) + dx, y + Math.floor(t * 10))) * (1 - .5 * Math.abs(dx) / (half + 1)); // brighter down the middle
@@ -1010,7 +1008,7 @@ ARTS.skyline = (g, t) => {
     }
   }
   if (cowOn) { // the cow, facing right: a holstein in two tones, horns, an eye, four legs; she turns over once on the way up
-    const rows = cowFlip ? [...COW_PX].reverse() : COW_PX, top = Math.round(cowY) - 4, left = cowX - 14; // cowX is her middle
+    const rows = cowFlip ? [...COW_PX].reverse() : COW_PX, top = Math.round(cowY) - 2, left = cowX - 11; // cowX is her middle
     for (let r = 0; r < rows.length; r++) for (let k = 0; k < rows[r].length; k++) {
       const c = rows[r][k]; if (c === ".") continue;
       const X = left + 2 * k, Y = top + r;
