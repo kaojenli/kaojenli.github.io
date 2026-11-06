@@ -943,6 +943,8 @@ ARTS.fashion = (g, t) => {
   g.put(x0, g.r - 2, "accuracy  CNN 92.3%   LightGBM 89.3%", 0);
   g.put(x0, g.r - 1, "training  CNN 1176 s  LightGBM  446 s", 0);
 };
+// Every so often a saucer comes for the cow in the one empty lot in town. Nobody in the buildings seems to mind.
+const UFO_PERIOD = 34; // seconds per visit
 ARTS.skyline = (g, t) => {
   const ground = g.r - 1;
   for (let y = 0; y < g.r - 3; y++) for (let x = 0; x < g.c; x++) {
@@ -953,9 +955,11 @@ ARTS.skyline = (g, t) => {
   for (let y = 0; y < 7; y++) for (let x = -6; x <= 6; x++) {
     const d = Math.hypot(x * CHAR_W / LINE_H, y - my); if (d < 2.2) g.set(mx + x, y, d < 1.6 ? .95 : .5);
   }
+  const lotX = Math.floor(g.c * .3), lotW = 14; // the empty lot
   let x = 0;
   while (x < g.c) {
     const w = 4 + Math.floor(hash(x * .7) * 7), hgt = 2 + Math.floor(hash(x * 1.3 + 4) * (g.r * .55));
+    if (x + w > lotX && x < lotX + lotW) { x = x < lotX ? lotX + lotW : x + w; continue; } // leave the lot open
     for (let xx = x; xx < Math.min(g.c, x + w); xx++) for (let y = ground - hgt; y <= ground; y++) {
       const edge = xx === x || xx === x + w - 1 || y === ground - hgt;
       const win = !edge && (xx - x) % 2 === 1 && (y - ground) % 2 === 0;
@@ -963,6 +967,49 @@ ARTS.skyline = (g, t) => {
       else g.set(xx, y, y === ground - hgt ? .6 : edge ? .42 : .1);
     }
     x += w + (hash(x * 3.1) > .7 ? 1 : 0);
+  }
+  for (let xx = lotX; xx < lotX + lotW; xx++) g.set(xx, ground, hash(xx * 7.7) > .5 ? .3 : .18); // grass
+  const cx = lotX + Math.floor(lotW / 2); // where the cow likes to stand
+
+  // the visit, on a loop: arrive, hover, beam, lift, leave
+  const ph = ((t % UFO_PERIOD) + UFO_PERIOD) % UFO_PERIOD, sky = 2;
+  let ux = null, uy = sky, beam = 0, cowY = ground - 1, cowOn = true, cowFlip = false, cowX = cx;
+  if (ph < 4) { const u = ease(Math.min(1, ph / 3.4)); cowX = Math.round(lotX + 1 + (cx - lotX - 1) * u); } // the cow wanders in
+  else if (ph < 9) { ux = -8 + (cx + 8) * ease((ph - 4) / 5); uy = sky + Math.sin(ph * 2) * .6; } // the saucer arrives
+  else if (ph < 10.5) { ux = cx; uy = sky + Math.sin(ph * 2) * .4; beam = Math.min(1, (ph - 9) / 1); } // the beam opens
+  else if (ph < 15) { ux = cx; uy = sky + Math.sin(ph * 2) * .3; beam = 1; const u = ease((ph - 10.5) / 4.5); cowY = ground - 1 - (ground - 1 - (sky + 2)) * u; cowFlip = u > .45 && u < .9; } // up she goes
+  else if (ph < 16) { ux = cx; beam = 1 - (ph - 15); cowOn = false; } // the beam closes
+  else if (ph < 19) { const u = (ph - 16) / 3; ux = cx + (g.c + 12 - cx) * u * u; uy = sky - 1.5 * u; cowOn = false; } // and away
+  else cowOn = false; // the lot stays empty for a while. the cow is fine.
+
+  if (beam > 0 && ux !== null) { // a cone of light, widening toward the ground
+    const top = Math.round(uy) + 2, span = Math.round((ground - top) * beam);
+    for (let y = top; y <= top + span; y++) {
+      const half = 1 + (y - top) * .42;
+      for (let dx = -Math.floor(half); dx <= Math.floor(half); dx++) {
+        const i = y * g.c + Math.round(ux) + dx; if (i < 0 || i >= g.v.length) continue;
+        const fl = (.3 + .25 * hash2(Math.round(ux) + dx, y + Math.floor(t * 10))) * (1 - .5 * Math.abs(dx) / (half + 1)); // brighter down the middle
+        g.set(Math.round(ux) + dx, y, Math.max(g.v[i] || 0, fl), 1);
+      }
+    }
+  }
+  if (cowOn) { // a small cow: body, head, legs; she turns over once on the way up
+    const y = Math.round(cowY), bx = cowX - 2;
+    if (!cowFlip) {
+      g.set(bx + 4, y - 1, .9); g.put(bx + 4, y - 1, "o", 0); // head, with a little face
+      for (let k = 0; k < 4; k++) g.set(bx + k, y, k % 2 ? .95 : .55); // the body, in patches
+      g.put(bx, y + 1, "ǁ ǁ", 0);
+    } else {
+      g.put(bx, y - 1, "ǁ ǁ", 0);
+      for (let k = 0; k < 4; k++) g.set(bx + k, y, k % 2 ? .95 : .55);
+      g.set(bx + 4, y + 1, .9); g.put(bx + 4, y + 1, "o", 0);
+    }
+  }
+  if (ux !== null) { // the saucer: a dome, a wide disc, running lights underneath
+    const X = Math.round(ux), Y = Math.round(uy);
+    for (let dx = -1; dx <= 1; dx++) g.set(X + dx, Y - 1, .7);
+    for (let dx = -5; dx <= 5; dx++) g.set(X + dx, Y, Math.abs(dx) === 5 ? .5 : .95);
+    for (let dx = -3; dx <= 3; dx += 2) g.put(X + dx, Y + 1, "▪", (Math.floor(t * 6) + dx) % 4 === 0 ? 2 : 1);
   }
 };
 
