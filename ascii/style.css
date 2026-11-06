@@ -49,8 +49,7 @@ h1, h2, h3 { color: var(--ink); text-wrap: balance; }
 .nav { display: flex; gap: 20px; font-size: 14px; margin-left: auto; }
 .nav a { color: var(--muted); text-decoration: none; }
 .nav a:hover { color: var(--ink); }
-.controls { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
-.nav + .controls { margin-left: 8px; }
+.controls { display: flex; align-items: center; gap: 10px; margin-left: 8px; flex-shrink: 0; }
 .versions { display: flex; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); padding: 2px; }
 .versions a {
   padding: 3px 10px; border: 0; border-radius: 99px; background: none; color: var(--muted);
@@ -261,6 +260,7 @@ details li { margin: 4px 0; text-align: justify; }
 /* ---------- narrower screens */
 @media (max-width: 1020px) {
   .nav { display: none; }
+  .controls { margin-left: auto; } /* with the nav gone, the controls take over the right edge */
 }
 @media (max-width: 900px) {
   .hero-text { grid-template-columns: 1fr; gap: 24px; }
