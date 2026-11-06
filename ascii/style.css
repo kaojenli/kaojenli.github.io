@@ -41,7 +41,7 @@ h1, h2, h3 { color: var(--ink); text-wrap: balance; }
   max-width: var(--wide); margin: 0 auto; padding: 12px 24px;
   background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(8px);
 }
-.mark { display: flex; align-items: center; align-self: stretch; color: var(--ink); text-decoration: none; }
+.mark { display: flex; align-items: center; align-self: stretch; flex-shrink: 0; color: var(--ink); text-decoration: none; }
 /* the wordmark is the live name figure, in the page's ink rather than the accent */
 .ascii-name { display: block; width: 250px; height: 46px; cursor: crosshair; touch-action: pan-y; }
 .bar .ascii-name .acc { color: var(--ink); }
@@ -49,7 +49,8 @@ h1, h2, h3 { color: var(--ink); text-wrap: balance; }
 .nav { display: flex; gap: 20px; font-size: 14px; margin-left: auto; }
 .nav a { color: var(--muted); text-decoration: none; }
 .nav a:hover { color: var(--ink); }
-.controls { display: flex; align-items: center; gap: 10px; margin-left: 8px; }
+.controls { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
+.nav + .controls { margin-left: 8px; }
 .versions { display: flex; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); padding: 2px; }
 .versions a {
   padding: 3px 10px; border: 0; border-radius: 99px; background: none; color: var(--muted);
@@ -226,6 +227,8 @@ details li { margin: 4px 0; text-align: justify; }
 .foot { margin-top: 24px; border-top: 1px solid var(--line); }
 .ascii-sky { height: 200px; }
 .foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; padding: 18px 28px 32px; font-size: 14px; }
+.foot-copy { white-space: nowrap; }
+.to-top { white-space: nowrap; }
 .foot-copy { margin: 0; color: var(--muted); }
 .render { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; color: var(--muted); font: 12px var(--mono); opacity: .7; }
 .render:hover { opacity: 1; }
@@ -270,8 +273,16 @@ details li { margin: 4px 0; text-align: justify; }
   .card .ascii { aspect-ratio: 16 / 8; }
 }
 @media (max-width: 640px) {
-  .bar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px; }
-  .controls { flex-wrap: wrap; margin-left: 0; width: 100%; }
+  .bar { gap: 12px; padding: 10px 16px; }
+  .render { display: none; } /* too narrow for the look picker: the footer keeps one tidy row */
+  .ascii-name { width: 190px; height: 36px; }
+}
+@media (max-width: 420px) {
+  .ascii-name { width: min(150px, calc(100vw - 200px)); height: 30px; }
+  .bar { gap: 8px; padding: 8px 12px; }
+  .versions a { padding: 3px 8px; }
+  .controls { gap: 6px; }
+  .foot-row { flex-wrap: nowrap; }
   main { padding: 0 16px; }
   .timeline > li { grid-template-columns: 1fr; gap: 2px; }
   .foot-row { padding: 16px; }
