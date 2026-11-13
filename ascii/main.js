@@ -58,7 +58,7 @@ $("#project-list").innerHTML = ORDER.map((g) => {
 $("#mini-list").innerHTML = (C.miniProjects || []).map((m) => `<article class="mini-card" data-mini="${esc(m.slug)}">
   <div class="ascii mini-art" data-art="${esc(m.slug)}" data-fs="3.4" data-ramp="Blocks" aria-hidden="true"></div>
   <div class="mini-body">
-    <p class="meta">${esc(m.kind)}</p>
+    <p class="meta">${esc(m.kind)}${m.date ? ` · ${esc(m.date)}` : ""}</p>
     <h3>${esc(m.title)}</h3>
     <p class="sum">${esc(m.summary)}</p>
     <ul class="tags">${m.tags.map((t) => `<li class="tag">${esc(t)}</li>`).join("")}</ul>
@@ -331,14 +331,14 @@ class Grid {
   put(x, y, s, acc = 0) { x |= 0; y |= 0; if (y < 0 || y >= this.r) return; for (let k = 0; k < s.length; k++) { const xx = x + k; if (xx < 0 || xx >= this.c) continue; const i = y * this.c + xx; this.ch[i] = s[k]; this.acc[i] = acc; } }
   // four layers: faint, mid and strong tones of the glyph colour, plus the highlight colour, so depth reads in any style
   strings() {
-    const L = ["", "", "", "", "", ""]; // faint, mid, bright, accent (amber), maroon, tan
+    const L = ["", "", "", "", "", "", "", ""]; // faint, mid, bright, accent (amber), maroon, tan, deep red, side grey
     for (let y = 0; y < this.r; y++) {
       for (let x = 0; x < this.c; x++) {
         const i = y * this.c + x, over = this.ch[i] !== undefined, g = over ? this.ch[i] : glyph(this.v[i], this.ramp);
-        const v = this.v[i], k = this.acc[i] === 3 ? 5 : this.acc[i] === 2 ? 4 : this.acc[i] ? 3 : over ? (this.tone[i] === 2 ? 2 : this.tone[i] === 1 ? 0 : 1) : v < .32 ? 0 : v < .68 ? 1 : 2;
-        for (let m = 0; m < 6; m++) L[m] += m === k ? g : " ";
+        const v = this.v[i], k = this.acc[i] >= 3 ? this.acc[i] + 2 : this.acc[i] === 2 ? 4 : this.acc[i] ? 3 : over ? (this.tone[i] === 2 ? 2 : this.tone[i] === 1 ? 0 : 1) : v < .32 ? 0 : v < .68 ? 1 : 2;
+        for (let m = 0; m < 8; m++) L[m] += m === k ? g : " ";
       }
-      if (y < this.r - 1) for (let m = 0; m < 6; m++) L[m] += "\n";
+      if (y < this.r - 1) for (let m = 0; m < 8; m++) L[m] += "\n";
     }
     return L;
   }
@@ -536,7 +536,7 @@ ARTS.jammynote = (g, t) => {
   const dstH = Math.min(srcH, g.r);
   const x0 = Math.floor((g.c - 2 * dstW) / 2);
   const y0 = Math.floor((g.r - dstH) / 2);
-  const ink = { W:[1,0], w:[0.5,0], R:[1,2], r:[0.80,2], T:[1,3], Y:[1,1] };
+  const ink = { W:[1,0], w:[1,5], R:[1,2], r:[1,4], T:[1,3], Y:[1,1] }; // w the shaded sides, r the lid's inside: each a solid colour of its own
   for (let y = 0; y < dstH; y++) {
     const sy = Math.min(srcH - 1, Math.floor((y + 0.5) * srcH / dstH));
     for (let x = 0; x < dstW; x++) {
@@ -573,7 +573,7 @@ ARTS.cookie = (g, t, st) => {
 const panels = [];
 function mount(el) {
   const art = ARTS[el.dataset.art]; if (!art) return;
-  el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre><pre class="tan"></pre>`;
+  el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre><pre class="tan"></pre><pre class="deep"></pre><pre class="side"></pre>`;
   const p = { el, art, name: el.dataset.art, layers: [...el.children], state: {}, visible: false, dirty: true, grid: null, fixed: !!el.dataset.rows };
   panels.push(p);
   // project figures rest on their most telling frame and play only while the card is hovered or focused (tap on touch)
@@ -1249,7 +1249,7 @@ window.TOUR_SKIN = (() => {
   return {
     mount(parent) {
       const el = document.createElement("div"); el.className = "ascii tour-art"; el.setAttribute("aria-hidden", "true");
-      el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre><pre class="tan"></pre>`;
+      el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre><pre class="tan"></pre><pre class="deep"></pre><pre class="side"></pre>`;
       el.insertAdjacentHTML("beforeend", `<div class="tour-labels"></div>`); parent.append(el); layers = [...el.children].slice(0, 5); return el;
     },
     fit(el, W, H) {

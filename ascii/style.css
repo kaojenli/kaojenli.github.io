@@ -9,7 +9,7 @@
   --glyph: #3f49b8;      /* ASCII art, base layer */
   --accent: #a96200;     /* ASCII art highlights, links on hover */
   --maroon: #7a1f2e;     /* a second colour inside the text art */
-  --carton: #e6e2d8; --carton-shade: #9a97a8; /* the hot dog box stays a white box in light mode */
+  --carton: #fbfaf5; --carton-shade: #9a97a8; /* the hot dog box stays a white box in light mode */
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -76,6 +76,9 @@ main { max-width: var(--wide); margin: 0 auto; padding: 0 24px; }
 .ascii .acc { color: var(--accent); }
 .ascii .mar { color: var(--maroon); }
 .ascii .tan { color: #c9a06a; } /* a light brown, for the bun */
+.ascii .deep { color: #5e1522; } .ascii .side { color: #8e89a3; } /* the carton: the lid's red inside, its shaded sides */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ascii .deep { color: #a8475a; } :root:not([data-theme="light"]) .ascii .side { color: #9ba0c6; } }
+:root[data-theme="dark"] .ascii .deep { color: #a8475a; } :root[data-theme="dark"] .ascii .side { color: #9ba0c6; }
 
 /* ---------- hero */
 .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; padding: 16px 0 40px; }
@@ -137,6 +140,9 @@ figcaption { margin-top: 10px; color: var(--muted); font-size: 13px; }
 .minis { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 20px; }
 .mini-card { display: grid; grid-template-columns: 200px minmax(0, 1fr); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
 .mini-art { height: 100%; min-height: 120px; border-right: 1px solid var(--line); background: var(--bg); letter-spacing: 0; cursor: pointer; }
+.mini-art { --art-bg: #dfe2ee; background: var(--art-bg) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mini-art { --art-bg: var(--bg); } }
+:root[data-theme="dark"] .mini-art { --art-bg: var(--bg); }
 .mini-art .t0 { color: var(--carton-shade); opacity: .5; } .mini-art .t1 { color: var(--carton-shade); } .mini-art .t2 { color: var(--carton); }
 .mini-body { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
 .mini-card h3 { margin: 0; font-size: 16px; font-weight: 600; }
