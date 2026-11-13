@@ -171,6 +171,15 @@ details li { margin: 4px 0; text-align: justify; }
 .cta .cta-t { min-width: 0; white-space: pre; }
 .cta .cta-k { font-size: 12px; opacity: .8; }
 .cta:disabled { opacity: .6; cursor: wait; }
+.links { align-items: flex-end; }
+.links .lunch-li { margin-left: 8px; }
+.links > li.lunch-li > a::before, .links > li.lunch-li > a::after { content: none; }
+.links .lunch { display: inline-flex; align-items: flex-end; gap: 8px; color: var(--muted); text-decoration: none; }
+.links .lunch::before { content: none; } .links .lunch::after { content: none; }
+.links .lunch .ascii { display: block; width: 100px; height: 60px; }
+.links .lunch .ascii .t0 { color: var(--ink); opacity: .3; } .links .lunch .ascii .t1 { color: var(--ink); opacity: .6; } .links .lunch .ascii .t2 { color: var(--ink); }
+.links .lunch .lunch-t { font-size: 12px; padding-bottom: 2px; }
+.links .lunch:hover { color: var(--accent); }
 .links .cta-li { flex-basis: 100%; margin-top: 10px; } /* its own line, so opening the email never pushes it around */
 .msgwin { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; overflow: auto; border: 1px solid var(--accent); border-radius: 0; background: var(--surface); color: var(--text); box-shadow: 8px 8px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
 .msgwin::backdrop { background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(3px); }
