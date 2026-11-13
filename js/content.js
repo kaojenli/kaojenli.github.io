@@ -255,6 +255,18 @@ const CONTENT = {
     },
   ],
 
+  // small things made on the side, shown as a short row of cards under the projects (ASCII version)
+  miniProjects: [
+    {
+      slug: "jammynote",
+      title: "JammyNote",
+      kind: "macOS app",
+      summary: "A sticky-note app for macOS. Notes stay above other windows and hold rich text, checklists and pictures; lines with dates turn into Calendar events or Reminders; notes can be shared as images and opened back up as notes.",
+      tags: ["macOS", "Rich text", "Calendar & Reminders"],
+      link: { label: "Releases", url: "https://github.com/Dino-Boooo/jammy-note-releases" },
+    },
+  ],
+
   papers: [
     {
       kind: "Conference paper",

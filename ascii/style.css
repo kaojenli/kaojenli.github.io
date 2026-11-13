@@ -133,7 +133,17 @@ figcaption { margin-top: 10px; color: var(--muted); font-size: 13px; }
 .det-body h2 { margin: 0; font-size: 20px; line-height: 1.3; font-weight: 600; }
 .det-list { margin: 0; padding-left: 18px; font-size: 15px; }
 .det-list li { margin: 6px 0; text-align: justify; }
-.det-body .card-links { margin: 0; }
+.det-body /* mini projects: smaller cards in a row of their own, figure on the left */
+.minis { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 20px; }
+.mini-card { display: grid; grid-template-columns: 200px minmax(0, 1fr); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.mini-art { height: 100%; min-height: 120px; border-right: 1px solid var(--line); background: var(--bg); letter-spacing: 0; cursor: pointer; }
+.mini-art .t0 { color: var(--carton-shade); opacity: .5; } .mini-art .t1 { color: var(--carton-shade); } .mini-art .t2 { color: var(--carton); }
+.mini-body { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
+.mini-card h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.mini-card p.sum { margin: 0; font-size: 14px; line-height: 1.6; }
+.mini-card .card-links { margin-top: 4px; }
+@media (max-width: 520px) { .mini-card { grid-template-columns: 1fr; } .mini-art { min-height: 150px; border-right: 0; border-bottom: 1px solid var(--line); } }
+.card-links { margin: 0; }
 details { margin-top: auto; padding-top: 4px; font-size: 14px; }
 summary { color: var(--ink); font-size: 13px; font-weight: 500; cursor: pointer; }
 details ul { margin: 8px 0 0; padding-left: 18px; }
@@ -174,14 +184,6 @@ details li { margin: 4px 0; text-align: justify; }
 .cta .cta-k { font-size: 12px; opacity: .8; }
 .cta:disabled { opacity: .6; cursor: wait; }
 .links { align-items: flex-end; }
-.links .lunch-li { flex-basis: 100%; margin-top: 6px; } /* the box gets a row of its own */
-.links > li.lunch-li > a::before, .links > li.lunch-li > a::after { content: none; }
-.links .lunch { display: inline-flex; align-items: flex-end; gap: 8px; color: var(--muted); text-decoration: none; }
-.links .lunch::before { content: none; } .links .lunch::after { content: none; }
-.links .lunch .ascii { display: block; width: 180px; height: 120px; letter-spacing: 0; }
-.links .lunch .ascii .t0 { color: var(--carton-shade); opacity: .5; } .links .lunch .ascii .t1 { color: var(--carton-shade); } .links .lunch .ascii .t2 { color: var(--carton); }
-.links .lunch .lunch-t { font-size: 12px; padding-bottom: 2px; }
-.links .lunch:hover { color: var(--accent); }
 .links .cta-li { flex-basis: 100%; margin-top: 10px; } /* its own line, so opening the email never pushes it around */
 .msgwin { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; overflow: auto; border: 1px solid var(--accent); border-radius: 0; background: var(--surface); color: var(--text); box-shadow: 8px 8px 0 color-mix(in srgb, var(--accent) 35%, transparent); }
 .msgwin::backdrop { background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(3px); }
