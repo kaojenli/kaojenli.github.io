@@ -148,6 +148,10 @@ figcaption { margin-top: 10px; color: var(--muted); font-size: 13px; }
 .mini-card h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .mini-card p.sum { margin: 0; font-size: 14px; line-height: 1.6; }
 .mini-card .card-links { margin-top: 4px; }
+.mini-points { margin: 2px 0 4px; padding: 0; list-style: none; font-size: 13.5px; line-height: 1.55; }
+.mini-points li { position: relative; padding-left: 16px; margin: 3px 0; }
+.mini-points li::before { content: "›"; position: absolute; left: 2px; color: var(--muted); }
+.mini-points b { color: var(--ink); font-weight: 600; }
 @media (max-width: 520px) { .mini-card { grid-template-columns: 1fr; } .mini-art { min-height: 150px; border-right: 0; border-bottom: 1px solid var(--line); } }
 .card-links { margin: 0; }
 details { margin-top: auto; padding-top: 4px; font-size: 14px; }

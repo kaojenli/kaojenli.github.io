@@ -61,6 +61,7 @@ $("#mini-list").innerHTML = (C.miniProjects || []).map((m) => `<article class="m
     <p class="meta">${esc(m.kind)}${m.date ? ` · ${esc(m.date)}` : ""}</p>
     <h3>${esc(m.title)}</h3>
     <p class="sum">${esc(m.summary)}</p>
+    ${m.points ? `<ul class="mini-points">${m.points.map(([k, v]) => `<li><b>${esc(k)}:</b> ${esc(v)}</li>`).join("")}</ul>` : ""}
     <ul class="tags">${m.tags.map((t) => `<li class="tag">${esc(t)}</li>`).join("")}</ul>
     ${m.link ? `<p class="card-links"><a href="${esc(m.link.url)}">${esc(m.link.label)} ↗</a></p>` : ""}
   </div>
