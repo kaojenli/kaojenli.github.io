@@ -259,6 +259,7 @@ const CONTENT = {
   miniProjects: [
     {
       slug: "jammynote",
+      frames: "ascii/img/jammynote", // pictures, not text art: -{dark,light}-{closed,opening,open}.webp
       title: "JammyNote",
       kind: "macOS app",
       date: "2026 Nov · actively updated",

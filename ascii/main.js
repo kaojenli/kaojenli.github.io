@@ -56,7 +56,9 @@ $("#project-list").innerHTML = ORDER.map((g) => {
 }).join("");
 
 $("#mini-list").innerHTML = (C.miniProjects || []).map((m) => `<article class="mini-card" data-mini="${esc(m.slug)}">
-  <div class="ascii mini-art" data-art="${esc(m.slug)}" data-fs="3.4" data-ramp="Blocks" aria-hidden="true"></div>
+  ${m.frames
+    ? `<div class="mini-art mini-pic" data-pose="closed" aria-hidden="true">${["dark", "light"].map((th) => ["closed", "opening", "open"].map((f) => `<img class="${th} ${f}" src="${esc(m.frames)}-${th}-${f}.webp" alt="" loading="lazy" decoding="async">`).join("")).join("")}</div>`
+    : `<div class="ascii mini-art" data-art="${esc(m.slug)}" data-fs="3.4" data-ramp="Blocks" aria-hidden="true"></div>`}
   <div class="mini-body">
     <p class="meta">${esc(m.kind)}${m.date ? ` · ${esc(m.date)}` : ""}</p>
     <h3>${esc(m.title)}</h3>
@@ -363,193 +365,6 @@ const COOKIE_PX = [
 ];
 const COOKIE_TONE = { L: 1, B: .72, S: .5, D: .26 };
 const COOKIE_STATE = { phase: "whole", t0: 0 };
-// JammyNote's mascot is a hot dog, so its card shows one in a take-out carton. Hover the card and the lid opens.
-const LUNCH_STATE = { open: false, t0: 0 };
-/* JammyNote lunch: four hand-authored pixel poses (48 x 36).
-   Paste this whole file before/in place of the existing ARTS.lunch assignment.
-   Requires existing ARTS, LUNCH_STATE and Grid g.set(x,y,tone,layer). */
-const LUNCH_KEYFRAMES = [
-  [
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '.................................rr.............',
-    '.............................rrrrRRrr...........',
-    '.........................rrrrRRRRRRRRrr.........',
-    '.....................rrrrRRRRRRRRRRRRRRrr.......',
-    '.................rrrrRRRRRRRRRRRRRRRRRRRRrr.....',
-    '.............rrrrRRRRRRRRRRRRRRRRRRRRRRRRRRrr...',
-    '.........rrrrRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRWr..',
-    '.......rrRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRWRWWRR..',
-    '.......RrRWRRRRRRRRRRRRRRRRRRRRRRRRRRWRRRWRRRR..',
-    '.......rrWRRRRRRRRRRRRRRRRRRRRRRRWRWWRWRRRRRRR..',
-    '.......wwrrWWRRRRRRRRRRRRRRRWRWRRRWRRRRRRRWWWW..',
-    '.......wRRwrRWWRRRRRRRRRRRWRRWRWRRRRRRWWRRWWRR..',
-    '.......wRRwwwrRWWRRRRWRWWRRWRRRRRRWWRRWWRRWWRR..',
-    '.......wwwRRwwrrRRRWRRWRRRRRRRRWWWRRWWRRWWRRWW..',
-    '.........wRRwwRRrWRRWRRRRRRWWWRRWWRRWWRRWW......',
-    '..........wwRRwwRRRRRRRWRRWWRRWWRRWWWW..........',
-    '............wwwwRRRWRRWWRRWWRRWWWW..............',
-    '.............wwwwwRRWWRRWWRRWWW.................',
-    '...............wwwRRWWRRWWW.....................',
-    '................wwWWWWW.........................',
-    '..................W.............................',
-    '................................................',
-    '................................................',
-  ],
-  [
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '.......................................R........',
-    '...................................RRWRR........',
-    '...............................RRRRWRRW.........',
-    '...........................RRRRWRWWRW...........',
-    '........................RRWRWWrRWrr.............',
-    '....................RRRRWRRWRrrrrTTTTT..........',
-    '................RRRWRrWWRrrrTTTTYYYYTTT.........',
-    '.........R..RRRWRWWRWrrTTTTTYYYrrYYYYYYrW.......',
-    '........RRWRRWRRWrTTTTTTYYrYYYYYYYYRRRYrrWW.....',
-    '......RRRWRrrTTTTTTTYYYYrrYYYRRYYYRRRRTRrrwWW...',
-    '.....RRWWrrrTTTTYYrYrYYYYYYYRRRRYRTTTYYYTTrwWW..',
-    '......RWrrrrTYrrYYYYYYYRRRYRRRTTTYYYYTTTWWWWWW..',
-    '.......wWWwTTTYYYRRYYYRRRRRTTYYYYTTTWWWWWWWWWW..',
-    '.......wwwWWTrrYRRRRYRRTTYYYYTTTWWWWWWWWWWWWWW..',
-    '.......wRRwwWWrrRRRTTYYYYTTTWWWWWWWWWWWWRRWWRR..',
-    '.......wRRwwwwWWrRTYYTTTWWWWWWWWWWWWRRWWRRWWRR..',
-    '.......wwwRRwwwwWWTTWWWWWWWWWWWWWWRRWWRRWWRRWW..',
-    '.........wRRwwRRwwWWWWWWWWWWWWRRWWRRWWRRWW......',
-    '..........wwRRwwRRWWWWWWRRWWRRWWRRWWWW..........',
-    '............wwwwRRWWRRWWRRWWRRWWWW..............',
-    '.............wwwwwRRWWRRWWRRWWW.................',
-    '...............wwwRRWWRRWWW.....................',
-    '................wwWWWWW.........................',
-    '..................W.............................',
-    '................................................',
-    '................................................',
-  ],
-  [
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '................................................',
-    '......................................R.........',
-    '..................................RRWRR.........',
-    '..............................RRRRWRRW..........',
-    '..........................RRRRWRWWRWRR..........',
-    '.......................RRWRWWrRWRrrrR...........',
-    '...................RRRRWRRWRrrrrrrrRR...........',
-    '...............RRRWRrWWRWrrrrrrrrrrR............',
-    '........R..RRRWRWWRWrRrrrrrrrrrrrrRR............',
-    '........RWRRWRRWRrrrrrrrrrrrrrrrrrr.............',
-    '.......RRRRrRWrrrrrrrrrrrrrrrrrrrTTTTT..........',
-    '.......RWRRrrrrrrrrrrrrrrrrrTTTTYYYYTTT.........',
-    '......RRRRrrrrrrrrrrrrrTTTTTYYYrrYYYYYYrW.......',
-    '......RWRRrrrrrrrrTTTTTTYYrYYYYYYYYRRRYrrWW.....',
-    '.....RRRRrrrrTTTTTTTYYYYrrYYYRRYYYRRRRTRrrwWW...',
-    '.....RRWRrrrTTTTYYrYrYYYYYYYRRRRYRTTTYYYTTrwWW..',
-    '......RWrrrrTYrrYYYYYYYRRRYRRRTTTYYYYTTTWWWWWW..',
-    '.......wWWwTTTYYYRRYYYRRRRRTTYYYYTTTWWWWWWWWWW..',
-    '.......wwwWWTrrYRRRRYRRTTYYYYTTTWWWWWWWWWWWWWW..',
-    '.......wRRwwWWrrRRRTTYYYYTTTWWWWWWWWWWWWRRWWRR..',
-    '.......wRRwwwwWWrRTYYTTTWWWWWWWWWWWWRRWWRRWWRR..',
-    '.......wwwRRwwwwWWTTWWWWWWWWWWWWWWRRWWRRWWRRWW..',
-    '.........wRRwwRRwwWWWWWWWWWWWWRRWWRRWWRRWW......',
-    '..........wwRRwwRRWWWWWWRRWWRRWWRRWWWW..........',
-    '............wwwwRRWWRRWWRRWWRRWWWW..............',
-    '.............wwwwwRRWWRRWWRRWWW.................',
-    '...............wwwRRWWRRWWW.....................',
-    '................wwWWWWW.........................',
-    '..................W.............................',
-    '................................................',
-    '................................................',
-  ],
-  [
-    '................................................',
-    '................................................',
-    '....................................R...........',
-    '................................RRWRR...........',
-    '............................RRRRWRRWR...........',
-    '........................RRRRWRWWRWrRR...........',
-    '.....................RRWRWWrRWRrrrrR............',
-    '.................RRRRWRRWRrrrrrrrrrR............',
-    '.............RRRWRrWWRWrrrrrrrrrrrrR............',
-    '......R..RRRWRWWRWrRrrrrrrrrrrrrrrrR............',
-    '......RRRRWRRWRrrrrrrrrrrrrrrrrrrrrR............',
-    '......RWRRRWrrrrrrrrrrrrrrrrrrrrrrRR............',
-    '......RRRRrrrrrrrrrrrrrrrrrrrrrrrrR.............',
-    '......RWRrrrrrrrrrrrrrrrrrrrrrrrrrR.............',
-    '......RRRrrrrrrrrrrrrrrrrrrrrrrrrrr.............',
-    '.....RRRRrrrrrrrrrrrrrrrrrrrrrrrrTTTTT..........',
-    '.....RWRRrrrrrrrrrrrrrrrrrrrTTTTYYYYTTT.........',
-    '.....RRRRrrrrrrrrrrrrrrTTTTTYYYrrYYYYYYrW.......',
-    '.....RRRRrrrrrrrrrTTTTTTYYrYYYYYYYYRRRYrrWW.....',
-    '.....RWRrrrrrTTTTTTTYYYYrrYYYRRYYYRRRRTRrrwWW...',
-    '.....RRRrrrrTTTTYYrYrYYYYYYYRRRRYRTTTYYYTTrwWW..',
-    '.......WrrrrTYrrYYYYYYYRRRYRRRTTTYYYYTTTWWWWWW..',
-    '.......wWWwTTTYYYRRYYYRRRRRTTYYYYTTTWWWWWWWWWW..',
-    '.......wwwWWTrrYRRRRYRRTTYYYYTTTWWWWWWWWWWWWWW..',
-    '.......wRRwwWWrrRRRTTYYYYTTTWWWWWWWWWWWWRRWWRR..',
-    '.......wRRwwwwWWrRTYYTTTWWWWWWWWWWWWRRWWRRWWRR..',
-    '.......wwwRRwwwwWWTTWWWWWWWWWWWWWWRRWWRRWWRRWW..',
-    '.........wRRwwRRwwWWWWWWWWWWWWRRWWRRWWRRWW......',
-    '..........wwRRwwRRWWWWWWRRWWRRWWRRWWWW..........',
-    '............wwwwRRWWRRWWRRWWRRWWWW..............',
-    '.............wwwwwRRWWRRWWRRWWW.................',
-    '...............wwwRRWWRRWWW.....................',
-    '................wwWWWWW.........................',
-    '..................W.............................',
-    '................................................',
-    '................................................',
-  ],
-];
-
-ARTS.jammynote = (g, t) => {
-  const elapsed = Math.max(0, t - LUNCH_STATE.t0);
-  const k = Math.min(1, elapsed / 0.4);
-  const openAmount = LUNCH_STATE.open ? k : 1 - k;
-  // Each pose is independently painted; never morph geometry between frames.
-  const pose = openAmount < 0.18 ? 0 : openAmount < 0.47 ? 1 : openAmount < 0.76 ? 2 : 3;
-  const art = LUNCH_KEYFRAMES[pose];
-  const srcW = art[0].length;
-  const srcH = art.length;
-  // Render two monospace columns per square pixel, with nearest-neighbor fit.
-  const dstW = Math.min(srcW, Math.floor(g.c / 2));
-  const dstH = Math.min(srcH, g.r);
-  const x0 = Math.floor((g.c - 2 * dstW) / 2);
-  const y0 = Math.floor((g.r - dstH) / 2);
-  const ink = { W:[1,0], w:[1,5], R:[1,2], r:[1,4], T:[1,3], Y:[1,1] }; // w the shaded sides, r the lid's inside: each a solid colour of its own
-  for (let y = 0; y < dstH; y++) {
-    const sy = Math.min(srcH - 1, Math.floor((y + 0.5) * srcH / dstH));
-    for (let x = 0; x < dstW; x++) {
-      const sx = Math.min(srcW - 1, Math.floor((x + 0.5) * srcW / dstW));
-      const p = ink[art[sy][sx]];
-      if (!p) continue;
-      const xx = x0 + 2*x;
-      g.set(xx, y0+y, p[0], p[1]);
-      if (xx+1 < g.c) g.set(xx+1, y0+y, p[0], p[1]);
-    }
-  }
-};
 ARTS.cookie = (g, t, st) => {
   const H = COOKIE_PX.length, W = COOKIE_PX[0].length, mid = W / 2, ox = Math.floor((g.c - 2 * W) / 2), oy = Math.floor((g.r - H) / 2) - 1;
   const ph = COOKIE_STATE.phase, k = Math.min(1, (t - COOKIE_STATE.t0) / .4), gap = ph === "open" ? Math.round(3 * k) : 0;
@@ -1309,14 +1124,21 @@ const REST = {
 
 /* ======================================================================= go */
 document.querySelectorAll(".ascii[data-art]").forEach(mount);
-{ // the hot dog box opens while its card is hovered or focused, and on tap
-  const card = $('.mini-card[data-mini="jammynote"]'); if (card) {
-    const set = (open) => { if (LUNCH_STATE.open === open) return; LUNCH_STATE.open = open; LUNCH_STATE.t0 = performance.now() / 1000; };
+{ // picture figures in mini cards: hover, focus or tap steps the lid open (closed, opening, open) and back
+  document.querySelectorAll(".mini-card").forEach((card) => {
+    const pic = card.querySelector(".mini-pic"); if (!pic) return;
+    let open = false, timer = 0;
+    const set = (want) => {
+      if (open === want) return; open = want; clearTimeout(timer);
+      const seq = want ? ["opening", "open"] : ["opening", "closed"];
+      if (reduced) { pic.dataset.pose = seq[1]; return; }
+      pic.dataset.pose = seq[0]; timer = setTimeout(() => { pic.dataset.pose = seq[1]; }, 140);
+    };
     card.addEventListener("pointerenter", (e) => { if (e.pointerType !== "touch") set(true); });
     card.addEventListener("pointerleave", (e) => { if (e.pointerType !== "touch") set(false); });
     card.addEventListener("focusin", () => set(true)); card.addEventListener("focusout", (e) => { if (!card.contains(e.relatedTarget)) set(false); });
-    card.querySelector(".mini-art").addEventListener("click", () => set(!LUNCH_STATE.open));
-  }
+    pic.addEventListener("click", () => set(!open));
+  });
 }
 
 /* ======================================================================= project details: a window over the page */

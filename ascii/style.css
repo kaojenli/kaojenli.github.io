@@ -143,6 +143,13 @@ figcaption { margin-top: 10px; color: var(--muted); font-size: 13px; }
 .mini-art { --art-bg: #dfe2ee; background: var(--art-bg) !important; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mini-art { --art-bg: var(--bg); } }
 :root[data-theme="dark"] .mini-art { --art-bg: var(--bg); }
+/* a figure made of pictures: three poses stacked, the one named in data-pose shows; dark or light set by theme */
+.mini-pic { position: relative; --art-bg: #eceef8 !important; }
+.mini-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px; opacity: 0; image-rendering: auto; }
+.mini-pic img.dark { display: none; }
+.mini-pic[data-pose="closed"] img.closed, .mini-pic[data-pose="opening"] img.opening, .mini-pic[data-pose="open"] img.open { opacity: 1; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mini-pic { --art-bg: #12162a !important; } :root:not([data-theme="light"]) .mini-pic img.dark { display: block; } :root:not([data-theme="light"]) .mini-pic img.light { display: none; } }
+:root[data-theme="dark"] .mini-pic { --art-bg: #12162a !important; } :root[data-theme="dark"] .mini-pic img.dark { display: block; } :root[data-theme="dark"] .mini-pic img.light { display: none; }
 .mini-art .t0 { color: var(--carton-shade); opacity: .5; } .mini-art .t1 { color: var(--carton-shade); } .mini-art .t2 { color: var(--carton); }
 .mini-body { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
 .mini-card h3 { margin: 0; font-size: 16px; font-weight: 600; }
