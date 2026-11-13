@@ -173,11 +173,11 @@ details li { margin: 4px 0; text-align: justify; }
 .cta .cta-k { font-size: 12px; opacity: .8; }
 .cta:disabled { opacity: .6; cursor: wait; }
 .links { align-items: flex-end; }
-.links .lunch-li { margin-left: 8px; }
+.links .lunch-li { flex-basis: 100%; margin-top: 6px; } /* the box gets a row of its own */
 .links > li.lunch-li > a::before, .links > li.lunch-li > a::after { content: none; }
 .links .lunch { display: inline-flex; align-items: flex-end; gap: 8px; color: var(--muted); text-decoration: none; }
 .links .lunch::before { content: none; } .links .lunch::after { content: none; }
-.links .lunch .ascii { display: block; width: 110px; height: 78px; }
+.links .lunch .ascii { display: block; width: 150px; height: 104px; }
 .links .lunch .ascii .t0 { color: var(--ink); opacity: .3; } .links .lunch .ascii .t1 { color: var(--ink); opacity: .6; } .links .lunch .ascii .t2 { color: var(--ink); }
 .links .lunch .lunch-t { font-size: 12px; padding-bottom: 2px; }
 .links .lunch:hover { color: var(--accent); }

@@ -28,7 +28,7 @@ $("#now").innerHTML = `Now: <b>${esc(P.now)}</b>`;
 const linkItems = P.links.map((l) => l.url.startsWith("mailto:")
   ? `<li class="email-li"><button class="email-btn" type="button" aria-expanded="false">${esc(l.label)}</button></li>`
   : `<li><a href="${esc(l.url)}">${esc(l.label)}</a></li>`).join("");
-$("#links").innerHTML = linkItems + `<li class="lunch-li"><a class="lunch" href="https://github.com/Dino-Boooo/jammy-note-releases" title="JammyNote, a sticky-note app for macOS I make for friends"><span class="ascii" data-art="lunch" data-rows="16" data-ramp="Blocks" aria-hidden="true"></span><span class="lunch-t">JammyNote</span></a></li><li class="cta-li"><button class="msg-btn cta" type="button"><span class="cta-t" data-text="Get in touch">Get in touch</span><span class="cta-k" aria-hidden="true">↵</span></button></li>`;
+$("#links").innerHTML = linkItems + `<li class="lunch-li"><a class="lunch" href="https://github.com/Dino-Boooo/jammy-note-releases" title="JammyNote, a sticky-note app for macOS I make for friends"><span class="ascii" data-art="lunch" data-rows="22" data-ramp="Blocks" aria-hidden="true"></span><span class="lunch-t">JammyNote</span></a></li><li class="cta-li"><button class="msg-btn cta" type="button"><span class="cta-t" data-text="Get in touch">Get in touch</span><span class="cta-k" aria-hidden="true">↵</span></button></li>`;
 $("#year").textContent = new Date().getFullYear();
 $("#nav").innerHTML = C.sections.filter((s) => s.id !== "about").map((s) => `<a href="#${s.id}">${esc(s.label)}</a>`).join("") + `<a href="#contact" class="msg-btn">Contact</a>`; // opens the inquiry form
 
@@ -354,40 +354,45 @@ const COOKIE_STATE = { phase: "whole", t0: 0 };
 // A lunch box. Hover and the lid lifts: there is a hot dog inside, the JammyNote mascot.
 const LUNCH_STATE = { open: false, t0: 0 };
 ARTS.lunch = (g, t) => {
-  // an isometric hot dog box: the long side runs up to the right, the short side up to the left; the lid is a shallow hipped shape (a flat top with four sloping sides) hinged along the back edge
-  const k = Math.min(1, (t - LUNCH_STATE.t0) / .4), o = LUNCH_STATE.open ? k : 1 - k, a = o * 2.3; // 0 closed, 1 open: the lid swings past upright and leans back
-  const L = 5, D = 2.4, H = 3, X = [4, -1], Y = [-4, -1]; // per unit, in cells and rows
-  const ox = Math.floor(g.c / 2) - 6, oy = g.r - 1; // the front corner, near the bottom
-  const P = (x, y, z) => [ox + X[0] * x + Y[0] * y, oy + X[1] * x + Y[1] * y - z]; // box space (units, units, rows) to cells
+  // an isometric hot dog box, after the classic take-out carton: a white box with a checkered band, a maroon lid with a checkered rim hinged along the back, and a hot dog that fills it
+  const k = Math.min(1, (t - LUNCH_STATE.t0) / .4), o = LUNCH_STATE.open ? k : 1 - k, a = o * 2.1; // 0 closed, 1 open: the lid swings up past upright
+  const S = 1.5, L = 5, D = 2.4, H = 2.6, X = [4 * S, -S], Y = [-4 * S, -S]; // per unit, in cells and rows
+  const ox = Math.floor(g.c / 2) - Math.round(4 * S), oy = g.r - 1; // the front corner, near the bottom
+  const P = (x, y, z) => [ox + X[0] * x + Y[0] * y, oy + X[1] * x + Y[1] * y - z * S]; // box space (units) to cells
   const quad = (p0, p1, p2, p3, v, acc, patt) => { // a bilinear patch between four screen points
-    const n = 28;
+    const n = 36;
     for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
       const u = i / n, w = j / n, x = Math.round((1 - w) * ((1 - u) * p0[0] + u * p1[0]) + w * ((1 - u) * p3[0] + u * p2[0])), y = Math.round((1 - w) * ((1 - u) * p0[1] + u * p1[1]) + w * ((1 - u) * p3[1] + u * p2[1]));
-      if (patt) { const q = patt(x, y); if (q) g.set(x, y, q[0], q[1]); } else g.set(x, y, v, acc);
+      if (patt) { const q = patt(x, y, u, w); if (q) g.set(x, y, q[0], q[1]); } else g.set(x, y, v, acc);
     }
   };
-  quad(P(0, 0, 0), P(L, 0, 0), P(L, 0, H), P(0, 0, H), .9, 0); // the long front face, lit
-  quad(P(0, 0, 0), P(0, D, 0), P(0, D, H), P(0, 0, H), .5, 0); // the short side, in shade
-  // the lid: points given as (x, e, z) with e the distance from the hinge toward the front; the hinge is the back edge of the rim
-  const ca = Math.cos(a), sa = Math.sin(a), lidP = (x, e, z) => P(x, D - (e * ca - z * sa * .55), H + e * sa * 1.8 + z * ca); // rotate about the hinge, then project
-  const inset = .4, hz = 1;
-  const checker = (x, y) => ((x >> 1) + y) % 2 ? [.9, 2] : [o > .5 ? .3 : .6, 0];
-  const checkerDim = (x, y) => ((x >> 1) + y) % 2 ? [.6, 2] : [.3, 0]; // the print continues down the slopes, in shade
+  const check = (dim) => (x, y) => ((x >> 1) + y) % 2 ? [dim ? .6 : .9, 2] : [dim ? .4 : .9, 0]; // the checkered print
+  const band = .9; // the checkered band runs along the lower part of the box
+  quad(P(0, 0, band), P(L, 0, band), P(L, 0, H), P(0, 0, H), .9, 0); // the long front face, white
+  quad(P(0, 0, 0), P(L, 0, 0), P(L, 0, band), P(0, 0, band), 0, 0, check(false)); // its checkered band
+  quad(P(0, 0, band), P(0, D, band), P(0, D, H), P(0, 0, H), .5, 0); // the short side, in shade
+  quad(P(0, 0, 0), P(0, D, 0), P(0, D, band), P(0, 0, band), 0, 0, check(true));
+  // the lid: (x, e, z) with e the distance from the hinge toward the front; hinged along the back edge of the rim
+  const ca = Math.cos(a), sa = Math.sin(a), lidP = (x, e, z) => P(x, D - (e * ca - z * sa * .5), H + e * sa * 1.1 + z * ca);
+  const rim = .45, hz = .5;
+  const lidFace = (x, y, u, w) => (u < rim / L || u > 1 - rim / L || w < rim / D || w > 1 - rim / D) ? check(false)(x, y) : [.85, 2]; // maroon inside a checkered border
   const lid = () => {
-    quad(lidP(0, 0, 0), lidP(L, 0, 0), lidP(L - inset, inset, hz), lidP(inset, inset, hz), .35, 0); // the back slope (mostly hidden)
-    quad(lidP(inset, inset, hz), lidP(L - inset, inset, hz), lidP(L - inset, D - inset, hz), lidP(inset, D - inset, hz), .8, 0, checker); // the flat top
-    quad(lidP(0, 0, 0), lidP(0, D, 0), lidP(inset, D - inset, hz), lidP(inset, inset, hz), .45, 0); // the short slope, left
-    quad(lidP(0, D, 0), lidP(L, D, 0), lidP(L - inset, D - inset, hz), lidP(inset, D - inset, hz), .68, 0, checkerDim); // the long slope, front
-    if (o < .5) { const m = lidP(L / 2, D, .15); g.set(Math.round(m[0]), Math.round(m[1]), .95); g.set(Math.round(m[0]) + 1, Math.round(m[1]), .95); } // the tab
+    quad(lidP(0, 0, 0), lidP(L, 0, 0), lidP(L, 0, hz), lidP(0, 0, hz), .4, 2); // the back edge
+    quad(lidP(0, 0, hz), lidP(L, 0, hz), lidP(L, D, hz), lidP(0, D, hz), 0, 0, lidFace); // the lid itself (its top when closed, its inside when open)
+    quad(lidP(0, 0, 0), lidP(0, D, 0), lidP(0, D, hz), lidP(0, 0, hz), 0, 0, check(true)); // the short edge
+    quad(lidP(0, D, 0), lidP(L, D, 0), lidP(L, D, hz), lidP(0, D, hz), 0, 0, check(true)); // the front edge
   };
   if (o >= .5) lid();
   quad(P(0, 0, H), P(L, 0, H), P(L, D, H), P(0, D, H), .12, 0); // inside the box, dim
-  if (o > .3) { // the hot dog: a bun in tan lying along the box, a sausage on top, mustard
-    const b0 = .5, b1 = L - .5, yb = .7, zb = 1.6;
-    quad(P(b0, yb, 0), P(b1, yb, 0), P(b1, yb, zb), P(b0, yb, zb), .85, 3); // the bun's side
-    quad(P(b0, yb, zb), P(b1, yb, zb), P(b1, yb + .6, zb), P(b0, yb + .6, zb), .85, 3); // its top
-    quad(P(b0, yb + .15, zb), P(b1, yb + .15, zb), P(b1, yb + .15, zb + .9), P(b0, yb + .15, zb + .9), .95, 2); // the sausage
-    for (let u = .1; u < .95; u += .15) { const m = P(b0 + (b1 - b0) * u, yb + .3, zb + 1); g.set(Math.round(m[0]), Math.round(m[1]), .95, 1); } // mustard
+  if (o > .25) { // the hot dog fills the box: a tan bun, a sausage down the middle, a mustard zigzag
+    const b0 = .35, b1 = L - .35, y0 = .35, y1 = D - .35, zb = H + .35;
+    quad(P(b0, y0, H * .3), P(b1, y0, H * .3), P(b1, y0, zb), P(b0, y0, zb), .85, 3); // the bun's front
+    quad(P(b0, y0, zb), P(b1, y0, zb), P(b1, y1, zb), P(b0, y1, zb), .85, 3); // its top
+    quad(P(b0, y0, zb), P(b0, y1, zb), P(b0, y1, H * .3), P(b0, y0, H * .3), .6, 3); // its near end
+    const ym = (y0 + y1) / 2, sw = .5, zs = zb + .55;
+    quad(P(b0 + .2, ym - sw / 2, zb), P(b1 - .2, ym - sw / 2, zb), P(b1 - .2, ym - sw / 2, zs), P(b0 + .2, ym - sw / 2, zs), .95, 2); // the sausage's side
+    quad(P(b0 + .2, ym - sw / 2, zs), P(b1 - .2, ym - sw / 2, zs), P(b1 - .2, ym + sw / 2, zs), P(b0 + .2, ym + sw / 2, zs), .95, 2); // and its top
+    for (let n = 0; n < 9; n++) { const u = .12 + n * .095, m = P(b0 + .2 + (b1 - b0 - .4) * u, ym + (n % 2 ? .18 : -.18), zs + .05); g.set(Math.round(m[0]), Math.round(m[1]), .95, 1); g.set(Math.round(m[0]) + 1, Math.round(m[1]), .95, 1); } // mustard, zigzag
   }
   if (o < .5) lid();
 };
