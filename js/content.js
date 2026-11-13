@@ -270,7 +270,7 @@ const CONTENT = {
         ["Any style", "rich text, checklists and images; custom shapes, colours, textures and fonts."],
         ["Easy sharing", "send notes as images via Messages, Mail or AirDrop; drag one back in and it becomes an editable note again."],
       ],
-      tags: ["macOS 13+", "Apple silicon & Intel", "Calendar & Reminders"],
+      tags: ["Swift", "AppKit", "SwiftUI", "macOS"],
       link: { label: "Releases", url: "https://github.com/Dino-Boooo/jammy-note-releases" },
     },
   ],
