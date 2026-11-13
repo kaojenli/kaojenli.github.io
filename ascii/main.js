@@ -320,14 +320,14 @@ class Grid {
   put(x, y, s, acc = 0) { x |= 0; y |= 0; if (y < 0 || y >= this.r) return; for (let k = 0; k < s.length; k++) { const xx = x + k; if (xx < 0 || xx >= this.c) continue; const i = y * this.c + xx; this.ch[i] = s[k]; this.acc[i] = acc; } }
   // four layers: faint, mid and strong tones of the glyph colour, plus the highlight colour, so depth reads in any style
   strings() {
-    const L = ["", "", "", "", ""]; // faint, mid, bright, accent (amber), maroon
+    const L = ["", "", "", "", "", ""]; // faint, mid, bright, accent (amber), maroon, tan
     for (let y = 0; y < this.r; y++) {
       for (let x = 0; x < this.c; x++) {
         const i = y * this.c + x, over = this.ch[i] !== undefined, g = over ? this.ch[i] : glyph(this.v[i], this.ramp);
         const v = this.v[i], k = this.acc[i] === 2 ? 4 : this.acc[i] ? 3 : over ? (this.tone[i] === 2 ? 2 : this.tone[i] === 1 ? 0 : 1) : v < .32 ? 0 : v < .68 ? 1 : 2;
-        for (let m = 0; m < 5; m++) L[m] += m === k ? g : " ";
+        for (let m = 0; m < 6; m++) L[m] += m === k ? g : " ";
       }
-      if (y < this.r - 1) for (let m = 0; m < 5; m++) L[m] += "\n";
+      if (y < this.r - 1) for (let m = 0; m < 6; m++) L[m] += "\n";
     }
     return L;
   }
@@ -354,35 +354,42 @@ const COOKIE_STATE = { phase: "whole", t0: 0 };
 // A lunch box. Hover and the lid lifts: there is a hot dog inside, the JammyNote mascot.
 const LUNCH_STATE = { open: false, t0: 0 };
 ARTS.lunch = (g, t) => {
-  // an isometric hot dog box: the long side runs up to the right, the short side up to the left, the lid hinges along the back edge
+  // an isometric hot dog box: the long side runs up to the right, the short side up to the left; the lid is a shallow hipped shape (a flat top with four sloping sides) hinged along the back edge
   const k = Math.min(1, (t - LUNCH_STATE.t0) / .4), o = LUNCH_STATE.open ? k : 1 - k, a = o * 2.3; // 0 closed, 1 open: the lid swings past upright and leans back
-  const L = 5, D = 2, H = 3, X = [4, -1], Y = [-4, -1]; // per unit, in cells and rows
+  const L = 5, D = 2.4, H = 3, X = [4, -1], Y = [-4, -1]; // per unit, in cells and rows
   const ox = Math.floor(g.c / 2) - 6, oy = g.r - 1; // the front corner, near the bottom
-  const face = (fx, fy, ax, ay, bx, by, v, acc, patt) => { // a parallelogram, filled
-    const na = Math.ceil(Math.hypot(ax, ay) * 2) + 2, nb = Math.ceil(Math.hypot(bx, by) * 2) + 2;
-    for (let i = 0; i <= na; i++) for (let j = 0; j <= nb; j++) {
-      const u = i / na, w = j / nb, x = Math.round(fx + ax * u + bx * w), y = Math.round(fy + ay * u + by * w);
-      if (patt) { const q = patt(x, y); if (q === null) continue; g.set(x, y, q[0], q[1]); } else g.set(x, y, v, acc);
+  const P = (x, y, z) => [ox + X[0] * x + Y[0] * y, oy + X[1] * x + Y[1] * y - z]; // box space (units, units, rows) to cells
+  const quad = (p0, p1, p2, p3, v, acc, patt) => { // a bilinear patch between four screen points
+    const n = 28;
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
+      const u = i / n, w = j / n, x = Math.round((1 - w) * ((1 - u) * p0[0] + u * p1[0]) + w * ((1 - u) * p3[0] + u * p2[0])), y = Math.round((1 - w) * ((1 - u) * p0[1] + u * p1[1]) + w * ((1 - u) * p3[1] + u * p2[1]));
+      if (patt) { const q = patt(x, y); if (q) g.set(x, y, q[0], q[1]); } else g.set(x, y, v, acc);
     }
   };
-  const checker = (x, y) => ((x >> 1) + y) % 2 ? [.9, 2] : [o > .5 ? .3 : .6, 0]; // the lid print: maroon and plain squares
-  face(ox, oy, X[0] * L, X[1] * L, 0, -H, .9, 0); // the long front face, lit
-  face(ox, oy, Y[0] * D, Y[1] * D, 0, -H, .5, 0); // the short side, in shade
-  const tx = ox, ty = oy - H; // the front corner of the rim
-  const hx = tx + Y[0] * D, hy = ty + Y[1] * D; // the hinge, at the back-left corner of the rim
-  const lv = [Y[0] * D * -1 * Math.cos(a), Y[1] * D * -1 * Math.cos(a) - 7 * Math.sin(a)]; // the lid's short edge swings from flat to upright
-  const lid = () => face(hx, hy, X[0] * L, X[1] * L, lv[0], lv[1], .8, 0, checker);
+  quad(P(0, 0, 0), P(L, 0, 0), P(L, 0, H), P(0, 0, H), .9, 0); // the long front face, lit
+  quad(P(0, 0, 0), P(0, D, 0), P(0, D, H), P(0, 0, H), .5, 0); // the short side, in shade
+  // the lid: points given as (x, e, z) with e the distance from the hinge toward the front; the hinge is the back edge of the rim
+  const ca = Math.cos(a), sa = Math.sin(a), lidP = (x, e, z) => P(x, D - (e * ca - z * sa * .55), H + e * sa * 1.8 + z * ca); // rotate about the hinge, then project
+  const inset = .4, hz = 1;
+  const checker = (x, y) => ((x >> 1) + y) % 2 ? [.9, 2] : [o > .5 ? .3 : .6, 0];
+  const checkerDim = (x, y) => ((x >> 1) + y) % 2 ? [.6, 2] : [.3, 0]; // the print continues down the slopes, in shade
+  const lid = () => {
+    quad(lidP(0, 0, 0), lidP(L, 0, 0), lidP(L - inset, inset, hz), lidP(inset, inset, hz), .35, 0); // the back slope (mostly hidden)
+    quad(lidP(inset, inset, hz), lidP(L - inset, inset, hz), lidP(L - inset, D - inset, hz), lidP(inset, D - inset, hz), .8, 0, checker); // the flat top
+    quad(lidP(0, 0, 0), lidP(0, D, 0), lidP(inset, D - inset, hz), lidP(inset, inset, hz), .45, 0); // the short slope, left
+    quad(lidP(0, D, 0), lidP(L, D, 0), lidP(L - inset, D - inset, hz), lidP(inset, D - inset, hz), .68, 0, checkerDim); // the long slope, front
+    if (o < .5) { const m = lidP(L / 2, D, .15); g.set(Math.round(m[0]), Math.round(m[1]), .95); g.set(Math.round(m[0]) + 1, Math.round(m[1]), .95); } // the tab
+  };
   if (o >= .5) lid();
-  face(tx, ty, X[0] * L, X[1] * L, Y[0] * D, Y[1] * D, .12, 0); // inside the box, dim
-  if (o > .3) { // the hot dog, once the lid is out of the way: a bun lying along the box, a sausage on top, mustard
-    const bx = tx + X[0] * .5 + Y[0] * .7, by = ty + X[1] * .5 + Y[1] * .7;
-    face(bx, by, X[0] * (L - 1), X[1] * (L - 1), 0, -1.6, .85, 0); // the bun
-    face(bx, by - 1.6, X[0] * (L - 1), X[1] * (L - 1), Y[0] * .5, Y[1] * .5, .85, 0); // its top, rounded by the depth
-    face(bx, by - 2, X[0] * (L - 1), X[1] * (L - 1), 0, -.8, .95, 2); // the sausage
-    for (let u = .12; u < .95; u += .16) g.set(Math.round(bx + X[0] * (L - 1) * u), Math.round(by - 2.4 + X[1] * (L - 1) * u), .95, 1); // mustard
+  quad(P(0, 0, H), P(L, 0, H), P(L, D, H), P(0, D, H), .12, 0); // inside the box, dim
+  if (o > .3) { // the hot dog: a bun in tan lying along the box, a sausage on top, mustard
+    const b0 = .5, b1 = L - .5, yb = .7, zb = 1.6;
+    quad(P(b0, yb, 0), P(b1, yb, 0), P(b1, yb, zb), P(b0, yb, zb), .85, 3); // the bun's side
+    quad(P(b0, yb, zb), P(b1, yb, zb), P(b1, yb + .6, zb), P(b0, yb + .6, zb), .85, 3); // its top
+    quad(P(b0, yb + .15, zb), P(b1, yb + .15, zb), P(b1, yb + .15, zb + .9), P(b0, yb + .15, zb + .9), .95, 2); // the sausage
+    for (let u = .1; u < .95; u += .15) { const m = P(b0 + (b1 - b0) * u, yb + .3, zb + 1); g.set(Math.round(m[0]), Math.round(m[1]), .95, 1); } // mustard
   }
-  if (o < .5) lid(); // down, it covers the opening; up, it stands behind it
-  if (o < .5) { const mx = hx + X[0] * L * .5 + lv[0] * .9, my = hy + X[1] * L * .5 + lv[1] * .9; g.set(Math.round(mx), Math.round(my), .95); g.set(Math.round(mx) + 1, Math.round(my), .95); } // the tab at the front of the lid
+  if (o < .5) lid();
 };
 ARTS.cookie = (g, t, st) => {
   const H = COOKIE_PX.length, W = COOKIE_PX[0].length, mid = W / 2, ox = Math.floor((g.c - 2 * W) / 2), oy = Math.floor((g.r - H) / 2) - 1;
@@ -408,7 +415,7 @@ ARTS.cookie = (g, t, st) => {
 const panels = [];
 function mount(el) {
   const art = ARTS[el.dataset.art]; if (!art) return;
-  el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre>`;
+  el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre><pre class="tan"></pre>`;
   const p = { el, art, name: el.dataset.art, layers: [...el.children], state: {}, visible: false, dirty: true, grid: null, fixed: !!el.dataset.rows };
   panels.push(p);
   // project figures rest on their most telling frame and play only while the card is hovered or focused (tap on touch)
@@ -1084,7 +1091,7 @@ window.TOUR_SKIN = (() => {
   return {
     mount(parent) {
       const el = document.createElement("div"); el.className = "ascii tour-art"; el.setAttribute("aria-hidden", "true");
-      el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre>`;
+      el.innerHTML = `<pre class="t0"></pre><pre class="t1"></pre><pre class="t2"></pre><pre class="acc"></pre><pre class="mar"></pre><pre class="tan"></pre>`;
       el.insertAdjacentHTML("beforeend", `<div class="tour-labels"></div>`); parent.append(el); layers = [...el.children].slice(0, 5); return el;
     },
     fit(el, W, H) {

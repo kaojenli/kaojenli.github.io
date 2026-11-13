@@ -74,6 +74,7 @@ main { max-width: var(--wide); margin: 0 auto; padding: 0 24px; }
 .ascii .t2 { color: color-mix(in srgb, var(--glyph) 55%, var(--ink)); }
 .ascii .acc { color: var(--accent); }
 .ascii .mar { color: var(--maroon); }
+.ascii .tan { color: #c9a06a; } /* a light brown, for the bun */
 
 /* ---------- hero */
 .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; padding: 16px 0 40px; }
