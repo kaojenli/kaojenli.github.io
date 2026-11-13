@@ -28,7 +28,7 @@ $("#now").innerHTML = `Now: <b>${esc(P.now)}</b>`;
 const linkItems = P.links.map((l) => l.url.startsWith("mailto:")
   ? `<li class="email-li"><button class="email-btn" type="button" aria-expanded="false">${esc(l.label)}</button></li>`
   : `<li><a href="${esc(l.url)}">${esc(l.label)}</a></li>`).join("");
-$("#links").innerHTML = linkItems + `<li class="lunch-li"><a class="lunch" href="https://github.com/Dino-Boooo/jammy-note-releases" title="JammyNote, a sticky-note app for macOS I make for friends"><span class="ascii" data-art="lunch" data-rows="11" data-ramp="Blocks" aria-hidden="true"></span><span class="lunch-t">JammyNote</span></a></li><li class="cta-li"><button class="msg-btn cta" type="button"><span class="cta-t" data-text="Get in touch">Get in touch</span><span class="cta-k" aria-hidden="true">↵</span></button></li>`;
+$("#links").innerHTML = linkItems + `<li class="lunch-li"><a class="lunch" href="https://github.com/Dino-Boooo/jammy-note-releases" title="JammyNote, a sticky-note app for macOS I make for friends"><span class="ascii" data-art="lunch" data-rows="16" data-ramp="Blocks" aria-hidden="true"></span><span class="lunch-t">JammyNote</span></a></li><li class="cta-li"><button class="msg-btn cta" type="button"><span class="cta-t" data-text="Get in touch">Get in touch</span><span class="cta-k" aria-hidden="true">↵</span></button></li>`;
 $("#year").textContent = new Date().getFullYear();
 $("#nav").innerHTML = C.sections.filter((s) => s.id !== "about").map((s) => `<a href="#${s.id}">${esc(s.label)}</a>`).join("") + `<a href="#contact" class="msg-btn">Contact</a>`; // opens the inquiry form
 
@@ -354,21 +354,35 @@ const COOKIE_STATE = { phase: "whole", t0: 0 };
 // A lunch box. Hover and the lid lifts: there is a hot dog inside, the JammyNote mascot.
 const LUNCH_STATE = { open: false, t0: 0 };
 ARTS.lunch = (g, t) => {
-  const W = 15, ox = Math.floor((g.c - 2 * W) / 2), oy = g.r - 6; // the box takes the bottom five rows
-  const k = Math.min(1, (t - LUNCH_STATE.t0) / .35), o = LUNCH_STATE.open ? k : 1 - k; // 0 closed, 1 open
-  const px = (x, y, v, a) => { if (y < 0) return; g.set(ox + 2 * x, y, v, a); g.set(ox + 2 * x + 1, y, v, a); };
-  for (let x = 0; x < W; x++) { px(x, oy, .95); px(x, oy + 4, .95); } // the box: rim and bottom
-  for (let y = oy; y <= oy + 4; y++) { px(0, y, .95); px(W - 1, y, .95); } // and its sides
-  for (let y = oy + 1; y < oy + 4; y++) for (let x = 1; x < W - 1; x++) px(x, y, .12); // the inside, dim
-  if (o > .15) { // the hot dog: a bun in two halves, a sausage in maroon, mustard in amber
-    const show = Math.round((W - 4) * Math.min(1, (o - .15) / .6)), x0 = 2, x1 = x0 + show;
-    for (let x = x0; x < x1; x++) { if (x > x0 && x < x1 - 1) { px(x, oy + 1, .6); px(x, oy + 3, .6); } px(x, oy + 2, .95, 2); }
-    for (let x = x0 + 1; x < x1 - 1; x += 2) g.set(ox + 2 * x + 1, oy + 2, .95, 1); // mustard, dotted along the sausage
+  // an isometric hot dog box: the long side runs up to the right, the short side up to the left, the lid hinges along the back edge
+  const k = Math.min(1, (t - LUNCH_STATE.t0) / .4), o = LUNCH_STATE.open ? k : 1 - k, a = o * 2.3; // 0 closed, 1 open: the lid swings past upright and leans back
+  const L = 5, D = 2, H = 3, X = [4, -1], Y = [-4, -1]; // per unit, in cells and rows
+  const ox = Math.floor(g.c / 2) - 6, oy = g.r - 1; // the front corner, near the bottom
+  const face = (fx, fy, ax, ay, bx, by, v, acc, patt) => { // a parallelogram, filled
+    const na = Math.ceil(Math.hypot(ax, ay) * 2) + 2, nb = Math.ceil(Math.hypot(bx, by) * 2) + 2;
+    for (let i = 0; i <= na; i++) for (let j = 0; j <= nb; j++) {
+      const u = i / na, w = j / nb, x = Math.round(fx + ax * u + bx * w), y = Math.round(fy + ay * u + by * w);
+      if (patt) { const q = patt(x, y); if (q === null) continue; g.set(x, y, q[0], q[1]); } else g.set(x, y, v, acc);
+    }
+  };
+  const checker = (x, y) => ((x >> 1) + y) % 2 ? [.9, 2] : [o > .5 ? .3 : .6, 0]; // the lid print: maroon and plain squares
+  face(ox, oy, X[0] * L, X[1] * L, 0, -H, .9, 0); // the long front face, lit
+  face(ox, oy, Y[0] * D, Y[1] * D, 0, -H, .5, 0); // the short side, in shade
+  const tx = ox, ty = oy - H; // the front corner of the rim
+  const hx = tx + Y[0] * D, hy = ty + Y[1] * D; // the hinge, at the back-left corner of the rim
+  const lv = [Y[0] * D * -1 * Math.cos(a), Y[1] * D * -1 * Math.cos(a) - 7 * Math.sin(a)]; // the lid's short edge swings from flat to upright
+  const lid = () => face(hx, hy, X[0] * L, X[1] * L, lv[0], lv[1], .8, 0, checker);
+  if (o >= .5) lid();
+  face(tx, ty, X[0] * L, X[1] * L, Y[0] * D, Y[1] * D, .12, 0); // inside the box, dim
+  if (o > .3) { // the hot dog, once the lid is out of the way: a bun lying along the box, a sausage on top, mustard
+    const bx = tx + X[0] * .5 + Y[0] * .7, by = ty + X[1] * .5 + Y[1] * .7;
+    face(bx, by, X[0] * (L - 1), X[1] * (L - 1), 0, -1.6, .85, 0); // the bun
+    face(bx, by - 1.6, X[0] * (L - 1), X[1] * (L - 1), Y[0] * .5, Y[1] * .5, .85, 0); // its top, rounded by the depth
+    face(bx, by - 2, X[0] * (L - 1), X[1] * (L - 1), 0, -.8, .95, 2); // the sausage
+    for (let u = .12; u < .95; u += .16) g.set(Math.round(bx + X[0] * (L - 1) * u), Math.round(by - 2.4 + X[1] * (L - 1) * u), .95, 1); // mustard
   }
-  const lift = Math.round(o * 2), tilt = Math.round(o * 2); // the lid rises and tips back
-  const ly = oy - 1 - lift;
-  for (let x = 0; x < W; x++) px(x, ly - Math.round(tilt * (W - 1 - x) / (W - 1)), .8);
-  if (o < .5) for (let x = 5; x < 10; x++) px(x, ly - 1, .55); // the handle, while the lid is down
+  if (o < .5) lid(); // down, it covers the opening; up, it stands behind it
+  if (o < .5) { const mx = hx + X[0] * L * .5 + lv[0] * .9, my = hy + X[1] * L * .5 + lv[1] * .9; g.set(Math.round(mx), Math.round(my), .95); g.set(Math.round(mx) + 1, Math.round(my), .95); } // the tab at the front of the lid
 };
 ARTS.cookie = (g, t, st) => {
   const H = COOKIE_PX.length, W = COOKIE_PX[0].length, mid = W / 2, ox = Math.floor((g.c - 2 * W) / 2), oy = Math.floor((g.r - H) / 2) - 1;
