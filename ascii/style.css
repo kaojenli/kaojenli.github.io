@@ -9,6 +9,7 @@
   --glyph: #3f49b8;      /* ASCII art, base layer */
   --accent: #a96200;     /* ASCII art highlights, links on hover */
   --maroon: #7a1f2e;     /* a second colour inside the text art */
+  --carton: #e6e2d8; --carton-shade: #9a97a8; /* the hot dog box stays a white box in light mode */
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -18,12 +19,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0b0e20; --surface: #11152e; --ink: #eceefa; --text: #c3c7e4; --muted: #8b91ba; --line: #232951;
-    --glyph: #8790f5; --accent: #f2b33d; --maroon: #d8647a; color-scheme: dark;
+    --glyph: #8790f5; --accent: #f2b33d; --maroon: #d8647a; --carton: #eceefa; --carton-shade: #7b80a8; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0b0e20; --surface: #11152e; --ink: #eceefa; --text: #c3c7e4; --muted: #8b91ba; --line: #232951;
-  --glyph: #8790f5; --accent: #f2b33d; --maroon: #d8647a; color-scheme: dark;
+  --glyph: #8790f5; --accent: #f2b33d; --maroon: #d8647a; --carton: #eceefa; --carton-shade: #7b80a8; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -177,8 +178,8 @@ details li { margin: 4px 0; text-align: justify; }
 .links > li.lunch-li > a::before, .links > li.lunch-li > a::after { content: none; }
 .links .lunch { display: inline-flex; align-items: flex-end; gap: 8px; color: var(--muted); text-decoration: none; }
 .links .lunch::before { content: none; } .links .lunch::after { content: none; }
-.links .lunch .ascii { display: block; width: 150px; height: 104px; }
-.links .lunch .ascii .t0 { color: var(--ink); opacity: .3; } .links .lunch .ascii .t1 { color: var(--ink); opacity: .6; } .links .lunch .ascii .t2 { color: var(--ink); }
+.links .lunch .ascii { display: block; width: 180px; height: 120px; letter-spacing: 0; }
+.links .lunch .ascii .t0 { color: var(--carton-shade); opacity: .5; } .links .lunch .ascii .t1 { color: var(--carton-shade); } .links .lunch .ascii .t2 { color: var(--carton); }
 .links .lunch .lunch-t { font-size: 12px; padding-bottom: 2px; }
 .links .lunch:hover { color: var(--accent); }
 .links .cta-li { flex-basis: 100%; margin-top: 10px; } /* its own line, so opening the email never pushes it around */
