@@ -34,7 +34,7 @@ a { color: var(--ink); text-decoration: underline; text-decoration-color: color-
 a:hover { color: var(--accent); text-decoration-color: currentColor; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
 h1, h2, h3 { color: var(--ink); text-wrap: balance; }
-.eyebrow, .fig, .meta, .tag, .block-note, .now { font-family: var(--mono); }
+.eyebrow, .fig, .meta, .tag, .block-note { font-family: var(--mono); }
 
 /* ---------- top bar */
 .bar {
@@ -87,8 +87,6 @@ main { max-width: var(--wide); margin: 0 auto; padding: 0 24px; }
 .eyebrow { margin: 0 0 12px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
 .ascii-city { height: clamp(320px, 34vw, 440px); }
 .lede { margin: 0 0 16px; max-width: 34em; font-size: 17px; line-height: 1.7; text-align: justify; text-justify: inter-word; }
-.now { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
-.now b { color: var(--ink); font-weight: 500; }
 .links { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; list-style: none; font: 500 13px/1.6 var(--mono); letter-spacing: .03em; }
 /* the hero links read like terminal prompts: a muted "›", the name, an arrow on hover */
 .links > li:not(.cta-li) > a, .links .email-btn:not(.open) { color: var(--text); text-decoration: none; }

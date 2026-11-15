@@ -23,7 +23,6 @@ const P = C.person;
 }
 $("#h-name").textContent = P.name;
 $("#lede").textContent = P.intro;
-$("#now").innerHTML = `Now: <b>${esc(P.now)}</b>`;
 // the email link opens a small window with the address and a copy button, instead of a mail app
 const linkItems = P.links.map((l) => l.url.startsWith("mailto:")
   ? `<li class="email-li"><button class="email-btn" type="button" aria-expanded="false">${esc(l.label)}</button></li>`
