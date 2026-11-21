@@ -253,6 +253,12 @@ details li { margin: 4px 0; text-align: justify; }
 /* footer */
 .foot { margin-top: 24px; border-top: 1px solid var(--line); }
 .ascii-sky { height: 320px; }
+.ascii-sky { cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.ascii-sky.dragging { cursor: grabbing; }
+/* a quiet line at the foot of the scene; it fades once the reader has tried it */
+.sky-hint { position: absolute; left: 28px; top: 12px; margin: 0; color: var(--muted); font: 11px var(--mono); opacity: .75; pointer-events: none; transition: opacity .6s; }
+.sky-hint.used { opacity: 0; }
+@media (max-width: 640px) { .sky-hint { left: 16px; top: 10px; } }
 @media (max-width: 640px) { .ascii-sky { height: 260px; } }
 .foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; padding: 18px 28px 32px; font-size: 14px; }
 .foot-copy { white-space: nowrap; }

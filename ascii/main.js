@@ -956,11 +956,11 @@ ARTS.fashion = (g, t) => {
   g.put(x0, g.r - 2, "accuracy  CNN 92.3%   LightGBM 89.3%", 0);
   g.put(x0, g.r - 1, "training  CNN 1176 s  LightGBM  446 s", 0);
 };
-// footer: a walk at night. The view moves right at walking pace through six places: a campfire in the pines, an alpine
-// lake in Colorado with golden aspens and an aurora, a Texas ranch (where a saucer takes the cow as she comes into view),
-// Aggieland with Kyle Field behind it, a lighthouse on the coast, and Taipei with 101 seen from a trail on the hill, then the pines
-// again. Far layers move slower than near ones. The walk starts at the campfire the first time the footer comes into
-// view, and only goes on while it is on screen.
+// footer: a walk at night through six places: a campfire in the pines, the Maroon Bells in Colorado, the Texas Hill
+// Country (where a saucer takes the cow while you watch), Big Bend, Aggieland, Taiwan's north coast at Fugui Cape, and
+// Taipei seen from Elephant Mountain, then the pines again. Far layers move slower than near ones. The walk is paced like
+// a train, staying a while at each stop and moving quickly between them; it starts at a stop picked at random and only
+// goes on while it is on screen. Holding it speeds it up, and dragging it sideways moves along the way.
 const COW_PX = [ // a holstein facing left, one cell per entry (cells are tall, so she is drawn twice as wide): W white hide, B black patch, H head, m muzzle, e eye, L leg, u udder, T tail, n horn
   "..nn.n..............",
   ".HHHHH.WWBBBWWWWBBW.",
@@ -980,18 +980,44 @@ const SC = {
 };
 const N_SC = SC.farH.length;
 const LAYER_FS = [1, .03, .5, .55, .6, .65, .7, .75, .8, 1.35]; // the speeds of the layers, near to far and the foreground
+// The walk is paced like a train: it stays a few seconds at each stop, drifting slowly so the layers still part, then
+// moves on quickly to the next. Each stop: [scene, column in that scene at the centre of the view, seconds to stay].
+const STOPS = [[0, 160, 5.5], [1, 150, 5.5], [2, 150, 8], [3, 190, 6], [4, 70, 5], [4, 300, 5.5], [4, 560, 5], [4, 770, 5], [4, 960, 5], [5, 120, 5.5], [6, 120, 6]];
+const DRIFT = 2.5; // columns a second while staying
+const JOURNEY = (() => {
+  const legs = STOPS.map(([sc, off, d]) => ({ x: WALK.start[sc] + off, d }));
+  let tt = 0;
+  legs.forEach((l, i) => {
+    const n = legs[(i + 1) % legs.length], nx = n.x + (i + 1 === legs.length ? WALK.period : 0);
+    l.t0 = tt; l.a = l.x + DRIFT * l.d / 2; l.b = nx - DRIFT * n.d / 2; l.tr = 1.1 + Math.abs(l.b - l.a) / 420; tt += l.d + l.tr;
+  });
+  return { legs, dur: tt };
+})();
+// where the centre of the view is at journey time tau, which stop it is at or leaving, and how far along
+const journey = (tau) => {
+  const L = JOURNEY.dur, k = Math.floor(tau / L), u = tau - k * L, legs = JOURNEY.legs;
+  let i = legs.length - 1; while (i > 0 && legs[i].t0 > u) i--;
+  const l = legs[i], dt = u - l.t0, base = k * WALK.period;
+  if (dt < l.d) return { c: base + l.x - DRIFT * l.d / 2 + DRIFT * dt, stop: i, dwell: true, p: dt / l.d };
+  const e = ease(Math.min(1, (dt - l.d) / l.tr)); return { c: base + l.a + (l.b - l.a) * e, stop: i, dwell: false, p: e };
+};
+const journeyAt = (c, near) => { let lo = near - JOURNEY.dur, hi = near + JOURNEY.dur; for (let k = 0; k < 48; k++) { const m = (lo + hi) / 2; if (journey(m).c < c) lo = m; else hi = m; } return hi; }; // the time the view is centred on column c
+// the journey's clock is kept outside the figure's state so a resize does not restart it; rate goes up while held
+const SKY = { tau: null, last: null, rate: 1 };
 const sceneAt = (wx) => { // the two scenes that meet at near-layer column wx, and how far the fade between them has gone
   const P = WALK.period, u = ((wx % P) + P) % P;
   let i = N_SC - 1; while (WALK.start[i] > u) i--;
   const f = u - WALK.start[i], L = WALK.lens[i];
   return [i, (i + 1) % N_SC, f > L - WALK.blend ? ease((f - L + WALK.blend) / WALK.blend) : 0];
 };
-ARTS.skyline = (g, t, st) => {
+ARTS.skyline = (g, t, st, p) => {
   const C = g.c, R = g.r, gy = R - 6, wT = gy - 9; // gy: the row the path is on; wT: the water line of the lake and the sea
-  // the walk: time only counts while this is drawn, so it starts at the campfire and resumes where it was left
-  if (st.last != null) st.walk += Math.min(.2, Math.max(0, t - st.last)); else st.walk = 0;
-  st.last = t;
-  const speed = C < 200 ? 4.5 : 7, wX = Math.round(C * .3) /* where the saucer times its visit from */, camC = 170 - C * .62 + st.walk * speed, cam = Math.floor(camC); // camC: where the walk is; cam: the whole column the near layer is on
+  // the walk: time only counts while this is drawn, starts at a stop picked at random, and resumes where it was left
+  if (SKY.tau == null) SKY.tau = JOURNEY.legs[Math.floor(Math.random() * JOURNEY.legs.length)].t0;
+  else if (SKY.last != null) SKY.tau += Math.min(.2, Math.max(0, t - SKY.last)) * SKY.rate;
+  SKY.last = t;
+  if (p && !p.el.dataset.walkBound) bindWalk(p);
+  const J = journey(SKY.tau), camC = J.c - C / 2, cam = Math.floor(camC); // camC: where the view is; cam: the whole column the near layer is on
   st.sig = LAYER_FS.map((f) => Math.floor(camC * f)).join();
   if (!st.s0 || st.s0.length !== C) { st.s0 = new Uint8Array(C); st.s1 = new Uint8Array(C); st.k = new Float32Array(C); st.top = new Float32Array(C); st.h = new Float32Array(C + 2); }
   const S0 = st.s0, S1 = st.s1, K = st.k, TOP = st.top;
@@ -1341,7 +1367,8 @@ ARTS.skyline = (g, t, st) => {
       }
       cactus(at(70)); cactus(at(236)); cactus(at(250));
       // the cow, and the saucer that comes for her, timed by where she is on screen
-      const cx = at(150), q = (cx - wX) / Math.max(40, C - wX);
+      const ranch = JOURNEY.legs[2], cMod = ((J.c % WALK.period) + WALK.period) % WALK.period;
+      const cx = at(150), q = J.stop === 2 && J.dwell ? .95 - J.p * .85 : cMod < ranch.x ? 1 : 0; // before the stop she grazes; during it the saucer comes; after it she is gone
       let ux = null, uy = 2, beam = 0, cowY = gy - 1, cowOn = q > .38, flip = false;
       if (q < .92 && q >= .7) { const u = ease((.92 - q) / .22); ux = cx + 50 * (1 - u); uy = -2 + 4 * u; }
       else if (q < .7 && q >= .64) { ux = cx; beam = (.7 - q) / .06; }
@@ -1605,10 +1632,32 @@ ARTS.skyline = (g, t, st) => {
 // whether any layer has reached a new whole column since the last frame: the loop redraws the footer right then, so each
 // layer steps at its own steady rate instead of waiting for the next of the 24 frames a second
 ARTS.skyline.steps = (g, t, st) => {
-  if (st.walk == null || st.last == null) return true;
-  const C = g.c, camC = 170 - C * .62 + (st.walk + Math.min(.2, Math.max(0, t - st.last))) * (C < 200 ? 4.5 : 7);
+  if (SKY.tau == null || SKY.last == null) return true;
+  const camC = journey(SKY.tau + Math.min(.2, Math.max(0, t - SKY.last)) * SKY.rate).c - g.c / 2;
   return LAYER_FS.map((f) => Math.floor(camC * f)).join() !== st.sig;
 };
+// hold to speed up; drag (or swipe) sideways to move along the way, forward or back
+function bindWalk(p) {
+  const el = p.el, hint = document.querySelector(".sky-hint");
+  el.dataset.walkBound = "1";
+  let down = null, timer = 0;
+  const used = () => { if (hint) hint.classList.add("used"); };
+  el.addEventListener("pointerdown", (e) => {
+    down = { x: e.clientX, tau: SKY.tau, moved: false };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    clearTimeout(timer); timer = setTimeout(() => { if (down && !down.moved) { SKY.rate = 7; el.classList.add("fast"); used(); } }, 160);
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!down) return;
+    const dx = e.clientX - down.x;
+    if (!down.moved && Math.abs(dx) < 6) return;
+    if (!down.moved) { down.moved = true; SKY.rate = 0; el.classList.remove("fast"); el.classList.add("dragging"); used(); }
+    const cellW = parseFloat(getComputedStyle(el).fontSize) * CHAR_W;
+    SKY.tau = journeyAt(journey(down.tau).c - dx / cellW, down.tau); p.dirty = true;
+  });
+  const up = () => { clearTimeout(timer); down = null; SKY.rate = 1; el.classList.remove("fast", "dragging"); };
+  el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("lostpointercapture", up);
+}
 
 function blit(dst, src, dx, dy) { // copy src into dst shifted by (dx, dy) cells
   dx = Math.round(dx); dy = Math.round(dy);
