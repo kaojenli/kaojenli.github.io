@@ -969,13 +969,13 @@ const COW_PX = [ // a holstein facing left, one cell per entry (cells are tall, 
   ".....LL........LL...",
 ];
 const COW_TONE = { W: .95, B: .3, H: .82, m: .62, n: .62, L: .8, T: .55 };
-const WALK = { lens: [260, 260, 260, 520, 260, 260], blend: 70 }; // how many columns of the near layer each scene takes; each fades into the next over its last `blend`
+const WALK = { lens: [260, 260, 260, 300, 860, 260, 300], blend: 70 }; // how many columns of the near layer each scene takes; each fades into the next over its last `blend`
 WALK.start = WALK.lens.map((_, i) => WALK.lens.slice(0, i).reduce((a, b) => a + b, 0)); WALK.period = WALK.lens.reduce((a, b) => a + b, 0);
-// per scene: forest, Colorado, Texas ranch, Aggieland, coast, Taipei
+// per scene: forest, Colorado, Texas ranch, Big Bend, Aggieland, coast, Taipei
 const SC = {
-  farH: [4, 6, 2, 2, 2, 4], farAmp: [6, 12, 2, 2, 3, 7], sharp: [.25, 1, 0, 0, 0, .3], snow: [0, 1, 0, 0, 0, 0],
-  water: [0, 1, 0, 0, 1, 0], pine: [.6, .5, 0, 0, .15, 0], pineH: [1, .6, .6, .6, .7, 0], oak: [0, 0, .12, .3, 0, 0],
-  city: [0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0], milky: [1, .8, 1, .6, .8, .3], glow: [0, 0, .1, .4, .15, 1], sand: [0, 0, 1, 0, 0, 0], kyle: [0, 0, 0, 1, 0, 0],
+  farH: [4, 6, 2, 9, 2, 2, 4], farAmp: [6, 12, 2, 15, 2, 3, 7], sharp: [.25, 1, 0, 0, 0, 0, .3], snow: [0, 1, 0, 0, 0, 0, 0],
+  water: [0, 1, 0, 0, 0, 1, 0], pine: [.6, .5, 0, 0, 0, .15, 0], pineH: [1, .6, .6, 0, .6, .7, 0], oak: [0, 0, .12, 0, .3, 0, 0],
+  city: [0, 0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0, 0], milky: [1, .8, 1, 1.25, .6, .8, .3], glow: [0, 0, .1, 0, .4, .15, 1], sand: [0, 0, 1, 1, 0, 0, 0], kyle: [0, 0, 0, 0, 1, 0, 0], road: [0, 0, 0, 0, 1, 0, 1], mesa: [0, 0, 0, 1, 0, 0, 0],
 };
 const N_SC = SC.farH.length;
 const sceneAt = (wx) => { // the two scenes that meet at near-layer column wx, and how far the fade between them has gone
@@ -1040,14 +1040,25 @@ ARTS.skyline = (g, t, st) => {
   const farX = cam * .15, H = st.h;
   for (let x = -1; x <= C; x++) {
     const X = x + farX, n = fbm(X * .035, 3.1), r = 1 - Math.abs(2 * fbm(X * .028, 7.7) - 1);
-    H[x + 1] = M("farH", x) + M("farAmp", x) * lerp(n, r * r * 1.15, M("sharp", x));
+    let hh = M("farH", x) + M("farAmp", x) * lerp(n, r * r * 1.15, M("sharp", x));
+    const ms = M("mesa", x); if (ms > 0) { // mesas: flat caprock tops on sheer cliffs, with talus slopes spreading below them
+      const plat = (Xq) => M("farH", x) + M("farAmp", x) * (Math.floor((.1 + vnoise(Xq * .022, 5.5) * 1.05) * 5) / 5 + .05 * vnoise(Xq * .2, 1));
+      let mh = plat(X); for (let d = -9; d <= 9; d += 3) mh = Math.max(mh, plat(X + d) - 3 - Math.abs(d) * .55);
+      hh = lerp(hh, mh, ms); st.cap = st.cap || new Float32Array(C + 2); st.cap[x + 1] = plat(X); }
+    H[x + 1] = Math.min(gy - 6, hh);
   }
   for (let x = 0; x < C; x++) {
     const h = H[x + 1], base = lerp(gy - 1, wT, M("water", x)), top = base - h, slope = H[x + 2] - H[x], snow = M("snow", x) > .5 && h > M("farH", x) + M("farAmp", x) * .5;
     TOP[x] = top;
     for (let y = Math.max(0, Math.ceil(top)); y <= base; y++) {
       const tex = vnoise((x + farX) * .25, y * .35);
-      if (snow && y - top < 1.5 + 2 * tex) g.set(x, y, slope > 0 ? .88 : .66, 5);
+      if (M("mesa", x) > .5) { // caprock, then a cliff face banded with strata, then the talus slope
+        const onCap = h <= st.cap[x + 1] + .3, d = y - top;
+        if (onCap && d < 1) g.set(x, y, .7, 3);
+        else if (onCap && d < 5) g.set(x, y, (d % 2 ? .42 : .55) + .08 * tex - (slope > 0 ? 0 : .06), d % 2 ? 0 : 3);
+        else g.set(x, y, .26 + .12 * tex + (hash2(x + Math.floor(farX), y) > .9 ? .12 : 0) + (d < 2 ? .1 : 0), d < 2 ? 3 : 0);
+      }
+      else if (snow && y - top < 1.5 + 2 * tex) g.set(x, y, slope > 0 ? .88 : .66, 5);
       else g.set(x, y, .4 + .08 * tex + (slope > .15 ? .08 : 0) + (y - top < 1 ? .12 : 0));
     }
   }
@@ -1075,6 +1086,7 @@ ARTS.skyline = (g, t, st) => {
       for (let y = Math.ceil(cy + rr * .6); y < gy; y++) g.set(cx, y, .6);
     }
   }
+  const LIFT = 12; // in Taipei the city stands on a higher line, so the night market in front of it leaves 101 in full view
   { // the city: a far row of towers, a near row with lit windows, the needle, and an elevated highway with traffic
     const win = (x, y, k, lit) => { const on = hash2(x * 1.3 + k, y + Math.floor(t / 7 + hash(k) * 9)) < lit; if (on) g.put(x, y, "▪", hash2(x, y * 3.1) > .82 ? 2 : 1); };
     for (const [f, v0, maxH, lit] of [[.22, .2, .6, .12], [.4, .32, .46, .3]]) {
@@ -1083,12 +1095,12 @@ ARTS.skyline = (g, t, st) => {
       for (; k * 8 - bX < C + 20; k++) {
         const x0 = Math.round(k * 8 - bX), w = 5 + Math.floor(hash(k * 3.7 + f) * 7), mid = x0 + (w >> 1);
         const c = M("city", mid); if (c < .05) continue;
-        const hgt = Math.round((4 + hash(k * 1.9 + f) * (gy * maxH - 4)) * c), top = gy - 1 - hgt, crown = hash(k * 8.3 + f);
-        for (let x = x0; x < x0 + w; x++) for (let y = top; y < gy; y++) {
+        const base = gy - 1 - Math.round(LIFT * c), hgt = Math.min(base - 4, Math.round((4 + hash(k * 1.9 + f) * (gy * maxH - 4)) * c)), top = base - hgt, crown = hash(k * 8.3 + f);
+        for (let x = x0; x < x0 + w; x++) for (let y = top; y <= base; y++) {
           if (x < 0 || x >= C) continue;
           const edge = x === x0 || x === x0 + w - 1;
           g.set(x, y, v0 + (edge ? .08 : 0) + (y === top ? .14 : 0));
-          if (!edge && (x - x0) % 2 === 1 && (y - top) % 2 === 1 && y < gy - 1) win(x, y, k, lit);
+          if (!edge && (x - x0) % 2 === 1 && (y - top) % 2 === 1 && y < base) win(x, y, k, lit);
         }
         if (crown > .7) for (let d = 1; d <= 3; d++) for (let x = x0 + d; x < x0 + w - d; x++) g.set(x, top - d, v0 + .1); // a pointed crown
         else if (crown > .55) { g.put(mid, top - 1, "|", 0); g.put(mid, top - 2, "|", 0); if (Math.floor(t * 1.5 + k) % 3 === 0) g.put(mid, top - 3, "•", 2); } // a mast with a red light
@@ -1096,12 +1108,12 @@ ARTS.skyline = (g, t, st) => {
     }
     // Taipei 101: a podium that narrows as it rises, eight stacked sections that each flare outward, a crown and a spire
     { // centred on screen when Taipei is, and moving at the speed of its layer
-      const P = WALK.period, mid = WALK.start[5] + 120, rep = Math.round((cam + C / 2 - mid) / P);
+      const P = WALK.period, mid = WALK.start[6] + 120, rep = Math.round((cam + C / 2 - mid) / P);
       const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .4);
       if (cx > -8 && cx < C + 8 && M("city", cx) > .4) {
-        const H = Math.round(gy * .95), spire = 5, crown = 3, podium = Math.max(3, Math.round(H * .18)), seg = Math.max(2, Math.floor((H - spire - crown - podium) / 8));
+        const base = gy - 1 - LIFT, H = base - 3, spire = 5, crown = 3, podium = Math.max(3, Math.round(H * .18)), seg = Math.max(2, Math.floor((H - spire - crown - podium) / 8));
         const row = (y, half, edge) => { for (let dx = -half; dx <= half; dx++) g.set(cx + dx, y, (dx < 0 ? .62 : .42) + (Math.abs(dx) === half ? (edge ? .3 : .08) : 0)); };
-        let y = gy - 1;
+        let y = base;
         for (let k = 0; k < podium; k++, y--) { row(y, 5 - Math.round(k * 2 / podium), 0); if (k % 2) win(cx + 2, y, 200 + k, .6); }
         for (let sct = 0; sct < 8; sct++) for (let k = 0; k < seg; k++, y--) {
           const top = k === seg - 1; row(y, 3 + (top ? 1 : 0), top);
@@ -1113,12 +1125,12 @@ ARTS.skyline = (g, t, st) => {
       }
     }
     // the highway: a deck on pillars across the city, amber lamps, and cars both ways (headlights one way, tail lights the other)
-    const hy = gy - 12;
+    const hy = gy - LIFT - 2;
     for (let x = 0; x < C; x++) {
       const c = M("city", x); if (c < .5) continue;
       const X = Math.round(x + cam * .55);
       g.set(x, hy, .62); g.set(x, hy + 1, .3);
-      if (X % 16 === 0) for (let y = hy + 2; y < gy; y++) g.set(x, y, .4);
+      if (X % 16 === 0) for (let y = hy + 2; y <= gy - LIFT; y++) g.set(x, y, .4);
       if (X % 22 === 0) { g.put(x, hy - 1, "|", 0); g.put(x, hy - 2, "°", 1); glowAt(x - 1, hy - 1, .2); glowAt(x + 1, hy - 1, .2); }
     }
     for (let k = 0; k < 14; k++) { // cars: some drive right with white headlights, others left with red tail lights
@@ -1131,7 +1143,7 @@ ARTS.skyline = (g, t, st) => {
 
   const litWinK = (x, y, k, lit) => { if (hash2(x * 1.3 + k, y + Math.floor(t / 7 + hash(k) * 9)) < lit) g.put(x, y, "▪", 1); };
   { // Kyle Field, behind Aggieland: tall stands with maroon deck bands, light banks on top, a glow over the field
-    const P = WALK.period, mid = WALK.start[3] + 120, rep = Math.round((cam + C / 2 - mid) / P);
+    const P = WALK.period, mid = WALK.start[4] + 120, rep = Math.round((cam + C / 2 - mid) / P);
     const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .4), half = 34, Hs = Math.round(gy * .5);
     if (cx > -half - 8 && cx < C + half + 8 && M("kyle", cx) > .4) {
       for (let dx = -half; dx <= half; dx++) {
@@ -1152,7 +1164,7 @@ ARTS.skyline = (g, t, st) => {
   const sea = cam * .7;
   for (let x = 0; x < C; x++) {
     const w = M("water", x); if (w < .02) continue;
-    const top = Math.round(lerp(gy, wT, ease(Math.min(1, w * 1.4)))), X = x + sea, rough = S0[x] === 4 || S1[x] === 4 && K[x] > .5;
+    const top = Math.round(lerp(gy, wT, ease(Math.min(1, w * 1.4)))), X = x + sea, rough = S0[x] === 5 || S1[x] === 5 && K[x] > .5;
     for (let y = top + 1; y < gy; y++) {
       const ripple = Math.sin(y * 2.1 + X * .35 + t * (rough ? 2.2 : 1.1)), ym = 2 * wT - y + 1, xs = Math.round(x + ripple * (rough ? 1.2 : .6));
       let v = .13 + .05 * ripple;
@@ -1166,6 +1178,11 @@ ARTS.skyline = (g, t, st) => {
   /* the ground: a path, and earth (or sand, on the ranch) below it, denser toward the front */
   for (let x = 0; x < C; x++) {
     const X = x + cam, sand = M("sand", x), c = M("city", x);
+    if (M("road", x) > .5) { // a sidewalk, two lanes of asphalt with a dashed line between them
+      for (let y = gy; y < R; y++) g.set(x, y, y === gy ? .5 + .05 * vnoise(X * .5, 0) : y === gy + 1 ? .3 : .1 + .04 * hash2(Math.floor(X), y));
+      if (gy + 3 < R && ((Math.floor(X) % 8) + 8) % 8 < 4) g.put(x, gy + 3, "─", 1);
+      continue;
+    }
     for (let y = gy; y < R; y++) {
       const dpt = (y - gy) / (R - gy), n = vnoise(X * .5, y * .9);
       if (sand > .5) { const dune = Math.sin(X * .05 + y * .8 + 1.5 * vnoise(X * .03, 1)) * .5 + .5; g.set(x, y, y === gy ? .46 : .28 + .25 * dpt + .2 * dune, dune > .62 ? 3 : 0); }
@@ -1276,7 +1293,30 @@ ARTS.skyline = (g, t, st) => {
       if (ux !== null) { const X = Math.round(ux), Y = Math.round(uy); for (let dx = -1; dx <= 1; dx++) g.set(X + dx, Y - 1, .7); for (let dx = -5; dx <= 5; dx++) g.set(X + dx, Y, Math.abs(dx) === 5 ? .5 : .95); for (let dx = -3; dx <= 3; dx += 2) g.put(X + dx, Y + 1, "▪", (Math.floor(t * 6) + dx) % 4 === 0 ? 2 : 1); }
       for (let f = 6; f < 214; f++) { const x = at(f); if (x < 0 || x >= C) continue; if (f % 6 === 0) { g.put(x, gy - 3, "┬", 3); g.put(x, gy - 2, "│", 3); g.put(x, gy - 1, "│", 3); } else { g.put(x, gy - 3, "─", 3); g.put(x, gy - 2, "─", 3); } }
     }
-    if (s === 3) { // Aggieland: the water tower that says so, Rudder Tower, the administration building and its columns, lamps
+    if (s === 3) { // Big Bend: the Rio Grande winding past, prickly pear and ocotillo, Balanced Rock under the darkest sky
+      for (let ff = 0; ff < 230; ff++) { // the river, sliding in and out along the near bank
+        const x = at(ff); if (x < 0 || x >= C) continue;
+        const wv = Math.sin(ff * .035) * 1.5, y0 = Math.round(gy - 4 + wv), wdt = 2 + (Math.sin(ff * .07) > 0 ? 1 : 0);
+        for (let y = y0; y < y0 + wdt && y < gy; y++) { g.set(x, y, .3 + .06 * Math.sin(ff * .5 + t * 1.5 + y)); if (hash2(Math.floor(ff + t * 1.2), y) > .72) { g.put(x, y, "~", 0); g.tone[y * C + x] = 2; } }
+        if (hash(ff * 1.3) > .7) g.put(x, y0 - 1, hash(ff) > .5 ? "," : "ⁱ", 0);
+      }
+      { // Balanced Rock: two standing boulders, a cap stone, and the big one resting across them
+        const bx = at(150), stone = (cx, cy, rx, ry, k) => { for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) { const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2; if (d <= 1) g.set(x, y, (x < cx ? .8 : .56) + .1 * vnoise(x * .4 + k, y * .6) - (y > cy + ry * .5 ? .14 : 0) - (d > .75 ? .14 : 0), 3); } };
+        stone(bx - 7, gy - 5.5, 3, 5, 1); stone(bx - 8, gy - 11.6, 2.2, 1.3, 2); stone(bx + 8, gy - 4.2, 3.2, 3.6, 3);
+        stone(bx + 2, gy - 11.2, 9, 2.6, 4); stone(bx + 17, gy - 2, 6, 2.5, 5); stone(bx - 16, gy - 2, 5, 2, 6); stone(bx + 1, gy - 1, 2.5, 1, 7);
+      }
+      const pear = (px, k) => { // a prickly pear: oval pads stacked on each other, spines, a few red fruit
+        const pads = [[0, -2], [-4, -4], [4, -4], [-1, -6], [6, -7], [-6, -7]].slice(0, 3 + Math.floor(hash(k) * 4));
+        for (const [dx, dy] of pads) { const cx = px + dx, cy = gy - 1 + dy; for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 2; x <= cx + 2; x++) if (((x - cx) / 2.4) ** 2 + ((y - cy) / 1.4) ** 2 <= 1) { if (hash2(x, y + k) > .78) g.put(x, y, "·", 3); else g.set(x, y, .55 + .2 * hash2(x, y) - (x > cx ? .1 : 0)); } if (hash2(dx, k) > .6) g.put(cx + 1, cy - 2, "●", 2); }
+      };
+      const ocotillo = (ox, k) => { // thin whip-like stems fanning out, red flowers at the tips
+        for (let st = -3; st <= 3; st++) { const lean = st * .45, hgt = 7 + Math.round(hash(k + st) * 4); for (let d = 0; d < hgt; d++) { const x = Math.round(ox + lean * d * .6 + Math.sin(t * .8 + st + d * .3) * .3 * d / hgt); g.put(x, gy - 1 - d, Math.abs(lean) < .2 ? "|" : lean > 0 ? "/" : "\\", 0); } g.put(Math.round(ox + lean * hgt * .6), gy - 1 - hgt, "•", 2); }
+      };
+      pear(at(42), 1); pear(at(96), 2); pear(at(205), 3); pear(at(238), 4);
+      ocotillo(at(70), 5); ocotillo(at(122), 6); ocotillo(at(186), 7);
+      for (let ff = 0; ff < 250; ff += 7) if (hash(ff * 3.3) > .5) { const x = at(ff + hash(ff) * 5); g.set(x, gy - 1, .35); g.set(x + 1, gy - 1, .3); g.put(x + 2, gy - 1, "ⁱ", 0); } // creosote and scrub
+    }
+    if (s === 4) { // Aggieland: the water tower that says so, Rudder Tower, the administration building and its columns, lamps
       const tx = at(52), tw = 6, th = Math.min(gy - 5, 14), tb = gy - 1;
       for (let d = 0; d < th; d++) for (let dx = -tw; dx <= tw; dx++) g.set(tx + dx, tb - d, (dx < -2 ? .93 : dx < 3 ? .82 : .62) - (Math.abs(dx) === tw ? .14 : 0));
       for (let d = 0; d < 3; d++) { const half = tw - 1 - d * 2; for (let dx = -half; dx <= half; dx++) g.set(tx + dx, tb - th - d, .86 - d * .06); }
@@ -1292,14 +1332,27 @@ ARTS.skyline = (g, t, st) => {
       for (let x = ax + 5; x < ax + aw - 5; x++) g.set(x, gy - 1, .68);
       for (const wx0 of [ax + 2, ax + aw - 6]) for (let y = gy - 6; y < gy - 1; y += 2) for (let x = wx0; x < wx0 + 4; x += 2) litWin(x, y, 90 + x - wx0, .5);
       for (let d = 0; d < 3; d++) { const half = 5 - d * 2; for (let dx = -half; dx <= half; dx++) g.set(ax + aw / 2 + dx, gy - ah - 3 - d, .55 - d * .05); }
-      for (const f of [20, 82, 136, 198, 300, 352, 400, 462]) lamp(at(f));
+      for (const f of [20, 82, 136]) lamp(at(f));
+      const car = (x, y, dir, lit, k) => { // two rows: the cabin, then the body with its lights at the ends
+        const tone = .5 + .3 * hash(k * 3.3), acc = [0, 0, 2, 5, 3][Math.floor(hash(k * 7.1) * 5)];
+        for (let dx = 2; dx <= 4; dx++) g.set(x + dx, y - 1, dx === (dir > 0 ? 4 : 2) ? .25 : tone - .1, acc);
+        for (let dx = 0; dx <= 6; dx++) g.set(x + dx, y, tone, acc);
+        if (lit) { g.text(x + (dir > 0 ? 6 : 0), y, "•", 2); g.put(x + (dir > 0 ? 0 : 6), y, "•", 2); if (dir > 0) glowAt(x + 7, y, .2), glowAt(x + 8, y, .14); else glowAt(x - 1, y, .2), glowAt(x - 2, y, .14); }
+      };
       // along the road: places to eat, each drawn after its building (names as plain text, no logos)
       const rect = (x0, y0, x1, y1, v, acc = 0) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g.set(x, y, typeof v === "function" ? v(x, y) : v, acc); };
       const glass = (x0, y0, x1, y1, step = 4) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { if ((x - x0) % step === step - 1) g.put(x, y, "│", 0); else { g.set(x, y, 0); glowAt(x, y, .24 + .1 * hash2(x, y)); } } };
       const person = (x, sway) => { g.set(x + sway, gy - 4, .9); for (let y = gy - 3; y < gy; y++) g.set(x, y, .5 + (y === gy - 3 ? .1 : 0)); };
       const mid = (x, l) => x - (l.length >> 1);
+      // utility poles along the street, wires sagging between them
+      const poles = []; for (let f = 6; f < 840; f += 40 + Math.floor(hash(f * .37) * 14)) poles.push(f);
+      poles.forEach((f, i) => {
+        const x = at(f); for (let y = gy - 17; y < gy; y++) g.put(x, y, "│", 0); g.put(x - 2, gy - 17, "─┼─", 0); g.put(x - 1, gy - 16, "▫", 0);
+        const nx = poles[i + 1]; if (nx === undefined) return;
+        for (let ff = f + 1; ff < nx; ff++) { const u = (ff - f) / (nx - f), sag = Math.round(Math.sin(u * Math.PI) * 2), xx = at(ff); for (const off of [-2, 2]) { const yy = gy - 17 + sag; if (xx + off * 0 >= 0 && xx < C && g.ch[yy * C + xx] === undefined && g.v[yy * C + xx] < .3) g.put(xx, yy + (off > 0 ? 1 : 0), "‾", 0); } }
+      });
       { // McDonald's: a stone front, a metal parapet with the name, a yellow awning over the windows, a pole sign by the road
-        const x0 = at(212), w = 30;
+        const x0 = at(214), w = 30;
         for (let y = gy - 22; y < gy; y++) g.put(x0, y, "│", 0);
         rect(x0 - 6, gy - 25, x0 + 6, gy - 23, (x, y) => (y === gy - 24 && Math.abs(x - x0) < 6 ? .08 : .6), 2);
         g.text(x0 - 5, gy - 24, "McDonald's", 2);
@@ -1313,7 +1366,7 @@ ARTS.skyline = (g, t, st) => {
         rect(b0, gy - 1, b0 + w, gy - 1, .38, 2);
       }
       { // Raising Cane's: a cream tower with the name, a red fin by the door, a brick dining room, a patio with umbrellas
-        const x0 = at(256);
+        const x0 = at(272);
         rect(x0, gy - 13, x0 + 13, gy - 1, (x) => (x < x0 + 7 ? .84 : .74)); rect(x0 - 1, gy - 14, x0 + 14, gy - 14, .4);
         g.put(x0 + 3, gy - 11, "Raising", 1); g.put(x0 + 3, gy - 10, "Cane's", 2); g.put(x0 + 3, gy - 9, "CHICKEN", 4);
         rect(x0, gy - 7, x0 + 9, gy - 7, .3); g.put(x0 + 2, gy - 8, "\\", 0); g.put(x0 + 8, gy - 8, "/", 0);
@@ -1326,7 +1379,7 @@ ARTS.skyline = (g, t, st) => {
         person(x0 + 39, Math.round(Math.sin(t) * .4));
       }
       { // Andy's Frozen Custard: a wide white butterfly canopy with red trim on white posts, a line under it, the kiosk behind
-        const x0 = at(306), w = 40, cm = x0 + w / 2;
+        const x0 = at(332), w = 40, cm = x0 + w / 2;
         rect(x0, gy - 10, x0 + 23, gy - 1, .05); // the shade under the canopy
         rect(x0 + 24, gy - 8, x0 + w - 3, gy - 1, .74); glass(x0 + 26, gy - 6, x0 + w - 5, gy - 2, 4);
         for (let dx = 0; dx <= w; dx++) {
@@ -1341,7 +1394,7 @@ ARTS.skyline = (g, t, st) => {
         for (let dx = 0; dx <= w; dx++) g.put(x0 + dx, gy - 2, dx % 6 ? "─" : "┬", 2);
       }
       { // Aroma: a strip-mall front, a standing-seam metal roof, the sign, glass with food posters along the bottom, an OPEN sign
-        const x0 = at(358), w = 34;
+        const x0 = at(404), w = 34;
         for (let d = 0; d < 3; d++) for (let x = x0 + d; x <= x0 + w - d; x++) { g.put(x, gy - 11 - d, (x - x0) % 2 ? "║" : "▌", 5); }
         rect(x0 - 1, gy - 10, x0 + w + 1, gy - 8, .14);
         g.text(mid(x0 + w / 2, "AROMA"), gy - 10, "AROMA", 2);
@@ -1356,7 +1409,7 @@ ARTS.skyline = (g, t, st) => {
         g.put(x0 + w - 8, gy - 4, "OPEN", Math.floor(t * 1.2) % 4 ? 2 : 1);
       }
       { // Whataburger: an A-frame in orange and white stripes, a glass entry at the foot, a tall sign by the road, a flag
-        const ax = at(430), H = 16;
+        const ax = at(500), H = 16;
         for (let d = 0; d < H; d++) {
           const y = gy - 1 - d, half = Math.round((H - d) * 1.05);
           for (let dx = -half; dx <= half; dx++) {
@@ -1367,14 +1420,75 @@ ARTS.skyline = (g, t, st) => {
         }
         rect(ax - 4, gy - 5, ax + 4, gy - 1, .1); glass(ax - 3, gy - 4, ax + 3, gy - 1, 3);
         rect(ax - 16, gy - 2, ax - 6, gy - 1, .5, 3); rect(ax + 6, gy - 2, ax + 16, gy - 1, .5, 3);
-        const px = ax + 24; for (let y = gy - 18; y < gy; y++) g.put(px, y, "║", 0);
+        const px = at(528); for (let y = gy - 18; y < gy; y++) g.put(px, y, "║", 0);
         rect(px - 7, gy - 22, px + 7, gy - 19, (x, y) => (y === gy - 22 || y === gy - 19 || Math.abs(x - px) === 7 ? .7 : .9), 1);
         g.text(px - 5, gy - 20, "WHATABURGER", 0); for (let k = 0; k < 11; k++) g.acc[(gy - 20) * C + px - 5 + k] = 2;
-        const fx = ax - 22; for (let y = gy - 16; y < gy; y++) g.put(fx, y, "│", 0);
+        const fx = at(478); for (let y = gy - 16; y < gy; y++) g.put(fx, y, "│", 0);
         for (let c = 1; c <= 7; c++) { const wv = Math.round(Math.sin(t * 3 - c * .7) * .5 * c / 7); for (let r = 0; r < 4; r++) { const y = gy - 16 + r + wv; if (c <= 3 && r < 2) g.set(fx + c, y, .55); else g.set(fx + c, y, r % 2 ? .92 : .6, r % 2 ? 0 : 2); } }
       }
+      { // the rest of the street: the strip mall's neighbours, parked cars, balloons at Andy's, a tree, a traffic light, poles and wires, traffic
+        for (const [u0, u1, name] of [[390, 403, "NAILS"], [439, 455, "LAUNDRY"]]) { // the strip mall's other units, under the same roof line
+          const x0 = at(u0), x1 = at(u1);
+          for (let d = 0; d < 3; d++) for (let x = x0; x <= x1; x++) g.put(x, gy - 11 - d, (x - x0) % 2 ? "║" : "▌", 5);
+          rect(x0, gy - 10, x1, gy - 8, .14); g.put(Math.round((x0 + x1) / 2) - (name.length >> 1), gy - 9, name, name === "NAILS" ? 2 : 0);
+          rect(x0, gy - 7, x1, gy - 7, .55);
+          for (let y = gy - 6; y < gy; y++) for (let x = x0; x <= x1; x++) { if ((x - x0) % 5 === 0) g.put(x, y, "│", 0); else if (name === "NAILS") { g.set(x, y, 0); glowAt(x, y, .2); } else g.set(x, y, .1 + .05 * hash2(x, y)); }
+          if (name === "LAUNDRY") for (let x = x0 + 2; x < x1 - 1; x += 3) g.put(x, gy - 3, "◙", 0); // washers in a row
+        }
+        [[252, 1], [261, 4], [459, 2], [468, 6]].forEach(([f, k]) => car(at(f), gy - 1, 1, false, k)); // parked
+        for (let k = 0; k < 6; k++) { const bx = at(334) + (k % 3) * 2, by = gy - 9 - (k >> 1) - Math.round(Math.sin(t * 1.5 + k) * .4); g.put(bx, by, "●", [1, 2, 0][k % 3]); g.put(at(336), gy - 6 + (k % 2), "│", 0); }
+        { const ox = at(381), cy = gy - 7; for (let y = cy - 3; y <= cy + 2; y++) for (let dx = -7; dx <= 7; dx++) if (Math.hypot(dx / 2.2, y - cy) < 3.2 + .6 * hash2(ox + dx, y)) g.set(ox + dx, y, .4 + .2 * hash2(ox + dx, y) + (dx < 0 ? .08 : 0)); for (let y = cy + 2; y < gy; y++) g.set(ox, y, .55); } // a live oak
+        { // a traffic light on a mast arm over the road, cycling
+          const tx = at(324), ph = (t % 12) / 12, lamp3 = ph < .45 ? 2 : ph < .55 ? 1 : 0;
+          for (let y = gy - 14; y < gy; y++) g.put(tx, y, "│", 0);
+          for (let dx = 1; dx <= 9; dx++) g.put(tx + dx, gy - 14, "─", 0);
+          rect(tx + 8, gy - 13, tx + 10, gy - 11, .2);
+          [[2, gy - 13], [1, gy - 12], [0, gy - 11]].forEach(([c, y]) => { if (c === lamp3) { g.put(tx + 9, y, "●", c === 0 ? 0 : c); if (c === 0) g.tone[y * C + tx + 9] = 2; } else g.put(tx + 9, y, "·", 0); });
+        }
+        { // H-E-B: a dark brick block under a big angled red roof, clerestory glass, an entry canopy, wood-clad wings, flowers and pumpkins out front
+          const x0 = at(560), b0 = x0 + 14, b1 = x0 + 43;
+          rect(x0, gy - 9, b0 - 1, gy - 1, (x, y) => (y < gy - 7 ? .8 : y < gy - 5 ? .55 : .3), 0); // the left wing: a pale band, wood, a shaded walk
+          for (let x = x0; x < b0; x++) { g.set(x, gy - 6, .55, 3); if ((x - x0) % 4 === 1) g.put(x, gy - 8, "▄", 0); }
+          rect(b1 + 1, gy - 12, b1 + 12, gy - 10, .85); rect(b1 + 1, gy - 9, b1 + 21, gy - 1, (x, y) => .5 + .12 * ((x + y) % 3 === 0), 3); // the right wing: a pale block over wood
+          rect(b1 + 1, gy - 7, b1 + 21, gy - 7, .25); glass(b1 + 3, gy - 6, b1 + 20, gy - 2, 4);
+          rect(b0, gy - 17, b1, gy - 1, (x, y) => (x === b0 || x === b1 || y === gy - 17 ? .5 : .34 + ((x + (y % 2) * 2) % 4 === 0 ? -.1 : .04))); // dark brick, its edges catching the light
+          glass(b0 - 6, gy - 20, b1 + 8, gy - 18, 5); // the clerestory band
+          for (let x = b0 - 12; x <= b1 + 14; x++) { const lift = Math.max(0, Math.round((x - b1) * .35)); g.set(x, gy - 21 - lift, .5, 4); g.set(x, gy - 22 - lift, .75, 2); g.set(x, gy - 23 - lift, .62, 2); g.set(x, gy - 24 - lift, .82, 2); if (x > b1) for (let y = gy - 20 - lift; y < gy - 20; y++) g.set(x, y, .45, 4); } // the red roof slab, its far end kicked up
+          const FONT = { H: ["X.X", "X.X", "XXX", "X.X", "X.X"], E: ["XXX", "X..", "XXX", "X..", "XXX"], B: ["XX.", "X.X", "XX.", "X.X", "XX."], "-": [".", ".", "X", ".", "."] };
+          let lx = b0 + 2; const ly = gy - 15;
+          for (const ch of "H-E-B") { const gl = FONT[ch]; for (let r = 0; r < 5; r++) for (let c = 0; c < gl[r].length; c++) if (gl[r][c] === "X") { g.set(lx + c * 2, ly + r, .85, 2); g.set(lx + c * 2 + 1, ly + r, .85, 2); } lx += gl[0].length * 2 + 1; }
+          rect(b0 + 3, gy - 7, b1 - 3, gy - 7, .3); glass(b0 + 5, gy - 6, b1 - 5, gy - 1, 3); for (let x = b0 + 5; x <= b1 - 5; x++) if ((x - b0) % 3) g.set(x, gy - 3, .6, 2); // entry canopy, doors with a red band
+          for (let x = b0 + 2; x <= b1 - 2; x += 4) g.put(x, gy - 1, "▮", 0); // bollards
+          for (let x = x0 + 1; x < b0 - 1; x++) { g.put(x, gy - 2, "*", [1, 2, 0][x % 3]); g.put(x, gy - 1, "▄", 3); } // flowers on racks
+          for (let x = b1 + 3; x < b1 + 20; x += 2) g.put(x, gy - 1, "●", hash2(x, 3) > .4 ? 1 : 0); // pumpkins
+        }
+        [[630, 3], [640, 5]].forEach(([f, k]) => car(at(f), gy - 1, 1, false, k));
+        { // Buc-ee's: a fuel canopy that goes on and on, then the store: cream stucco, a stepped cornice, stone piers, a glass front
+          const c0 = at(656), cw = 66;
+          for (let dx = 0; dx <= cw; dx++) { const x = c0 + dx, mid = Math.abs(dx - cw / 2) < 9; g.set(x, gy - 11, .34); g.set(x, gy - 10, .3); if (mid) { g.set(x, gy - 12, .34); g.set(x, gy - 13, .5); } g.set(x, gy - 9, .8); if (dx % 3 === 1) g.text(x, gy - 9, "▪", 2); }
+          rect(c0, gy - 8, c0 + cw, gy - 1, .03);
+          for (let dx = 0; dx <= cw; dx++) for (let y = gy - 8; y < gy; y++) glowAt(c0 + dx, y, .14 + .06 * hash2(c0 + dx, y));
+          for (let dx = 3; dx < cw; dx += 9) { rect(c0 + dx, gy - 8, c0 + dx + 1, gy - 1, (x, y) => .5 + .14 * hash2(x, y), 3); if (dx + 5 < cw) { rect(c0 + dx + 4, gy - 3, c0 + dx + 5, gy - 1, .7); g.put(c0 + dx + 4, gy - 3, "▫", 0); } }
+          [[663, 7], [681, 8], [699, 9]].forEach(([f, k]) => car(at(f), gy - 1, 1, false, k));
+          const s0 = at(730), sw = 46, BIG = { B: ["XX.", "X.X", "XX.", "X.X", "XX."], U: ["X.X", "X.X", "X.X", "X.X", "XXX"], C: ["XXX", "X..", "X..", "X..", "XXX"], E: ["XXX", "X..", "XXX", "X..", "XXX"], S: ["XXX", "X..", "XXX", "..X", "XXX"], "-": ["..", "..", "XX", "..", ".."], "'": ["X", "X", ".", ".", "."] };
+          rect(s0, gy - 13, s0 + sw, gy - 1, (x) => (x < s0 + sw * .55 ? .84 : .74)); // stucco
+          for (const [a0, a1, y] of [[s0 - 1, s0 + sw + 1, gy - 14], [s0 + 8, s0 + sw - 8, gy - 15], [s0 + 15, s0 + sw - 15, gy - 16]]) for (let x = a0; x <= a1; x++) { g.set(x, y, .6, 3); if (y < gy - 14) g.set(x, y + 1, .8); } // the cornice, stepping up in the middle
+          let lx = s0 + 6; for (const ch of "BUC-EE'S") { const gl = BIG[ch]; for (let r = 0; r < 5; r++) for (let c = 0; c < gl[r].length; c++) if (gl[r][c] === "X") g.set(lx + c, gy - 12 + r, .8, 2); lx += gl[0].length + 1; }
+          rect(s0, gy - 6, s0 + sw, gy - 6, .5); // the band over the storefront
+          for (const px of [s0, s0 + 14, s0 + 30, s0 + sw - 3]) rect(px, gy - 5, px + 3, gy - 1, (x, y) => .5 + .2 * hash2(x, y), 3); // stone piers
+          glass(s0 + 4, gy - 5, s0 + 13, gy - 1, 3); glass(s0 + 18, gy - 5, s0 + 29, gy - 1, 3); glass(s0 + 34, gy - 5, s0 + sw - 4, gy - 1, 4);
+          rect(s0 + sw + 1, gy - 11, s0 + sw + 14, gy - 1, (x, y) => .44 + .2 * hash2(Math.floor(x / 2), y), 3); // the stone wing
+          const px = at(800); for (let y = gy - 20; y < gy; y++) g.put(px, y, "║", 0); // a tall sign for the highway, the name in red
+          rect(px - 6, gy - 24, px + 6, gy - 21, (x, y) => (y === gy - 24 || y === gy - 21 || Math.abs(x - px) === 6 ? .7 : .9), 1);
+          g.put(px - 4, gy - 23, "BUC-EE'S", 2); g.put(px - 3, gy - 22, "FUEL", 0);
+        }
+        for (let k = 0; k < 10; k++) { // traffic: the near lane drives right with headlights, the far lane left with tail lights
+          const dir = k % 2 ? 1 : -1, sp = 10 + hash(k * 4.4) * 6, span = 880, f = ((hash(k * 9.7) * span + dir * t * sp) % span + span) % span - 20;
+          car(at(f), dir > 0 ? gy + 5 : gy + 2, dir, true, k + 20);
+        }
+      }
     }
-    if (s === 4) { // the coast: a lighthouse on the rocks, its beam sweeping, a sailboat out at sea
+    if (s === 5) { // the coast: a lighthouse on the rocks, its beam sweeping, a sailboat out at sea
       const lx = at(120), lh = Math.min(gy - 6, 20), lamp = gy - 3 - lh, a = Math.cos(t * 1.1), flash = Math.abs(a) < .18;
       const reach = Math.round(Math.abs(a) * 90), dir = a > 0 ? 1 : -1;
       for (let r = 3; r < reach; r++) { const spread = r * .12; for (let dy = -Math.floor(spread); dy <= spread; dy++) glowAt(lx + dir * r, lamp + dy, .5 * (1 - r / (reach + 1)) * (1 - Math.abs(dy) / (spread + 1))); }
@@ -1385,21 +1499,54 @@ ARTS.skyline = (g, t, st) => {
       g.put(lx - 1, lamp - 1, "▄█▄", 0);
       if (flash) for (const [ddx, ddy, ch] of [[-4, 0, "-"], [4, 0, "-"], [-3, -1, "\\"], [3, -1, "/"], [0, -2, "|"]]) g.put(lx + ddx, lamp + ddy, ch, 1);
       const sx = Math.round((X0 + 150) * .7 + C * .1 + 12 * Math.sin(t * .05)), sy = wT + 4; // the sailboat, out on the sea's layer
-      if (sx >= 0 && sx < C && (S0[sx] === 4 && K[sx] < .5 || S1[sx] === 4 && K[sx] > .5)) { g.put(sx, sy, "\\▄▄▄/", 0); g.put(sx + 2, sy - 1, "|", 0); g.put(sx + 2, sy - 2, "|\\", 0); g.put(sx + 2, sy - 3, "|", 0); }
+      if (sx >= 0 && sx < C && (S0[sx] === 5 && K[sx] < .5 || S1[sx] === 5 && K[sx] > .5)) { g.put(sx, sy, "\\▄▄▄/", 0); g.put(sx + 2, sy - 1, "|", 0); g.put(sx + 2, sy - 2, "|\\", 0); g.put(sx + 2, sy - 3, "|", 0); }
       for (const f of [40, 58, 170, 205]) { const rx = at(f); for (let dx = -3; dx <= 3; dx++) g.set(rx + dx, gy - 1, .55 + .2 * hash2(rx + dx, f), 5); for (let dx = -1; dx <= 2; dx++) g.set(rx + dx, gy - 2, .65, 5); }
     }
-    if (s === 5) { // Taipei: a night market street under 101, stalls with striped awnings, lanterns, steam, people at the counters
-      for (let k = 0; k < 9; k++) { // stalls
-        const sx = at(30 + k * 18), w = 14, food = hash(k * 4.3);
-        for (let dx = 0; dx < w; dx++) { g.set(sx + dx, gy - 7, (dx >> 1) % 2 ? .85 : .6, (dx >> 1) % 2 ? 0 : 2); g.put(sx + dx, gy - 6, "▀", 2); }
-        for (let y = gy - 5; y < gy - 2; y++) for (let dx = 1; dx < w - 1; dx++) glowAt(sx + dx, y, .18 + .1 * hash2(sx + dx, y));
-        for (let dx = 0; dx < w; dx++) for (let y = gy - 2; y < gy; y++) g.set(sx + dx, y, y === gy - 2 ? .62 : .42, 3);
-        g.put(sx, gy - 5, "│", 0); g.put(sx + w - 1, gy - 5, "│", 0);
-        for (let dx = 2; dx < w - 2; dx += 3) g.put(sx + dx, gy - 3, food > .5 ? "◒" : "▫", 1); // what is on the counter
-        for (let q = 0; q < 3; q++) { const ph = (t * .6 + q / 3 + food) % 1, y = Math.round(gy - 8 - ph * 4); g.put(sx + 4 + Math.round(Math.sin(t * 2 + q * 2 + k) * 1.2), y, ph < .5 ? "~" : "·", 0); } // steam
-        if (hash(k * 7.7) > .35) { const px = sx + 3 + Math.floor(hash(k * 2.2) * 8), sway = Math.round(Math.sin(t * 1.2 + k) * .4); g.set(px + sway, gy - 5, .9); for (let y = gy - 4; y < gy; y++) { g.set(px, y, .55); g.set(px + 1, y, .5); } } // somebody waiting for food
+    if (s === 6) { // Taipei: a night market below the city, so 101 stays in full view
+      const signGlyph = ["▪", "▫", "■", "□", "▬", "▮"];
+      let f = 6, k = 0;
+      while (f < 226) { // stalls of different widths, heights and trades
+        const w = 10 + Math.floor(hash(k * 3.1) * 8), h = 6 + (hash(k * 7.9) > .5 ? 1 : 0), kind = Math.floor(hash(k * 5.3) * 6), style = Math.floor(hash(k * 2.6) * 3);
+        const sx = at(f), ay = gy - h - 1;
+        if (sx > -w - 2 && sx < C + 2) {
+          for (let dx = 0; dx < w; dx++) { // the awning: red and white stripes, a tan canvas, or a blue tarp, with a scalloped edge
+            const stripe = (dx >> 1) % 2;
+            if (style === 0) g.set(sx + dx, ay, stripe ? .88 : .62, stripe ? 0 : 2); else if (style === 1) g.set(sx + dx, ay, .62, 3); else g.set(sx + dx, ay, .5);
+            if (dx % 2 === 0) g.put(sx + dx, ay + 1, "▀", style === 1 ? 3 : style === 0 ? 2 : 0);
+          }
+          const sw = w - 2, acc = k % 2 ? 1 : 2; // a lit signboard; its blocks stand in for the hanzi on a real one
+          for (let dx = 0; dx < sw; dx++) { g.set(sx + 1 + dx, ay - 2, .12); g.put(sx + 1 + dx, ay - 1, signGlyph[Math.floor(hash2(k, dx) * 6)], (Math.floor(t * 4) + dx) % sw === 0 ? 0 : acc); }
+          for (let y = ay + 1; y < gy; y++) { g.put(sx, y, "│", 0); g.put(sx + w - 1, y, "│", 0); }
+          for (let y = ay + 2; y < gy - 2; y++) for (let dx = 1; dx < w - 1; dx++) glowAt(sx + dx, y, .16 + .1 * hash2(sx + dx, y));
+          for (let dx = 1; dx < w - 1; dx += 3) g.put(sx + dx, ay + 1, "•", 1); // bulbs under the awning
+          for (let dx = 0; dx < w; dx++) { g.set(sx + dx, gy - 2, .62, 3); g.set(sx + dx, gy - 1, .4, 3); } // the counter
+          g.set(sx + 3, gy - 5, .9); g.set(sx + 3, gy - 4, .55); g.set(sx + 3, gy - 3, .5); g.put(sx + 2, gy - 5, "▄", 0); // the vendor, in a cap
+          const c0 = sx + 5, c1 = sx + w - 2;
+          if (kind === 0) { for (let x = c0; x < c1; x++) g.put(x, gy - 3, "¦", 3); for (let q = 0; q < 5; q++) { const ph = (t * .35 + q / 5 + hash(k)) % 1; g.put(c0 + 2 + Math.round(Math.sin(t + q * 1.7) * 2 + ph * 3), Math.round(ay - 2 - ph * 6), ph < .5 ? "▒" : "░", 5); } } // a grill and its smoke
+          else if (kind === 1) for (let x = c0; x < c1; x += 2) { g.put(x, gy - 3, "▯", 0); g.tone[(gy - 3) * C + x] = 2; if (hash2(x, k) > .5) g.put(x, gy - 4, "·", 3); } // bubble tea, with the pearls
+          else if (kind === 2) for (let x = c0; x < c1; x++) { g.put(x, gy - 3, "●", [1, 2, 3, 1][(x + k) % 4]); if ((x - c0) % 2 && x < c1 - 1) g.put(x, gy - 4, "●", [2, 1, 3][(x + k) % 3]); } // fruit, piled up
+          else if (kind === 3) for (let y = ay + 2; y < gy - 3; y++) for (let x = c0 - 1; x < c1; x += 2) g.put(x, y, hash2(x, y + Math.floor(t * .5)) > .12 ? "●" : "*", [1, 2, 0][(x + y) % 3]); // a wall of balloons to throw darts at
+          else if (kind === 4) { for (let x = c0; x < c1; x++) g.set(x, gy - 3, .7 + .2 * hash2(x, k), 1); for (let q = 0; q < 3; q++) { const ph = (t * .5 + q / 3) % 1; g.put(c0 + q * 2, Math.round(gy - 4 - ph * 4), "~", 0); } } // fried chicken, steaming
+          else for (let x = c0; x < c1; x += 3) { g.put(x, gy - 3, "▲", 1); g.put(x + 1, gy - 3, "▲", 3); } // mango shaved ice
+        }
+        f += w + 1 + Math.floor(hash(k * 2.2) * 5); k++;
       }
-      for (let f = 26; f < 196; f++) { const x = at(f), y = gy - 10 + Math.round(1.2 * Math.sin((f - 26) / 18 * Math.PI) ** 2); if (x < 0 || x >= C) continue; if (f % 6 === 0) g.put(x, y + 1, "●", (f / 6) % 3 ? 2 : 1); else g.put(x, y, "·", 0); } // lantern strings
+      for (let ff = 4; ff < 232; ff++) { // strings of lanterns across the street
+        const x = at(ff); if (x < 0 || x >= C) continue;
+        const y = gy - 12 + Math.round(Math.sin((ff - 4) / 16 * Math.PI) ** 2);
+        if (ff % 5 === 0) g.put(x, y + 1, "●", (ff / 5) % 3 ? 2 : 1); else if (g.ch[y * C + x] === undefined && g.v[y * C + x] < .3) g.put(x, y, "‾", 0);
+      }
+      for (const ff of [60, 118, 171, 214]) { const x = at(ff); g.set(x, gy - 2, .55); g.set(x + 1, gy - 2, .6); g.set(x + 2, gy - 2, .6); g.put(x + 3, gy - 2, "▄", 0); g.put(x, gy - 1, "●", 0); g.put(x + 3, gy - 1, "●", 0); } // scooters parked at the front
+      for (let q = 0; q < 26; q++) { // the crowd: people walking both ways, some with a drink
+        const dir = q % 2 ? 1 : -1, sp = .6 + hash(q * 3.9) * .8, ff = ((hash(q * 6.1) * 236 + dir * t * sp) % 236 + 236) % 236, x = at(ff), step = Math.floor(t * 3 + q) % 2;
+        if (x < 0 || x >= C) continue;
+        g.set(x, gy - 3, .92); g.set(x, gy - 2, .55 + .2 * hash(q)); g.set(x, gy - 1, .45); if (step) g.put(x + dir, gy - 1, dir > 0 ? "/" : "\\", 0);
+        if (hash(q * 2.3) > .7) g.put(x + dir, gy - 2, "▯", 1);
+      }
+      for (let q = 0; q < 6; q++) { // scooters passing on the road in front
+        const dir = q % 2 ? 1 : -1, sp = 8 + hash(q * 5.5) * 5, ff = ((hash(q * 8.8) * 320 + dir * t * sp) % 320 + 320) % 320 - 10, x = at(ff), y = dir > 0 ? gy + 5 : gy + 2;
+        g.set(x, y - 1, .85); g.set(x - dir, y - 1, .5); g.set(x, y, .6); g.set(x - dir, y, .6); g.put(x + dir, y, "•", dir > 0 ? 1 : 2); if (dir > 0) glowAt(x + 2, y, .2);
+      }
     }
   }
 };
