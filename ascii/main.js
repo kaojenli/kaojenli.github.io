@@ -1338,7 +1338,7 @@ ARTS.skyline = (g, t, st, p) => {
       for (let dx = -2; dx <= 9; dx++) g.put(bx + dx, by + 1, Math.floor(t * 2 + dx) % 3 ? "-" : "~", 0);
       for (let k = 0; k < 14; k++) { const x = at(20 + hash(k * 9.1) * 200); const hgt = 1 + Math.floor(hash(k * 2.7) * 3); for (let y = gy - hgt; y < gy; y++) g.put(x, y, y === gy - hgt ? (Math.sin(t + k) > 0 ? ")" : "(") : "|", 0); }
     }
-    if (s === 2) { // a Texas ranch: a barn with a star, a windmill, the Lone Star flag, a pumpjack, cactus, a fence, and the cow
+    if (s === 2) { // a Texas ranch: a barn with a star, a windmill, a pumpjack, cactus, a fence, and the cow
       const bx = at(26), bw = 22, wallTop = gy - 7;
       for (let x = bx; x < bx + bw; x++) for (let y = wallTop; y < gy; y++) g.set(x, y, (x - bx) % 3 === 0 ? .42 : .55, 2);
       [0, 1, 3, 6, 9].forEach((in1, d) => { for (let x = bx + in1 - 1; x <= bx + bw - in1; x++) g.set(x, wallTop - 1 - d, d === 4 ? .7 : .45 + (x - bx < bw / 2 ? .1 : 0), 2); }); // a gambrel roof
@@ -1352,12 +1352,6 @@ ARTS.skyline = (g, t, st, p) => {
       g.put(mx + 1, hub, "▶", 0);
       for (let b = 0; b < 4; b++) { const a = t * 1.3 + b * Math.PI / 2; for (let r = 1; r <= 6; r++) g.set(mx + Math.round(Math.cos(a) * r * 2), hub + Math.round(Math.sin(a) * r), r > 2 ? .85 : .6); }
       g.set(mx, hub, 1);
-      { // the Lone Star flag: a blue bar with a white star at the hoist, white over red, waving
-        const fx = at(114), ft = gy - 13;
-        for (let y = ft; y < gy; y++) g.put(fx, y, "│", 0);
-        for (let c = 1; c <= 10; c++) { const w = Math.round(Math.sin(t * 3 - c * .6) * .6 * (c / 10)); for (let r = 0; r < 4; r++) { const y = ft + r + w; if (c <= 3) g.set(fx + c, y, .55); else if (r < 2) g.set(fx + c, y, .95); else g.set(fx + c, y, .6, 2); } }
-        g.text(fx + 2, ft + 1 + Math.round(Math.sin(t * 3 - 1.2) * .1), "★", 2);
-      }
       { // a pumpjack nodding: an A-frame, a walking beam with the horse head, a crank with its counterweight
         const px = at(200), base = gy - 1, ph = t * 1.6, a = .3 * Math.sin(ph), py = base - 7, yAt = (i) => py - Math.round(i * Math.tan(a) * CHAR_W / LINE_H * 1.9);
         for (let x = px - 11; x <= px + 13; x++) g.set(x, base, .5);
