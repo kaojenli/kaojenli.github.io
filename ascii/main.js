@@ -1164,6 +1164,31 @@ ARTS.skyline = (g, t, st) => {
     }
   }
 
+  { // the Grapevine Hills in Big Bend: a hill of rounded granite boulders, Balanced Rock on the ridge, the sky through its window
+    const f = .75, P = WALK.period, mid = WALK.start[3] + 190, rep = Math.round((cam + C / 2 - mid) / P);
+    const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * f), half = 62, Hh = Math.min(15, gy - 18);
+    if (cx > -half - 20 && cx < C + half + 20 && layerMix(f)("mesa", cx) > .4) {
+      const rock = (bx, by, rx, ry, k) => { for (let y = Math.floor(by - ry); y <= by + ry; y++) for (let x = Math.floor(bx - rx); x <= bx + rx; x++) {
+        const d = ((x - bx) / rx) ** 2 + ((y - by) / ry) ** 2; if (d > 1) continue;
+        const lit = (x - bx) / rx * -.55 + (y - by) / ry * -.55; // moonlight from the upper left
+        if (d > .72) g.set(x, y, .1); else g.set(x, y, .5 + .22 * lit + .06 * vnoise(x * .5 + k, y * .7), 3);
+      } };
+      const ridge = (dx) => Hh * Math.max(0, 1 - (dx / half) ** 2) * (.85 + .15 * vnoise(dx * .08, 4));
+      const pile = [];
+      for (let i = 0; i < 60; i++) { // the pile: boulders over the whole hill, small ones up top, house-sized ones at its foot
+        const u = hash(i * 7.3) * 2 - 1, dx = Math.round(u * half), top = ridge(dx), dep = hash(i * 3.1), by = gy - 1 - top * (1 - dep);
+        pile.push([cx + dx, by, 1.6 + hash(i * 5.9) * 1.6 + dep * 2.2, i]);
+      }
+      pile.sort((a, b) => a[1] - b[1]).forEach(([bx, by, rr, i]) => rock(bx, by, rr * 2, rr, i)); // the higher ones first, so nearer ones overlap them
+      const rx0 = cx + 10, rt = gy - 1 - ridge(10); // Balanced Rock, standing on the ridge
+      rock(rx0 - 6, rt - 5, 5.2, 5.6, 101); rock(rx0 + 8, rt - 4, 5.6, 4.4, 102); rock(rx0 - 9, rt - 11.6, 3, 1.6, 103);
+      rock(rx0 + 3, rt - 11.4, 12, 3.6, 104);
+      for (let y = Math.round(rt - 8); y <= Math.round(rt - 1); y++) for (let x = rx0 - 2; x <= rx0 + 5; x++) { // the window: keep the sky behind it clear
+        const d = ((x - rx0 - 1.5) / 3) ** 2 + ((y - rt + 4.5) / 3) ** 2; if (d < 1) { const h = hash2(x + Math.floor(cam * f), y); g.set(x, y, .04); if (h > .9) star(g, x, y, .5 + .5 * Math.sin(t * 2 + x)); }
+      }
+    }
+  }
+
   /* water: the lake and the sea, with the far shore mirrored in it and a path of moonlight */
   const sea = cam * .8;
   for (let x = 0; x < C; x++) {
@@ -1304,11 +1329,6 @@ ARTS.skyline = (g, t, st) => {
         for (let y = y0; y < y0 + wdt && y < gy; y++) { g.set(x, y, .3 + .06 * Math.sin(ff * .5 + t * 1.5 + y)); if (hash2(Math.floor(ff + t * 1.2), y) > .72) { g.put(x, y, "~", 0); g.tone[y * C + x] = 2; } }
         if (hash(ff * 1.3) > .7) g.put(x, y0 - 1, hash(ff) > .5 ? "," : "ⁱ", 0);
       }
-      { // Balanced Rock: two standing boulders, a cap stone, and the big one resting across them
-        const bx = at(150), stone = (cx, cy, rx, ry, k) => { for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) { const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2; if (d <= 1) g.set(x, y, (x < cx ? .8 : .56) + .1 * vnoise(x * .4 + k, y * .6) - (y > cy + ry * .5 ? .14 : 0) - (d > .75 ? .14 : 0), 3); } };
-        stone(bx - 7, gy - 5.5, 3, 5, 1); stone(bx - 8, gy - 11.6, 2.2, 1.3, 2); stone(bx + 8, gy - 4.2, 3.2, 3.6, 3);
-        stone(bx + 2, gy - 11.2, 9, 2.6, 4); stone(bx + 17, gy - 2, 6, 2.5, 5); stone(bx - 16, gy - 2, 5, 2, 6); stone(bx + 1, gy - 1, 2.5, 1, 7);
-      }
       const pear = (px, k) => { // a prickly pear: oval pads stacked on each other, spines, a few red fruit
         const pads = [[0, -2], [-4, -4], [4, -4], [-1, -6], [6, -7], [-6, -7]].slice(0, 3 + Math.floor(hash(k) * 4));
         for (const [dx, dy] of pads) { const cx = px + dx, cy = gy - 1 + dy; for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 2; x <= cx + 2; x++) if (((x - cx) / 2.4) ** 2 + ((y - cy) / 1.4) ** 2 <= 1) { if (hash2(x, y + k) > .78) g.put(x, y, "·", 3); else g.set(x, y, .55 + .2 * hash2(x, y) - (x > cx ? .1 : 0)); } if (hash2(dx, k) > .6) g.put(cx + 1, cy - 2, "●", 2); }
@@ -1316,8 +1336,7 @@ ARTS.skyline = (g, t, st) => {
       const ocotillo = (ox, k) => { // thin whip-like stems fanning out, red flowers at the tips
         for (let st = -3; st <= 3; st++) { const lean = st * .45, hgt = 7 + Math.round(hash(k + st) * 4); for (let d = 0; d < hgt; d++) { const x = Math.round(ox + lean * d * .6 + Math.sin(t * .8 + st + d * .3) * .3 * d / hgt); g.put(x, gy - 1 - d, Math.abs(lean) < .2 ? "|" : lean > 0 ? "/" : "\\", 0); } g.put(Math.round(ox + lean * hgt * .6), gy - 1 - hgt, "•", 2); }
       };
-      pear(at(42), 1); pear(at(96), 2); pear(at(205), 3); pear(at(238), 4);
-      ocotillo(at(70), 5); ocotillo(at(122), 6); ocotillo(at(186), 7);
+      ocotillo(at(70), 5); ocotillo(at(214), 7);
       for (let ff = 0; ff < 250; ff += 7) if (hash(ff * 3.3) > .5) { const x = at(ff + hash(ff) * 5); g.set(x, gy - 1, .35); g.set(x + 1, gy - 1, .3); g.put(x + 2, gy - 1, "ⁱ", 0); } // creosote and scrub
     }
     if (s === 4) { // Aggieland: the water tower that says so, Rudder Tower, the administration building and its columns, lamps
@@ -1494,6 +1513,33 @@ ARTS.skyline = (g, t, st) => {
     if (s === 6) { // Taipei, from a trail on the hill: bushes on the slope, lamps along the trail
       for (let k = 0; k < 12; k++) { const bx = at(8 + k * 22 + hash(k * 3.7) * 8), rr = 1.4 + hash(k * 5.1) * 1.4, cy = gy - 1 - rr; for (let y = Math.floor(cy - rr); y < gy; y++) for (let dx = -Math.ceil(rr * 2); dx <= rr * 2; dx++) if (Math.hypot(dx / 2, y - cy) < rr) g.set(bx + dx, y, .38 + .2 * hash2(bx + dx, y) + (dx < 0 ? .06 : 0)); }
       for (const f of [40, 120, 200]) lamp(at(f));
+    }
+  }
+
+  /* the near foreground: large shapes right in front of the viewer, passing faster than the path, so the view has depth */
+  {
+    const f = 1.35, nX = cam * f, gap = 21;
+    const tuft = (x, hgt, k) => { for (let b = -2; b <= 2; b++) { const lean = b * .5 + Math.sin(t * 1.2 + k + b) * .25; for (let d = 0; d < hgt - Math.abs(b); d++) g.put(Math.round(x + lean * d * .5), R - 1 - d, d === hgt - Math.abs(b) - 1 ? "'" : lean > .3 ? "/" : lean < -.3 ? "\\" : "|", 0); } };
+    const boulder = (x, rx, ry, k) => { for (let y = Math.floor(R - ry); y < R; y++) for (let xx = Math.floor(x - rx); xx <= x + rx; xx++) { const d = ((xx - x) / rx) ** 2 + ((y - R + .5) / ry) ** 2; if (d <= 1) { const rim = d > .7 && xx < x + rx * .3 && y < R - ry * .3; g.set(xx, y, rim ? .55 : .05, rim ? 5 : 0); } } };
+    const pear = (px, k) => { // a big prickly pear, close enough to see its spines and fruit
+      for (const [dx, dy] of [[0, -2], [-6, -4], [6, -5], [-2, -7], [8, -9], [-8, -9]].slice(0, 4 + Math.floor(hash(k) * 3))) {
+        const cx = px + dx, cy = R - 1 + dy; for (let y = cy - 2; y <= cy + 2; y++) for (let x = cx - 4; x <= cx + 4; x++) { const d = ((x - cx) / 4.2) ** 2 + ((y - cy) / 2.3) ** 2; if (d <= 1) { if (d > .65 && x <= cx) g.set(x, y, .55); else if (hash2(x, y + k) > .86) g.put(x, y, "·", 3); else g.set(x, y, .06); } }
+        if (hash2(dx, k) > .5) g.put(cx + 2, cy - 3, "●", 2);
+      }
+    };
+    const agave = (ax, k) => { for (let l = -4; l <= 4; l++) { const len = 6 - Math.abs(l) * .6; for (let d = 0; d < len; d++) g.put(Math.round(ax + l * d * .45), R - 1 - Math.round(d * (1 - Math.abs(l) * .12)), Math.abs(l) < 1 ? "|" : l > 0 ? "/" : "\\", 0); } };
+    const fern = (fx, k) => { for (let l = -3; l <= 3; l++) for (let d = 1; d < 7; d++) { const x = Math.round(fx + l * d * .7), y = R - 1 - Math.round(d * .9 - Math.abs(l) * d * .12); g.put(x, y, l === 0 ? "|" : l > 0 ? (d % 2 ? "/" : "‐") : (d % 2 ? "\\" : "‐"), 0); } };
+    const bush = (bx, k) => { const rr = 2.6 + hash(k) * 1.4, cy = R - 1 - rr * .4; for (let y = Math.floor(cy - rr); y < R; y++) for (let dx = -Math.ceil(rr * 2); dx <= rr * 2; dx++) { const d = Math.hypot(dx / 2, y - cy) / rr; if (d < 1) g.set(bx + dx, y, d > .72 && dx <= 0 && y < cy ? .5 : .05); } };
+    for (let k = Math.floor((nX - 40) / gap); k <= (nX + C + 40) / gap; k++) {
+      const x = Math.round(k * gap + hash(k * 5.7) * 10 - nX); if (x < -20 || x > C + 20) continue;
+      const sc = sceneAt(cam + (Math.max(0, Math.min(C - 1, x)) - C / 2) / f + C / 2), scene = sc[2] < .5 ? sc[0] : sc[1], r = hash(k * 2.9);
+      if (r < .35) continue;
+      if (scene === 0) { if (r > .7) fern(x, k); else boulder(x, 5, 2.2, k); }
+      else if (scene === 1) { if (r > .6) boulder(x, 6, 2.8, k); else tuft(x, 5, k); }
+      else if (scene === 2) { if (r > .75) { for (let y = R - 7; y < R; y++) g.put(x, y, "█", 3); g.put(x - 1, R - 7, "▄", 3); } else tuft(x, 5, k); }
+      else if (scene === 3) { if (r > .72) pear(x, k); else if (r > .5) agave(x, k); else tuft(x, 4, k); }
+      else if (scene === 5) tuft(x, 4, k);
+      else if (scene === 6) bush(x, k);
     }
   }
 };
