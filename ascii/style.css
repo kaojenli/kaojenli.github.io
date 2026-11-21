@@ -272,8 +272,11 @@ details li { margin: 4px 0; text-align: justify; }
 .look button[aria-pressed="true"] { color: var(--accent); }
 /* a fortune cookie in the footer's last row, a thank-you for reading to the end: it cracks open on a click, and a paper slip pops up above it */
 .foot { position: relative; }
-.fortune { position: relative; display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.fortune-note { margin: 0; color: var(--muted); font: 12px var(--mono); white-space: nowrap; }
+.fortune { position: relative; display: flex; align-items: center; gap: 10px; margin: 0 auto; } /* in the middle of the row, between the style picker and Back to top */
+.fortune-note { margin: 0; color: var(--muted); font: 12px/1.4 var(--mono); white-space: nowrap; }
+@media (min-width: 641px) { .foot-row { flex-wrap: nowrap; } }
+@media (max-width: 1140px) { .fortune-note { display: none; } } /* where the row is too narrow for it, the cookie alone */
+@media (min-width: 641px) and (max-width: 900px) { .foot-row { flex-wrap: wrap; } .render { order: 3; flex-basis: 100%; } } /* the style picker drops to its own line, so the first line keeps Back to top */
 .fortune.done .fortune-note { display: none; }
 .cookie { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; opacity: .85; transition: opacity .15s, transform .15s; }
 .cookie:hover { opacity: 1; transform: rotate(-6deg); }
