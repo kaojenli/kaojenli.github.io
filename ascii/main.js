@@ -975,7 +975,7 @@ WALK.start = WALK.lens.map((_, i) => WALK.lens.slice(0, i).reduce((a, b) => a + 
 const SC = {
   farH: [4, 6, 2, 9, 2, 2, 4], farAmp: [6, 12, 2, 15, 2, 3, 7], sharp: [.25, 1, 0, 0, 0, 0, .3], snow: [0, 1, 0, 0, 0, 0, 0],
   water: [0, 1, 0, 0, 0, 1, 0], pine: [.6, .5, 0, 0, 0, .15, 0], pineH: [1, .6, .6, 0, .6, .7, 0], oak: [0, 0, .12, 0, .3, 0, 0],
-  city: [0, 0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0, 0], milky: [1, .8, 1, 1.25, .6, .8, .3], glow: [0, 0, .1, 0, .4, .15, 1], sand: [0, 0, 1, 1, 0, 0, 0], kyle: [0, 0, 0, 0, 1, 0, 0], road: [0, 0, 0, 0, 1, 0, 1], mesa: [0, 0, 0, 1, 0, 0, 0],
+  city: [0, 0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0, 0], milky: [1, .8, 1, 1.25, .6, .8, .3], glow: [0, 0, .1, 0, .4, .15, 1], sand: [0, 0, 1, 1, 0, 0, 0], kyle: [0, 0, 0, 0, 1, 0, 0], road: [0, 0, 0, 0, 1, 0, 1], mesa: [0, 0, 0, 1, 0, 0, 0], rough: [0, 0, 0, 0, 0, 1, 0],
 };
 const N_SC = SC.farH.length;
 const sceneAt = (wx) => { // the two scenes that meet at near-layer column wx, and how far the fade between them has gone
@@ -994,12 +994,21 @@ ARTS.skyline = (g, t, st) => {
   const S0 = st.s0, S1 = st.s1, K = st.k, TOP = st.top;
   for (let x = 0; x < C; x++) { const s = sceneAt(cam + x); S0[x] = s[0]; S1[x] = s[1]; K[x] = s[2]; }
   const M = (key, x) => { x = x < 0 ? 0 : x >= C ? C - 1 : x | 0; const a = SC[key]; return a[S0[x]] + (a[S1[x]] - a[S0[x]]) * K[x]; };
+  // each slower layer decides its scene from its own position, so its mountains and towers slide past whole instead
+  // of rising out of the ground as a scene change sweeps across them: column x of a layer moving at f shows the
+  // scene that is at the centre of the screen when that column gets there
+  const LM = {}, layerMix = (f) => LM[f] || (LM[f] = (() => {
+    const s0 = new Uint8Array(C), s1 = new Uint8Array(C), k = new Float32Array(C);
+    for (let x = 0; x < C; x++) { const sc = sceneAt(cam + (x - C / 2) / f + C / 2); s0[x] = sc[0]; s1[x] = sc[1]; k[x] = sc[2]; }
+    return (key, x) => { x = x < 0 ? 0 : x >= C ? C - 1 : x | 0; const a = SC[key]; return a[s0[x]] + (a[s1[x]] - a[s0[x]]) * k[x]; };
+  })());
+  const MF = layerMix(.45); // the far hills, the water in front of them, and the sky over them
   const glowAt = (x, y, v) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= C || y >= R) return; const i = y * C + x; if (g.ch[i] !== undefined && g.ch[i] !== " " || g.v[i] > .3 && y < gy) return; if (v > g.v[i]) g.v[i] = v; g.acc[i] = 1; };
 
   /* the sky: a faint haze that thickens toward the horizon, the milky way, stars, an aurora over the mountains */
   const skyX = cam * .03, mwY = (X) => gy * .45 + gy * .35 * Math.sin(X * .011 + 1.3);
   for (let x = 0; x < C; x++) {
-    const X = x + skyX, mw = M("milky", x), au = M("aurora", x), gl = M("glow", x), yc = mwY(X), bw = 3 + 3 * vnoise(X * .04, 2.2);
+    const X = x + skyX, mw = MF("milky", x), au = MF("aurora", x), gl = MF("glow", x), yc = mwY(X), bw = 3 + 3 * vnoise(X * .04, 2.2);
     for (let y = 0; y < gy; y++) {
       const hz = y / gy;
       let v = .02 + .06 * hz * hz * hz + .05 * hz * vnoise(X * .2, y * .7) + gl * .3 * Math.pow(hz, 5);
@@ -1037,22 +1046,22 @@ ARTS.skyline = (g, t, st) => {
   }
 
   /* far hills and mountains, with snow on the high peaks; they stand on the water line where there is water */
-  const farX = cam * .15, H = st.h;
+  const farX = cam * .45, H = st.h;
   for (let x = -1; x <= C; x++) {
     const X = x + farX, n = fbm(X * .035, 3.1), r = 1 - Math.abs(2 * fbm(X * .028, 7.7) - 1);
-    let hh = M("farH", x) + M("farAmp", x) * lerp(n, r * r * 1.15, M("sharp", x));
-    const ms = M("mesa", x); if (ms > 0) { // mesas: flat caprock tops on sheer cliffs, with talus slopes spreading below them
-      const plat = (Xq) => M("farH", x) + M("farAmp", x) * (Math.floor((.1 + vnoise(Xq * .022, 5.5) * 1.05) * 5) / 5 + .05 * vnoise(Xq * .2, 1));
+    let hh = MF("farH", x) + MF("farAmp", x) * lerp(n, r * r * 1.15, MF("sharp", x));
+    const ms = MF("mesa", x); if (ms > 0) { // mesas: flat caprock tops on sheer cliffs, with talus slopes spreading below them
+      const plat = (Xq) => MF("farH", x) + MF("farAmp", x) * (Math.floor((.1 + vnoise(Xq * .022, 5.5) * 1.05) * 5) / 5 + .05 * vnoise(Xq * .2, 1));
       let mh = plat(X); for (let d = -9; d <= 9; d += 3) mh = Math.max(mh, plat(X + d) - 3 - Math.abs(d) * .55);
       hh = lerp(hh, mh, ms); st.cap = st.cap || new Float32Array(C + 2); st.cap[x + 1] = plat(X); }
     H[x + 1] = Math.min(gy - 6, hh);
   }
   for (let x = 0; x < C; x++) {
-    const h = H[x + 1], base = lerp(gy - 1, wT, M("water", x)), top = base - h, slope = H[x + 2] - H[x], snow = M("snow", x) > .5 && h > M("farH", x) + M("farAmp", x) * .5;
+    const h = H[x + 1], base = lerp(gy - 1, wT, MF("water", x)), top = base - h, slope = H[x + 2] - H[x], snow = MF("snow", x) > .5 && h > MF("farH", x) + MF("farAmp", x) * .5;
     TOP[x] = top;
     for (let y = Math.max(0, Math.ceil(top)); y <= base; y++) {
       const tex = vnoise((x + farX) * .25, y * .35);
-      if (M("mesa", x) > .5) { // caprock, then a cliff face banded with strata, then the talus slope
+      if (MF("mesa", x) > .5) { // caprock, then a cliff face banded with strata, then the talus slope
         const onCap = h <= st.cap[x + 1] + .3, d = y - top;
         if (onCap && d < 1) g.set(x, y, .7, 3);
         else if (onCap && d < 5) g.set(x, y, (d % 2 ? .42 : .55) + .08 * tex - (slope > 0 ? 0 : .06), d % 2 ? 0 : 3);
@@ -1071,16 +1080,16 @@ ARTS.skyline = (g, t, st) => {
     }
     g.set(cx, base + 1, v0 * .8);
   };
-  for (const [f, gap, scale, v0] of [[.3, 3, .75, .24], [.5, 6, 1, .5]]) { // back row, front row
-    const mX = cam * f;
+  for (const [f, gap, scale, v0] of [[.55, 3, .75, .24], [.7, 6, 1, .5]]) { // back row, front row
+    const mX = cam * f, ML = layerMix(f);
     for (let k = Math.floor((mX - 10) / gap); k <= (mX + C + 10) / gap; k++) {
-      const cx = Math.round(k * gap + hash(k * 1.3) * gap - mX), dens = M("pine", cx);
+      const cx = Math.round(k * gap + hash(k * 1.3) * gap - mX), dens = ML("pine", cx);
       if (hash(k * 1.7 + f) > dens) continue;
-      const hgt = Math.round((5 + hash(k * 2.9 + f) * 9) * scale * M("pineH", cx)); if (hgt < 2) continue;
-      tree(cx, Math.round(lerp(gy - 1, wT, M("water", cx))) - (f < .4 ? 1 : 0), hgt, v0, 1);
+      const hgt = Math.round((5 + hash(k * 2.9 + f) * 9) * scale * ML("pineH", cx)); if (hgt < 2) continue;
+      tree(cx, Math.round(lerp(gy - 1, wT, ML("water", cx))) - (f < .6 ? 1 : 0), hgt, v0, 1);
     }
-    if (f === .5) for (let k = Math.floor((mX - 10) / 9); k <= (mX + C + 10) / 9; k++) { // round trees on the farm
-      const cx = Math.round(k * 9 + hash(k * 4.1) * 5 - mX); if (hash(k * 5.3) > M("oak", cx)) continue;
+    if (f === .7) for (let k = Math.floor((mX - 10) / 9); k <= (mX + C + 10) / 9; k++) { // round trees on the farm
+      const cx = Math.round(k * 9 + hash(k * 4.1) * 5 - mX); if (hash(k * 5.3) > ML("oak", cx)) continue;
       const rr = 2 + hash(k * 6.7) * 2, cy = gy - 2 - rr;
       for (let y = Math.floor(cy - rr); y <= cy + rr; y++) for (let dx = -Math.ceil(rr * 2); dx <= rr * 2; dx++) if (Math.hypot(dx / 2, y - cy) < rr) g.set(cx + dx, y, .45 + .25 * hash2(cx + dx, y) + (dx < 0 && y < cy ? .1 : 0));
       for (let y = Math.ceil(cy + rr * .6); y < gy; y++) g.set(cx, y, .6);
@@ -1089,12 +1098,12 @@ ARTS.skyline = (g, t, st) => {
   const LIFT = 12; // in Taipei the city stands on a higher line, so the night market in front of it leaves 101 in full view
   { // the city: a far row of towers, a near row with lit windows, the needle, and an elevated highway with traffic
     const win = (x, y, k, lit) => { const on = hash2(x * 1.3 + k, y + Math.floor(t / 7 + hash(k) * 9)) < lit; if (on) g.put(x, y, "▪", hash2(x, y * 3.1) > .82 ? 2 : 1); };
-    for (const [f, v0, maxH, lit] of [[.22, .2, .6, .12], [.4, .32, .46, .3]]) {
-      const bX = cam * f;
+    for (const [f, v0, maxH, lit] of [[.5, .2, .6, .12], [.6, .32, .46, .3]]) {
+      const bX = cam * f, ML = layerMix(f);
       let k = Math.floor((bX - 20) / 8);
       for (; k * 8 - bX < C + 20; k++) {
         const x0 = Math.round(k * 8 - bX), w = 5 + Math.floor(hash(k * 3.7 + f) * 7), mid = x0 + (w >> 1);
-        const c = M("city", mid); if (c < .05) continue;
+        const c = ML("city", mid); if (c < .05) continue;
         const base = gy - 1 - Math.round(LIFT * c), hgt = Math.min(base - 4, Math.round((4 + hash(k * 1.9 + f) * (gy * maxH - 4)) * c)), top = base - hgt, crown = hash(k * 8.3 + f);
         for (let x = x0; x < x0 + w; x++) for (let y = top; y <= base; y++) {
           if (x < 0 || x >= C) continue;
@@ -1109,8 +1118,8 @@ ARTS.skyline = (g, t, st) => {
     // Taipei 101: a podium that narrows as it rises, eight stacked sections that each flare outward, a crown and a spire
     { // centred on screen when Taipei is, and moving at the speed of its layer
       const P = WALK.period, mid = WALK.start[6] + 120, rep = Math.round((cam + C / 2 - mid) / P);
-      const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .4);
-      if (cx > -8 && cx < C + 8 && M("city", cx) > .4) {
+      const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .6);
+      if (cx > -8 && cx < C + 8 && layerMix(.6)("city", cx) > .4) {
         const base = gy - 1 - LIFT, H = base - 3, spire = 5, crown = 3, podium = Math.max(3, Math.round(H * .18)), seg = Math.max(2, Math.floor((H - spire - crown - podium) / 8));
         const row = (y, half, edge) => { for (let dx = -half; dx <= half; dx++) g.set(cx + dx, y, (dx < 0 ? .62 : .42) + (Math.abs(dx) === half ? (edge ? .3 : .08) : 0)); };
         let y = base;
@@ -1126,16 +1135,17 @@ ARTS.skyline = (g, t, st) => {
     }
     // the highway: a deck on pillars across the city, amber lamps, and cars both ways (headlights one way, tail lights the other)
     const hy = gy - LIFT - 2;
+    const MH = layerMix(.65);
     for (let x = 0; x < C; x++) {
-      const c = M("city", x); if (c < .5) continue;
-      const X = Math.round(x + cam * .55);
+      const c = MH("city", x); if (c < .5) continue;
+      const X = Math.round(x + cam * .65);
       g.set(x, hy, .62); g.set(x, hy + 1, .3);
       if (X % 16 === 0) for (let y = hy + 2; y <= gy - LIFT; y++) g.set(x, y, .4);
       if (X % 22 === 0) { g.put(x, hy - 1, "|", 0); g.put(x, hy - 2, "°", 1); glowAt(x - 1, hy - 1, .2); glowAt(x + 1, hy - 1, .2); }
     }
     for (let k = 0; k < 14; k++) { // cars: some drive right with white headlights, others left with red tail lights
-      const dir = k % 2 ? 1 : -1, sp = 9 + hash(k * 2.1) * 6, span = C + 80, pos = ((hash(k * 5.9) * span + dir * t * sp - cam * .55) % span + span) % span - 40;
-      const x = Math.round(pos), y = hy - 1; if (x < 0 || x >= C - 2 || M("city", x) < .5) continue;
+      const dir = k % 2 ? 1 : -1, sp = 9 + hash(k * 2.1) * 6, span = C + 80, pos = ((hash(k * 5.9) * span + dir * t * sp - cam * .65) % span + span) % span - 40;
+      const x = Math.round(pos), y = hy - 1; if (x < 0 || x >= C - 2 || MH("city", x) < .5) continue;
       if (dir > 0) { g.put(x, y, "▬", 0); g.text(x + 1, y, "•", 2); } // white headlights going right
       else { g.put(x, y, "•", 2); g.put(x + 1, y, "▬", 0); } // red tail lights going left
     }
@@ -1144,8 +1154,8 @@ ARTS.skyline = (g, t, st) => {
   const litWinK = (x, y, k, lit) => { if (hash2(x * 1.3 + k, y + Math.floor(t / 7 + hash(k) * 9)) < lit) g.put(x, y, "▪", 1); };
   { // Kyle Field, behind Aggieland: tall stands with maroon deck bands, light banks on top, a glow over the field
     const P = WALK.period, mid = WALK.start[4] + 120, rep = Math.round((cam + C / 2 - mid) / P);
-    const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .4), half = 34, Hs = Math.round(gy * .5);
-    if (cx > -half - 8 && cx < C + half + 8 && M("kyle", cx) > .4) {
+    const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .6), half = 34, Hs = Math.round(gy * .5);
+    if (cx > -half - 8 && cx < C + half + 8 && layerMix(.6)("kyle", cx) > .4) {
       for (let dx = -half; dx <= half; dx++) {
         const x = cx + dx, h = Math.min(Hs, Math.round((half - Math.abs(dx)) * 1.1) + 3), y0 = gy - 1 - h;
         for (let y = y0; y < gy; y++) {
@@ -1161,10 +1171,10 @@ ARTS.skyline = (g, t, st) => {
   }
 
   /* water: the lake and the sea, with the far shore mirrored in it and a path of moonlight */
-  const sea = cam * .7;
+  const sea = cam * .8;
   for (let x = 0; x < C; x++) {
-    const w = M("water", x); if (w < .02) continue;
-    const top = Math.round(lerp(gy, wT, ease(Math.min(1, w * 1.4)))), X = x + sea, rough = S0[x] === 5 || S1[x] === 5 && K[x] > .5;
+    const w = MF("water", x); if (w < .02) continue;
+    const top = Math.round(lerp(gy, wT, ease(Math.min(1, w * 1.4)))), X = x + sea, rough = MF("rough", x) > .5;
     for (let y = top + 1; y < gy; y++) {
       const ripple = Math.sin(y * 2.1 + X * .35 + t * (rough ? 2.2 : 1.1)), ym = 2 * wT - y + 1, xs = Math.round(x + ripple * (rough ? 1.2 : .6));
       let v = .13 + .05 * ripple;
@@ -1499,7 +1509,7 @@ ARTS.skyline = (g, t, st) => {
       g.put(lx - 1, lamp - 1, "▄█▄", 0);
       if (flash) for (const [ddx, ddy, ch] of [[-4, 0, "-"], [4, 0, "-"], [-3, -1, "\\"], [3, -1, "/"], [0, -2, "|"]]) g.put(lx + ddx, lamp + ddy, ch, 1);
       const sx = Math.round((X0 + 150) * .7 + C * .1 + 12 * Math.sin(t * .05)), sy = wT + 4; // the sailboat, out on the sea's layer
-      if (sx >= 0 && sx < C && (S0[sx] === 5 && K[sx] < .5 || S1[sx] === 5 && K[sx] > .5)) { g.put(sx, sy, "\\▄▄▄/", 0); g.put(sx + 2, sy - 1, "|", 0); g.put(sx + 2, sy - 2, "|\\", 0); g.put(sx + 2, sy - 3, "|", 0); }
+      if (sx >= 0 && sx < C && MF("rough", sx) > .5) { g.put(sx, sy, "\\▄▄▄/", 0); g.put(sx + 2, sy - 1, "|", 0); g.put(sx + 2, sy - 2, "|\\", 0); g.put(sx + 2, sy - 3, "|", 0); }
       for (const f of [40, 58, 170, 205]) { const rx = at(f); for (let dx = -3; dx <= 3; dx++) g.set(rx + dx, gy - 1, .55 + .2 * hash2(rx + dx, f), 5); for (let dx = -1; dx <= 2; dx++) g.set(rx + dx, gy - 2, .65, 5); }
     }
     if (s === 6) { // Taipei: a night market below the city, so 101 stays in full view
