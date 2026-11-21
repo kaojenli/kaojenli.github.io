@@ -83,7 +83,6 @@ $("#paper-list").innerHTML = C.papers.map((p) => `<li><span class="kind">${esc(p
   ${p.badge ? `<br><span class="badge">${esc(p.badge)}</span>` : ""}</li>`).join("");
 
 $("#credits").innerHTML = C.skills.map((s) => `<span class="credit"><small>${esc(s.items)}</small><b>${esc(s.name)}</b></span>`).join("");
-$("#credits").append($(".fortune")); // the fortune cookie takes the first empty cell after the skills
 $("#stack").textContent = C.stack.join("  ·  ");
 
 /* ======================================================================= "Get in touch": the pixel version's inquiry form, in a small window, sent by FormSubmit (see content.js) */
@@ -245,7 +244,7 @@ const RAMPS = {
 let look = "Mix";
 try { if (RAMPS[localStorage.getItem("look2")]) look = localStorage.getItem("look2"); } catch (e) {}
 // a small easter egg in the footer: every figure on the page re-renders in the chosen style
-/* ---------- the fortune cookie at the end of Skills: three drawings (whole, cracked, open), a slip with a line, and a typewriter */
+/* ---------- the fortune cookie in the footer's last row: three drawings (whole, cracked, open), a slip with a line, and a typewriter */
 const FORTUNES = [
   // for researchers of any kind
   "The bug you are looking for is in the line you are sure about.",
@@ -304,6 +303,10 @@ const LUCKY = [3, 7, 11, 16, 20, 28, 32, 62, 69, 74, 150, 400, 512, 784]; // num
       if (reduced) { t.data = line; sm.textContent = "lucky numbers  " + nums; busy = false; } else type();
       btn.setAttribute("aria-label", "Another fortune cookie. Crack it open.");
     }, reduced ? 0 : 500);
+  });
+  document.addEventListener("click", (ev) => { // a click anywhere else folds the slip away and the cookie is whole again
+    if (busy || slip.hidden || box.contains(ev.target)) return;
+    slip.hidden = true; slip.classList.remove("in"); box.classList.remove("done"); show("whole");
   });
 }
 
