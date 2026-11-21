@@ -973,9 +973,9 @@ const WALK = { lens: [260, 340, 260, 360, 1100, 260, 300], blend: 70 }; // how m
 WALK.start = WALK.lens.map((_, i) => WALK.lens.slice(0, i).reduce((a, b) => a + b, 0)); WALK.period = WALK.lens.reduce((a, b) => a + b, 0);
 // per scene: forest, Colorado, Texas ranch, Big Bend, Aggieland, coast, Taipei
 const SC = {
-  farH: [4, 8, 2, 10, 2, 2, 4], farAmp: [7, 16, 2, 17, 2, 3, 7], sharp: [.25, 1, 0, 0, 0, 0, .3], snow: [0, 1, 0, 0, 0, 0, 0],
-  water: [0, 1, 0, 0, 0, 1, 0], pine: [.6, .5, 0, 0, 0, .15, 0], pineH: [1, .6, .6, 0, .6, .7, 0], oak: [0, 0, .12, 0, .3, 0, 0],
-  city: [0, 0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0, 0], milky: [1, .8, 1, 1.25, .6, .8, .3], glow: [0, 0, .1, 0, .4, .15, 1], sand: [0, 0, 1, 1, 0, 0, 0], kyle: [0, 0, 0, 0, 1, 0, 0], road: [0, 0, 0, 0, 1, 0, 0], mesa: [0, 0, 0, 1, 0, 0, 0], rough: [0, 0, 0, 0, 0, 1, 0],
+  farH: [4, 6, 3, 10, 2, 3, 4], farAmp: [7, 9, 5, 17, 2, 8, 7], sharp: [.25, .6, 0, 0, 0, .15, .3], snow: [0, 1, 0, 0, 0, 0, 0],
+  water: [0, 1, 0, 0, 0, 1, 0], pine: [.6, .5, 0, 0, 0, .15, 0], pineH: [1, .6, .6, 0, .6, .7, 0], oak: [0, 0, .45, 0, .3, 0, 0],
+  city: [0, 0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0, 0], milky: [1, .8, 1, 1.25, .6, .8, .3], glow: [0, 0, .1, 0, .4, .15, 1], sand: [0, 0, 1, 1, 0, 0, 0], kyle: [0, 0, 0, 0, 1, 0, 0], road: [0, 0, 0, 0, 1, 0, 0], mesa: [0, 0, 0, 1, 0, 0, 0], rough: [0, 0, 0, 0, 0, 1, 0], canopy: [0, 0, .35, 0, 1, 0, 0],
 };
 const N_SC = SC.farH.length;
 const sceneAt = (wx) => { // the two scenes that meet at near-layer column wx, and how far the fade between them has gone
@@ -1047,6 +1047,10 @@ ARTS.skyline = (g, t, st) => {
 
   /* far hills and mountains, with snow on the high peaks; they stand on the water line where there is water */
   const farX = cam * .6, H = st.h;
+  const lmAt = (sc, off, f) => { const P = WALK.period, mid = WALK.start[sc] + off, rp = Math.round((cam + C / 2 - mid) / P); return C / 2 + (mid + rp * P - cam - C / 2) * f; };
+  const bellsX = lmAt(1, 150, .6), rockX = lmAt(2, 150, .6);
+  const bells = (x) => { const d = x - bellsX; if (Math.abs(d) > 46) return 0; const pk = (c, w, hgt) => hgt * Math.max(0, 1 - Math.abs(d - c) / w) ** 1.15; return Math.max(pk(-12, 24, gy - 14), pk(12, 24, gy - 15.5)); }; // Maroon Peak and North Maroon Peak, side by side
+  const dome = (x) => { const d = (x - rockX) / 30; return Math.abs(d) < 1 ? 11 * Math.sqrt(1 - d * d) : 0; }; // Enchanted Rock
   for (let x = -1; x <= C; x++) {
     const X = x + farX, n = fbm(X * .035, 3.1), r = 1 - Math.abs(2 * fbm(X * .028, 7.7) - 1);
     let hh = MF("farH", x) + MF("farAmp", x) * lerp(n, r * r * 1.15, MF("sharp", x));
@@ -1054,10 +1058,12 @@ ARTS.skyline = (g, t, st) => {
       const plat = (Xq) => MF("farH", x) + MF("farAmp", x) * (Math.floor((.1 + vnoise(Xq * .022, 5.5) * 1.05) * 5) / 5 + .05 * vnoise(Xq * .2, 1));
       let mh = plat(X); for (let d = -9; d <= 9; d += 3) mh = Math.max(mh, plat(X + d) - 3 - Math.abs(d) * .55);
       hh = lerp(hh, mh, ms); st.cap = st.cap || new Float32Array(C + 2); st.cap[x + 1] = plat(X); }
-    H[x + 1] = Math.min(gy - 6, hh);
+    const cn = MF("canopy", x); if (cn > 0) hh = lerp(hh, MF("farH", x) + 1.6 * Math.abs(Math.sin(X * .21 + 2 * vnoise(X * .05, 3))) + 1.2 * vnoise(X * .3, 8), cn); // the tops of distant oaks
+    hh = Math.max(hh, bells(x), dome(x));
+    H[x + 1] = hh;
   }
   for (let x = 0; x < C; x++) {
-    const h = H[x + 1], base = lerp(gy - 1, wT, MF("water", x)), top = base - h, slope = H[x + 2] - H[x], snow = MF("snow", x) > .5 && h > MF("farH", x) + MF("farAmp", x) * .5;
+    const base = lerp(gy - 1, wT, MF("water", x)), h = Math.min(H[x + 1], base - 4), top = base - h, slope = H[x + 2] - H[x], snow = MF("snow", x) > .5 && h > MF("farH", x) + MF("farAmp", x) * .5;
     TOP[x] = top;
     for (let y = Math.max(0, Math.ceil(top)); y <= base; y++) {
       const tex = vnoise((x + farX) * .25, y * .35);
@@ -1067,6 +1073,16 @@ ARTS.skyline = (g, t, st) => {
         else if (onCap && d < 5) g.set(x, y, (d % 2 ? .42 : .55) + .08 * tex - (slope > 0 ? 0 : .06), d % 2 ? 0 : 3);
         else g.set(x, y, .26 + .12 * tex + (hash2(x + Math.floor(farX), y) > .9 ? .12 : 0) + (d < 2 ? .1 : 0), d < 2 ? 3 : 0);
       }
+      else if (bells(x) >= h - .5 && bells(x) > 4) { // the Bells: red mudstone in tilted bands, snow lying in the gullies near the top
+        const d = y - top, band = ((y + Math.floor((x - bellsX) * .35)) % 3 + 3) % 3, gully = vnoise((x - bellsX) * .5, y * .15) > .62;
+        if (d < 1.5 || (gully && d < h * .45)) g.set(x, y, slope > 0 ? .9 : .7, 5);
+        else g.set(x, y, (x < bellsX - 12 || (x > bellsX && x < bellsX + 12) ? .5 : .38) + .08 * tex, band === 0 ? 2 : 0);
+      }
+      else if (dome(x) >= h - .5 && dome(x) > 1) { // Enchanted Rock: bare pink granite, with sheets peeling off in curves
+        const sheet = Math.floor(Math.hypot((x - rockX) / 30, (y - (base)) / 11) * 6) % 2;
+        g.set(x, y, (x < rockX ? .55 : .4) + (sheet ? .06 : 0) + .05 * tex, 3);
+      }
+      else if (MF("canopy", x) > .5) { g.set(x, y, .22 + .1 * tex + (y - top < 1 ? .08 : 0)); if (y > base - 2 && hash2(x + Math.floor(farX), y) > .93) g.put(x, y, "·", 1); } // a tree line, the odd light of a house or a farm road
       else if (snow && y - top < 1.5 + 2 * tex) g.set(x, y, slope > 0 ? .88 : .66, 5);
       else g.set(x, y, .4 + .08 * tex + (slope > .15 ? .08 : 0) + (y - top < 1 ? .12 : 0));
     }
@@ -1131,6 +1147,10 @@ ARTS.skyline = (g, t, st) => {
         for (let k = 0; k < crown; k++, y--) row(y, 2 - (k === crown - 1 ? 1 : 0), 0);
         for (let k = 0; k < spire; k++, y--) g.put(cx, y, "|", 0);
         g.put(cx, y, Math.floor(t * 2) % 2 ? "•" : "·", 2);
+        for (const [ox, w, hgt, cap] of [[-17, 3, Math.round(H * .62), 1], [15, 2, Math.round(H * .56), 0]]) { // Nan Shan Plaza and Cathay Landmark, its neighbours
+          const tx = cx + ox; for (let d = 0; d < hgt; d++) { const yy = base - d, hw = d > hgt - 3 && cap ? w - 1 : w; for (let dx = -hw; dx <= hw; dx++) g.set(tx + dx, yy, (dx < 0 ? .5 : .34) + (Math.abs(dx) === hw ? .08 : 0)); if (d % 2 && d < hgt - 2) win(tx + (d % 4 === 1 ? -1 : 1), yy, 500 + ox + d, .5); }
+          if (!cap) { g.put(tx, base - hgt, "|", 0); g.put(tx, base - hgt - 1, "•", 2); } else for (let dx = -1; dx <= 1; dx++) g.set(tx + dx, base - hgt - 1, .6);
+        }
       }
     }
     // the highway: a deck on pillars across the city, amber lamps, and cars both ways (headlights one way, tail lights the other)
@@ -1186,6 +1206,16 @@ ARTS.skyline = (g, t, st) => {
       for (let y = Math.round(rt - 8); y <= Math.round(rt - 1); y++) for (let x = rx0 - 2; x <= rx0 + 5; x++) { // the window: keep the sky behind it clear
         const d = ((x - rx0 - 1.5) / 3) ** 2 + ((y - rt + 4.5) / 3) ** 2; if (d < 1) { const h = hash2(x + Math.floor(cam * f), y); g.set(x, y, .04); if (h > .9) star(g, x, y, .5 + .5 * Math.sin(t * 2 + x)); }
       }
+    }
+  }
+
+  { // the Albritton Bell Tower on campus: a tall brick shaft with an open belfry at the top
+    const f = .75, P = WALK.period, mid = WALK.start[4] + 250, rp = Math.round((cam + C / 2 - mid) / P);
+    const cx = Math.round(C / 2 + (mid + rp * P - cam - C / 2) * f), Ht = Math.min(gy - 10, 22);
+    if (cx > -6 && cx < C + 6 && layerMix(f)("kyle", cx) > .4) {
+      for (let d = 0; d < Ht; d++) { const y = gy - 1 - d; for (let dx = -2; dx <= 2; dx++) g.set(cx + dx, y, (dx < 0 ? .5 : .36) + ((d + (dx & 1)) % 3 === 0 ? .06 : 0), 3); }
+      const bt = gy - 1 - Ht; for (let y = bt - 4; y < bt; y++) { g.set(cx - 2, y, .55, 3); g.set(cx + 2, y, .45, 3); g.set(cx, y, .08); g.set(cx - 1, y, .08); g.set(cx + 1, y, .08); }
+      g.put(cx, bt - 2, "◘", 1); for (let dx = -3; dx <= 3; dx++) g.set(cx + dx, bt - 5, .62, 3); g.set(cx, bt - 6, .6, 3);
     }
   }
 
@@ -1344,6 +1374,15 @@ ARTS.skyline = (g, t, st) => {
       for (let d = 0; d < th; d++) for (let dx = -tw; dx <= tw; dx++) g.set(tx + dx, tb - d, (dx < -2 ? .93 : dx < 3 ? .82 : .62) - (Math.abs(dx) === tw ? .14 : 0));
       for (let d = 0; d < 3; d++) { const half = tw - 1 - d * 2; for (let dx = -half; dx <= half; dx++) g.set(tx + dx, tb - th - d, .86 - d * .06); }
       const ty = tb - th + 3; g.put(tx - 5, ty, "WELCOME TO", 2); g.put(tx - 4, ty + 2, "AGGIELAND", 2);
+      { // the Century Tree: an old live oak whose long branches sweep down to the ground
+        const ox = at(412), cy = gy - 6;
+        for (let y = cy - 4; y < gy; y++) for (let dx = -18; dx <= 18; dx++) {
+          const rr = 4.2 - Math.max(0, (Math.abs(dx) - 6) * .12), ok = Math.hypot(dx / 3.4, y - cy) < rr + .5 * vnoise(dx * .4, y) || (Math.abs(dx) > 10 && y > cy && y - cy < (Math.abs(dx) - 9) * .5 + 1 && Math.abs(dx) < 18);
+          if (ok) g.set(ox + dx, y, .36 + .2 * hash2(ox + dx, y) + (dx < 0 && y < cy ? .1 : 0));
+        }
+        for (let y = cy + 1; y < gy; y++) { g.set(ox, y, .6); g.set(ox + 1, y, .5); }
+        g.put(ox - 1, cy + 1, "╲", 0); g.put(ox + 2, cy + 1, "╱", 0);
+      }
       const rx = at(300), rw = 4, rh = Math.min(gy - 7, 22); // Rudder Tower: windows in bands, a wider cap, masts and a dish
       for (let d = 0; d < rh; d++) { const y = gy - 1 - d; for (let dx = -rw; dx <= rw; dx++) g.set(rx + dx, y, .42 + (dx < 0 ? .14 : 0) + (Math.abs(dx) === rw ? .08 : 0)); if (d > 1 && d < rh - 2 && d % 2 === 0) for (let dx = -rw + 1; dx < rw; dx++) litWin(rx + dx, y, 70 + dx, .35); }
       for (let d = 0; d < 2; d++) for (let dx = -rw - 1; dx <= rw + 1; dx++) g.set(rx + dx, gy - 1 - rh - d, .66 - d * .1);
@@ -1496,23 +1535,32 @@ ARTS.skyline = (g, t, st) => {
         }
       }
     }
-    if (s === 5) { // the coast: a lighthouse on the rocks, its beam sweeping, a sailboat out at sea
-      const lx = at(120), lh = Math.min(gy - 6, 20), lamp = gy - 3 - lh, a = Math.cos(t * 1.1), flash = Math.abs(a) < .18;
+    if (s === 5) { // Taiwan's north coast at Fugui Cape: the black-and-white lighthouse on its keeper's house, the Laomei reef, the Shimen sea arch
+      const lx = at(120), lh = Math.min(gy - 10, 13), lamp = gy - 7 - lh, a = Math.cos(t * 1.1), flash = Math.abs(a) < .18;
       const reach = Math.round(Math.abs(a) * 90), dir = a > 0 ? 1 : -1;
       for (let r = 3; r < reach; r++) { const spread = r * .12; for (let dy = -Math.floor(spread); dy <= spread; dy++) glowAt(lx + dir * r, lamp + dy, .5 * (1 - r / (reach + 1)) * (1 - Math.abs(dy) / (spread + 1))); }
-      for (let x = lx - 9; x <= lx + 9; x++) for (let y = gy - 3; y < gy; y++) if (Math.abs(x - lx) < 9 - (gy - 1 - y) * 2 || y === gy - 1) g.set(x, y, .45 + .3 * hash2(x, y), 5);
-      for (let d = 0; d < lh; d++) { const y = gy - 3 - d, half = 2 + (d < lh * .5 ? 1 : 0), band = Math.floor(d / 3) % 2; for (let dx = -half; dx <= half; dx++) g.set(lx + dx, y, band ? .9 - (dx > 0 ? .15 : 0) : .55, band ? 0 : 2); if (d % 3 === 1) g.put(lx, y, "▫", 0); }
+      for (let x = lx - 10; x <= lx + 10; x++) for (let y = gy - 6; y < gy; y++) g.set(x, y, y === gy - 6 ? .55 : (x - lx + 30) % 5 === 0 && y > gy - 5 && y < gy - 2 ? .1 : .82 - (x > lx ? .14 : 0)); // the one-storey keeper's house
+      for (let d = 0; d < lh; d++) { const y = gy - 7 - d, half = 2, band = Math.floor(d / 2) % 2; for (let dx = -half; dx <= half; dx++) g.set(lx + dx, y, band ? .92 - (dx > 0 ? .16 : 0) : .14 + (dx < 0 ? .06 : 0)); } // the octagonal tower in white and black bands
       g.put(lx - 3, lamp + 1, "═══════", 0);
-      for (let dx = -2; dx <= 2; dx++) g.set(lx + dx, lamp, flash ? 1 : .8, 1);
-      g.put(lx - 1, lamp - 1, "▄█▄", 0);
+      for (let dx = -2; dx <= 2; dx++) g.set(lx + dx, lamp, flash ? 1 : .85, 1); // a white lantern
+      for (let dx = -1; dx <= 1; dx++) g.set(lx + dx, lamp - 1, .14); g.set(lx, lamp - 2, .2); // and a black dome
       if (flash) for (const [ddx, ddy, ch] of [[-4, 0, "-"], [4, 0, "-"], [-3, -1, "\\"], [3, -1, "/"], [0, -2, "|"]]) g.put(lx + ddx, lamp + ddy, ch, 1);
       const sx = Math.round((X0 + 150) * .7 + C * .1 + 12 * Math.sin(t * .05)), sy = wT + 4; // the sailboat, out on the sea's layer
       if (sx >= 0 && sx < C && MF("rough", sx) > .5) { g.put(sx, sy, "\\▄▄▄/", 0); g.put(sx + 2, sy - 1, "|", 0); g.put(sx + 2, sy - 2, "|\\", 0); g.put(sx + 2, sy - 3, "|", 0); }
-      for (const f of [40, 58, 170, 205]) { const rx = at(f); for (let dx = -3; dx <= 3; dx++) g.set(rx + dx, gy - 1, .55 + .2 * hash2(rx + dx, f), 5); for (let dx = -1; dx <= 2; dx++) g.set(rx + dx, gy - 2, .65, 5); }
+      for (let ff = 150; ff < 236; ff++) { const x = at(ff); if (x < 0 || x >= C) continue; for (let y = gy - 3; y < gy; y++) { const groove = ff % 4 === 0; g.set(x, y, groove ? .12 : .4 + .2 * hash2(x, y) - (y === gy - 3 ? 0 : .08), groove ? 0 : 5); } if (ff % 4 === 2 && hash(ff) > .4) g.put(x, gy - 3, "▪", 0); } // the Laomei reef: grooved volcanic rock running into the sea
+      { const ax = Math.round((X0 + 60) * .8 + C * .08), ay = wT + 1; // the Shimen sea arch, out on the water
+        if (ax > -20 && ax < C + 20 && MF("rough", Math.max(0, Math.min(C - 1, ax))) > .5) for (let y = ay - 8; y <= ay + 2; y++) for (let dx = -14; dx <= 14; dx++) {
+          const d = (dx / 14) ** 2 + ((y - ay - 2) / 10) ** 2, hole = (dx / 6) ** 2 + ((y - ay - 2) / 5.5) ** 2 < 1;
+          if (d < 1 && !hole) g.set(ax + dx, y, (dx < 0 ? .55 : .36) + .12 * vnoise(dx * .4, y * .5) - (d > .82 ? .14 : 0), 5);
+        } }
+      for (const f of [40, 58]) { const rx = at(f); for (let dx = -3; dx <= 3; dx++) g.set(rx + dx, gy - 1, .55 + .2 * hash2(rx + dx, f), 5); for (let dx = -1; dx <= 2; dx++) g.set(rx + dx, gy - 2, .65, 5); }
     }
-    if (s === 6) { // Taipei, from a trail on the hill: bushes on the slope, lamps along the trail
-      for (let k = 0; k < 12; k++) { const bx = at(8 + k * 22 + hash(k * 3.7) * 8), rr = 1.4 + hash(k * 5.1) * 1.4, cy = gy - 1 - rr; for (let y = Math.floor(cy - rr); y < gy; y++) for (let dx = -Math.ceil(rr * 2); dx <= rr * 2; dx++) if (Math.hypot(dx / 2, y - cy) < rr) g.set(bx + dx, y, .38 + .2 * hash2(bx + dx, y) + (dx < 0 ? .06 : 0)); }
-      for (const f of [40, 120, 200]) lamp(at(f));
+    if (s === 6) { // Taipei from Elephant Mountain: the steps up, lamps along the trail, the Six Boulders at the lookout
+      for (let k = 0; k < 9; k++) { const x0 = at(6 + k * 4); for (let dx = 0; dx < 4; dx++) for (let y = gy - 1 - k; y < gy; y++) g.set(x0 + dx, y, y === gy - 1 - k ? .55 : .3, 5); } // stone steps
+      for (const [f, rx, ry] of [[58, 5, 4], [72, 4, 3], [84, 5, 4.5], [212, 5, 4], [226, 4, 3.5], [238, 4, 3]]) { // the Six Boulders, dark against the city lights, a little moonlight on their tops
+        const bx = at(f), by = gy - ry + .5; for (let y = Math.floor(by - ry); y < gy; y++) for (let x = Math.floor(bx - rx * 2); x <= bx + rx * 2; x++) { const d = ((x - bx) / (rx * 2)) ** 2 + ((y - by) / ry) ** 2; if (d <= 1) { const rim = d > .66 && y < by && x < bx + rx; g.set(x, y, rim ? .5 : .07, rim ? 5 : 0); } }
+      }
+      for (const f of [40, 120, 196]) lamp(at(f));
     }
   }
 
@@ -1538,7 +1586,7 @@ ARTS.skyline = (g, t, st) => {
       else if (scene === 1) { if (r > .6) boulder(x, 6, 2.8, k); else tuft(x, 5, k); }
       else if (scene === 2) { if (r > .75) { for (let y = R - 7; y < R; y++) g.put(x, y, "█", 3); g.put(x - 1, R - 7, "▄", 3); } else tuft(x, 5, k); }
       else if (scene === 3) { if (r > .72) pear(x, k); else if (r > .5) agave(x, k); else tuft(x, 4, k); }
-      else if (scene === 5) tuft(x, 4, k);
+      else if (scene === 5) { if (r > .55) { const hw = 5 + Math.floor(hash(k * 4.1) * 4), hh = 3 + Math.floor(hash(k * 6.3) * 3), px = Math.round(hw * (.3 + .4 * hash(k))); for (let y = R - hh; y < R; y++) { const rise = (y - (R - hh)) / hh; for (let dx = -hw; dx <= hw; dx++) { const edgeL = -hw + (1 - rise) * (hw + px) * .9, edgeR = hw - (1 - rise) * (hw - px) * .9; if (dx >= edgeL && dx <= edgeR) g.set(x + dx, y, dx < px ? .55 : .2, dx < px ? 5 : 0); } } } else tuft(x, 4, k); } // ventifacts: stones cut into flat faces by wind and sand
       else if (scene === 6) bush(x, k);
     }
   }
