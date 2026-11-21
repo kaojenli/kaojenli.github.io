@@ -83,6 +83,7 @@ $("#paper-list").innerHTML = C.papers.map((p) => `<li><span class="kind">${esc(p
   ${p.badge ? `<br><span class="badge">${esc(p.badge)}</span>` : ""}</li>`).join("");
 
 $("#credits").innerHTML = C.skills.map((s) => `<span class="credit"><small>${esc(s.items)}</small><b>${esc(s.name)}</b></span>`).join("");
+$("#credits").append($(".fortune")); // the fortune cookie takes the first empty cell after the skills
 $("#stack").textContent = C.stack.join("  ·  ");
 
 /* ======================================================================= "Get in touch": the pixel version's inquiry form, in a small window, sent by FormSubmit (see content.js) */
@@ -244,7 +245,7 @@ const RAMPS = {
 let look = "Mix";
 try { if (RAMPS[localStorage.getItem("look2")]) look = localStorage.getItem("look2"); } catch (e) {}
 // a small easter egg in the footer: every figure on the page re-renders in the chosen style
-/* ---------- the fortune cookie in the footer: three drawings (whole, cracked, open), a slip with a line, and a typewriter */
+/* ---------- the fortune cookie at the end of Skills: three drawings (whole, cracked, open), a slip with a line, and a typewriter */
 const FORTUNES = [
   // for researchers of any kind
   "The bug you are looking for is in the line you are sure about.",
