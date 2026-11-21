@@ -293,7 +293,7 @@ const LUCKY = [3, 7, 11, 16, 20, 28, 32, 62, 69, 74, 150, 400, 512, 784]; // num
   const pick = () => { if (used.length >= FORTUNES.length) used = []; let i; do i = Math.floor(Math.random() * FORTUNES.length); while (used.includes(i)); used.push(i); return FORTUNES[i]; };
   const lucky = () => [...LUCKY].sort(() => Math.random() - .5).slice(0, 5).sort((a, b) => a - b).join("  ");
   btn.addEventListener("click", () => {
-    if (busy) return; busy = true; clearTimeout(timer);
+    if (busy) return; busy = true; clearTimeout(timer); btn.classList.remove("nudge"); // found it: no more wobbling
     slip.hidden = true; slip.classList.remove("in");
     btn.classList.remove("shaking"); void btn.offsetWidth; btn.classList.add("shaking"); show("cracked");
     setTimeout(() => {

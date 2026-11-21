@@ -287,6 +287,11 @@ details li { margin: 4px 0; text-align: justify; }
 .cookie .ascii .t0 { color: var(--accent); opacity: .35; } .cookie .ascii .t1 { color: var(--accent); opacity: .7; } .cookie .ascii .t2 { color: var(--accent); }
 .cookie .ascii .acc { color: #fbf8f1; } .cookie .ascii .mar { color: #c0392b; } /* the paper slip: white, with red writing */
 .cookie.shaking { animation: cookie-shake .5s ease-in-out; }
+/* until it has been opened once, the cookie gives a small wobble every few seconds, so it reads as something to click */
+.cookie.nudge { animation: cookie-nudge 6s ease-in-out 2s infinite; }
+.cookie.nudge:hover, .cookie.nudge:focus-visible { animation: none; }
+@keyframes cookie-nudge { 0%, 86%, 100% { transform: rotate(0); } 88% { transform: rotate(-9deg); } 90% { transform: rotate(8deg); } 92% { transform: rotate(-6deg); } 94% { transform: rotate(4deg); } 96% { transform: rotate(-2deg); } }
+@media (prefers-reduced-motion: reduce) { .cookie.nudge { animation: none; } }
 @keyframes cookie-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(9deg); } 60% { transform: rotate(-7deg); } 80% { transform: rotate(5deg); } }
 .slip { position: absolute; right: 0; bottom: calc(100% + 12px); z-index: 5; display: block; width: 280px; padding: 7px 10px; background: #fbf8f1; color: #b3261e; font: 12px/1.5 var(--mono); white-space: pre-wrap; box-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
 .slip[hidden] { display: none; }
