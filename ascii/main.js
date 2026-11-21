@@ -432,13 +432,14 @@ function draw(p, t) {
 let last = 0, frameNo = 0;
 function loop(now) {
   requestAnimationFrame(loop);
-  if (now - last < 1000 / 24) return; // 24 frames a second is plenty for text
-  last = now; frameNo++;
+  const tick = now - last >= 1000 / 24; // 24 frames a second is plenty for text
+  if (tick) { last = now; frameNo++; }
   const t = now / 1000;
   for (const p of panels) {
     if (!p.grid || !p.visible) continue;
     const moving = p.rests ? p.play && !reduced : !reduced;
-    if (moving || p.dirty) draw(p, reduced && !p.rests ? 2.05 : t);
+    // a figure that scrolls (the footer) also redraws on the very frame one of its layers steps to the next column
+    if ((moving || p.dirty) && (tick || (moving && p.art.steps && p.art.steps(p.grid, t, p.state)))) draw(p, reduced && !p.rests ? 2.05 : t);
   }
 }
 
@@ -978,6 +979,7 @@ const SC = {
   city: [0, 0, 0, 0, 0, 0, 1], aurora: [.15, .9, 0, 0, 0, 0, 0], milky: [1, .8, 1, 1.25, .6, .8, .3], glow: [0, 0, .1, 0, .4, .15, 1], sand: [0, 0, 1, 1, 0, 0, 0], kyle: [0, 0, 0, 0, 1, 0, 0], road: [0, 0, 0, 0, 1, 0, 0], mesa: [0, 0, 0, 1, 0, 0, 0], rough: [0, 0, 0, 0, 0, 1, 0], canopy: [0, 0, .35, 0, 1, 0, 0],
 };
 const N_SC = SC.farH.length;
+const LAYER_FS = [1, .03, .5, .55, .6, .65, .7, .75, .8, 1.35]; // the speeds of the layers, near to far and the foreground
 const sceneAt = (wx) => { // the two scenes that meet at near-layer column wx, and how far the fade between them has gone
   const P = WALK.period, u = ((wx % P) + P) % P;
   let i = N_SC - 1; while (WALK.start[i] > u) i--;
@@ -989,7 +991,8 @@ ARTS.skyline = (g, t, st) => {
   // the walk: time only counts while this is drawn, so it starts at the campfire and resumes where it was left
   if (st.last != null) st.walk += Math.min(.2, Math.max(0, t - st.last)); else st.walk = 0;
   st.last = t;
-  const speed = C < 200 ? 4.5 : 7, wX = Math.round(C * .3) /* where the saucer times its visit from */, cam = 170 - C * .62 + st.walk * speed;
+  const speed = C < 200 ? 4.5 : 7, wX = Math.round(C * .3) /* where the saucer times its visit from */, camC = 170 - C * .62 + st.walk * speed, cam = Math.floor(camC); // camC: where the walk is; cam: the whole column the near layer is on
+  st.sig = LAYER_FS.map((f) => Math.floor(camC * f)).join();
   if (!st.s0 || st.s0.length !== C) { st.s0 = new Uint8Array(C); st.s1 = new Uint8Array(C); st.k = new Float32Array(C); st.top = new Float32Array(C); st.h = new Float32Array(C + 2); }
   const S0 = st.s0, S1 = st.s1, K = st.k, TOP = st.top;
   for (let x = 0; x < C; x++) { const s = sceneAt(cam + x); S0[x] = s[0]; S1[x] = s[1]; K[x] = s[2]; }
@@ -1006,25 +1009,32 @@ ARTS.skyline = (g, t, st) => {
   const glowAt = (x, y, v) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= C || y >= R) return; const i = y * C + x; if (g.ch[i] !== undefined && g.ch[i] !== " " || g.v[i] > .3 && y < gy) return; if (v > g.v[i]) g.v[i] = v; g.acc[i] = 1; };
 
   /* the sky: a faint haze that thickens toward the horizon, the milky way, stars, an aurora over the mountains */
-  const skyX = cam * .03, mwY = (X) => gy * .45 + gy * .35 * Math.sin(X * .011 + 1.3);
+  const skyX = Math.floor(camC * .03), mwY = (X) => gy * .45 + gy * .35 * Math.sin(X * .011 + 1.3);
+  // the haze, the band and where the stars are only change when the sky moves a column (every few seconds), so they are kept
+  const skyKey = skyX + ":" + C + ":" + gy;
+  if (!st.sky || st.sky.key !== skyKey) {
+    const n = C * gy, haze = new Float32Array(n), band = new Float32Array(n), starH = new Float32Array(n);
+    for (let x = 0; x < C; x++) {
+      const X = x + skyX, yc = mwY(X), bw = 3 + 3 * vnoise(X * .04, 2.2);
+      for (let y = 0; y < gy; y++) {
+        const i = y * C + x, hz = y / gy, d = (y - yc) / bw;
+        haze[i] = .02 + .06 * hz * hz * hz + .05 * hz * vnoise(X * .2, y * .7);
+        if (d * d < 6) { let bb = Math.exp(-d * d) * (.3 + .6 * fbm(X * .09, y * .3)); if (vnoise(X * .12, y * .45) > .68) bb *= .3; band[i] = bb * .55; } // the band, with a darker lane of dust through it
+        const h = hash2(X, y); if (h > .982) starH[i] = h;
+      }
+    }
+    st.sky = { key: skyKey, haze, band, starH };
+  }
+  const SK = st.sky;
   for (let x = 0; x < C; x++) {
-    const X = x + skyX, mw = MF("milky", x), au = MF("aurora", x), gl = MF("glow", x), yc = mwY(X), bw = 3 + 3 * vnoise(X * .04, 2.2);
+    const X = x + skyX, mw = MF("milky", x), au = MF("aurora", x), gl = MF("glow", x);
+    const yt = au > .02 ? 1 + 5 * vnoise(X * .025, t * .08) : 0, fold = au > .02 ? .55 + .45 * Math.sin(X * .45 + 4 * vnoise(X * .02, t * .15)) : 0, sheen = au > .02 ? .35 + .65 * vnoise(X * .05 + t * .1, 1.7) : 0;
     for (let y = 0; y < gy; y++) {
-      const hz = y / gy;
-      let v = .02 + .06 * hz * hz * hz + .05 * hz * vnoise(X * .2, y * .7) + gl * .3 * Math.pow(hz, 5);
-      const d = (y - yc) / bw;
-      if (mw > 0 && d * d < 6) { // the band, with a darker lane of dust through it
-        let b = Math.exp(-d * d) * (.3 + .6 * fbm(X * .09, y * .3)) * mw;
-        if (vnoise(X * .12, y * .45) > .68) b *= .3;
-        v += b * .55;
-      }
-      if (au > .02 && y < gy * .6) { // curtains that hang from a wavering top edge and fold as they move
-        const yt = 1 + 5 * vnoise(X * .025, t * .08), fold = .55 + .45 * Math.sin(X * .45 + 4 * vnoise(X * .02, t * .15));
-        if (y >= yt) v += au * Math.exp(-(y - yt) / 6) * fold * (.35 + .65 * vnoise(X * .05 + t * .1, 1.7)) * 1.05;
-      }
-      g.set(x, y, v);
-      const h = hash2(Math.floor(X), y);
-      if (h > .982 && v < .35) star(g, x, y, .5 + .5 * Math.sin(t * (1 + h * 3) + X));
+      const i = y * C + x, hz = y / gy;
+      let v = SK.haze[i] + SK.band[i] * mw + (gl > 0 ? gl * .3 * Math.pow(hz, 5) : 0);
+      if (au > .02 && y < gy * .6 && y >= yt) v += au * Math.exp(-(y - yt) / 6) * fold * sheen * 1.05; // curtains that hang from a wavering top edge and fold as they move
+      g.v[i] = v; g.acc[i] = 0;
+      const h = SK.starH[i]; if (h && v < .35) star(g, x, y, .5 + .5 * Math.sin(t * (1 + h * 3) + X));
     }
   }
   { // the moon, with a few darker seas and a halo
@@ -1046,8 +1056,8 @@ ARTS.skyline = (g, t, st) => {
   }
 
   /* far hills and mountains, with snow on the high peaks; they stand on the water line where there is water */
-  const farX = cam * .6, H = st.h;
-  const lmAt = (sc, off, f) => { const P = WALK.period, mid = WALK.start[sc] + off, rp = Math.round((cam + C / 2 - mid) / P); return C / 2 + (mid + rp * P - cam - C / 2) * f; };
+  const farX = Math.floor(camC * .6), H = st.h;
+  const lmAt = (sc, off, f) => { const P = WALK.period, mid = WALK.start[sc] + off, rp = Math.round((cam + C / 2 - mid) / P); return C / 2 + (mid + rp * P - camC - C / 2) * f; };
   const bellsX = lmAt(1, 150, .6), rockX = lmAt(2, 150, .6);
   const bells = (x) => { const d = x - bellsX; if (Math.abs(d) > 46) return 0; const pk = (c, w, hgt) => hgt * Math.max(0, 1 - Math.abs(d - c) / w) ** 1.15; return Math.max(pk(-12, 24, gy - 14), pk(12, 24, gy - 15.5)); }; // Maroon Peak and North Maroon Peak, side by side
   const dome = (x) => { const d = (x - rockX) / 30; return Math.abs(d) < 1 ? 11 * Math.sqrt(1 - d * d) : 0; }; // Enchanted Rock
@@ -1065,24 +1075,25 @@ ARTS.skyline = (g, t, st) => {
   for (let x = 0; x < C; x++) {
     const base = lerp(gy - 1, wT, MF("water", x)), h = Math.min(H[x + 1], base - 4), top = base - h, slope = H[x + 2] - H[x], snow = MF("snow", x) > .5 && h > MF("farH", x) + MF("farAmp", x) * .5;
     TOP[x] = top;
+    const isMesa = MF("mesa", x) > .5, bh = bells(x), dh = dome(x), isCanopy = MF("canopy", x) > .5;
     for (let y = Math.max(0, Math.ceil(top)); y <= base; y++) {
       const tex = vnoise((x + farX) * .25, y * .35);
-      if (MF("mesa", x) > .5) { // caprock, then a cliff face banded with strata, then the talus slope
+      if (isMesa) { // caprock, then a cliff face banded with strata, then the talus slope
         const onCap = h <= st.cap[x + 1] + .3, d = y - top;
         if (onCap && d < 1) g.set(x, y, .7, 3);
         else if (onCap && d < 5) g.set(x, y, (d % 2 ? .42 : .55) + .08 * tex - (slope > 0 ? 0 : .06), d % 2 ? 0 : 3);
         else g.set(x, y, .26 + .12 * tex + (hash2(x + Math.floor(farX), y) > .9 ? .12 : 0) + (d < 2 ? .1 : 0), d < 2 ? 3 : 0);
       }
-      else if (bells(x) >= h - .5 && bells(x) > 4) { // the Bells: red mudstone in tilted bands, snow lying in the gullies near the top
+      else if (bh >= h - .5 && bh > 4) { // the Bells: red mudstone in tilted bands, snow lying in the gullies near the top
         const d = y - top, band = ((y + Math.floor((x - bellsX) * .35)) % 3 + 3) % 3, gully = vnoise((x - bellsX) * .5, y * .15) > .62;
         if (d < 1.5 || (gully && d < h * .45)) g.set(x, y, slope > 0 ? .9 : .7, 5);
         else g.set(x, y, (x < bellsX - 12 || (x > bellsX && x < bellsX + 12) ? .5 : .38) + .08 * tex, band === 0 ? 2 : 0);
       }
-      else if (dome(x) >= h - .5 && dome(x) > 1) { // Enchanted Rock: bare pink granite, with sheets peeling off in curves
+      else if (dh >= h - .5 && dh > 1) { // Enchanted Rock: bare pink granite, with sheets peeling off in curves
         const sheet = Math.floor(Math.hypot((x - rockX) / 30, (y - (base)) / 11) * 6) % 2;
         g.set(x, y, (x < rockX ? .55 : .4) + (sheet ? .06 : 0) + .05 * tex, 3);
       }
-      else if (MF("canopy", x) > .5) { g.set(x, y, .22 + .1 * tex + (y - top < 1 ? .08 : 0)); if (y > base - 2 && hash2(x + Math.floor(farX), y) > .93) g.put(x, y, "·", 1); } // a tree line, the odd light of a house or a farm road
+      else if (isCanopy) { g.set(x, y, .22 + .1 * tex + (y - top < 1 ? .08 : 0)); if (y > base - 2 && hash2(x + Math.floor(farX), y) > .93) g.put(x, y, "·", 1); } // a tree line, the odd light of a house or a farm road
       else if (snow && y - top < 1.5 + 2 * tex) g.set(x, y, slope > 0 ? .88 : .66, 5);
       else g.set(x, y, .4 + .08 * tex + (slope > .15 ? .08 : 0) + (y - top < 1 ? .12 : 0));
     }
@@ -1097,7 +1108,7 @@ ARTS.skyline = (g, t, st) => {
     g.set(cx, base + 1, v0 * .8);
   };
   for (const [f, gap, scale, v0] of [[.55, 3, .75, .24], [.7, 6, 1, .5]]) { // back row, front row
-    const mX = cam * f, ML = layerMix(f);
+    const mX = Math.floor(camC * f), ML = layerMix(f);
     for (let k = Math.floor((mX - 10) / gap); k <= (mX + C + 10) / gap; k++) {
       const cx = Math.round(k * gap + hash(k * 1.3) * gap - mX), dens = ML("pine", cx);
       if (hash(k * 1.7 + f) > dens) continue;
@@ -1115,7 +1126,7 @@ ARTS.skyline = (g, t, st) => {
   { // the city: a far row of towers, a near row with lit windows, the needle, and an elevated highway with traffic
     const win = (x, y, k, lit) => { const on = hash2(x * 1.3 + k, y + Math.floor(t / 7 + hash(k) * 9)) < lit; if (on) g.put(x, y, "▪", hash2(x, y * 3.1) > .82 ? 2 : 1); };
     for (const [f, v0, maxH, lit] of [[.5, .2, .6, .12], [.6, .32, .46, .3]]) {
-      const bX = cam * f, ML = layerMix(f);
+      const bX = Math.floor(camC * f), ML = layerMix(f);
       let k = Math.floor((bX - 20) / 8);
       for (; k * 8 - bX < C + 20; k++) {
         const x0 = Math.round(k * 8 - bX), w = 5 + Math.floor(hash(k * 3.7 + f) * 7), mid = x0 + (w >> 1);
@@ -1134,7 +1145,7 @@ ARTS.skyline = (g, t, st) => {
     // Taipei 101: a podium that narrows as it rises, eight stacked sections that each flare outward, a crown and a spire
     { // centred on screen when Taipei is, and moving at the speed of its layer
       const P = WALK.period, mid = WALK.start[6] + 120, rep = Math.round((cam + C / 2 - mid) / P);
-      const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .6);
+      const cx = Math.round(C / 2 + (mid + rep * P - camC - C / 2) * .6);
       if (cx > -8 && cx < C + 8 && layerMix(.6)("city", cx) > .4) {
         const base = gy - 1 - LIFT, H = base - 3, spire = 5, crown = 3, podium = Math.max(3, Math.round(H * .18)), seg = Math.max(2, Math.floor((H - spire - crown - podium) / 8));
         const row = (y, half, edge) => { for (let dx = -half; dx <= half; dx++) g.set(cx + dx, y, (dx < 0 ? .62 : .42) + (Math.abs(dx) === half ? (edge ? .3 : .08) : 0)); };
@@ -1158,7 +1169,7 @@ ARTS.skyline = (g, t, st) => {
     const MH = layerMix(.65);
     for (let x = 0; x < C; x++) {
       const c = MH("city", x); if (c < .5) continue;
-      const X = Math.round(x + cam * .65);
+      const X = Math.round(x + Math.floor(camC * .65));
       g.set(x, hy, .62); g.set(x, hy + 1, .3);
       if (X % 16 === 0) for (let y = hy + 2; y <= gy - LIFT; y++) g.set(x, y, .4);
       if (X % 22 === 0) { g.put(x, hy - 1, "|", 0); g.put(x, hy - 2, "°", 1); glowAt(x - 1, hy - 1, .2); glowAt(x + 1, hy - 1, .2); }
@@ -1168,7 +1179,7 @@ ARTS.skyline = (g, t, st) => {
   const litWinK = (x, y, k, lit) => { if (hash2(x * 1.3 + k, y + Math.floor(t / 7 + hash(k) * 9)) < lit) g.put(x, y, "▪", 1); };
   { // Kyle Field, behind Aggieland: tall stands with maroon deck bands, light banks on top, a glow over the field
     const P = WALK.period, mid = WALK.start[4] + 300, rep = Math.round((cam + C / 2 - mid) / P);
-    const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * .6), half = 34, Hs = Math.round(gy * .5);
+    const cx = Math.round(C / 2 + (mid + rep * P - camC - C / 2) * .6), half = 34, Hs = Math.round(gy * .5);
     if (cx > -half - 8 && cx < C + half + 8 && layerMix(.6)("kyle", cx) > .4) {
       for (let dx = -half; dx <= half; dx++) {
         const x = cx + dx, h = Math.min(Hs, Math.round((half - Math.abs(dx)) * 1.1) + 3), y0 = gy - 1 - h;
@@ -1186,7 +1197,7 @@ ARTS.skyline = (g, t, st) => {
 
   { // the Grapevine Hills in Big Bend: a hill of rounded granite boulders, Balanced Rock on the ridge, the sky through its window
     const f = .75, P = WALK.period, mid = WALK.start[3] + 190, rep = Math.round((cam + C / 2 - mid) / P);
-    const cx = Math.round(C / 2 + (mid + rep * P - cam - C / 2) * f), half = 62, Hh = Math.min(15, gy - 18);
+    const cx = Math.round(C / 2 + (mid + rep * P - camC - C / 2) * f), half = 62, Hh = Math.min(15, gy - 18);
     if (cx > -half - 20 && cx < C + half + 20 && layerMix(f)("mesa", cx) > .4) {
       const rock = (bx, by, rx, ry, k) => { for (let y = Math.floor(by - ry); y <= by + ry; y++) for (let x = Math.floor(bx - rx); x <= bx + rx; x++) {
         const d = ((x - bx) / rx) ** 2 + ((y - by) / ry) ** 2; if (d > 1) continue;
@@ -1204,14 +1215,14 @@ ARTS.skyline = (g, t, st) => {
       rock(rx0 - 6, rt - 5, 5.2, 5.6, 101); rock(rx0 + 8, rt - 4, 5.6, 4.4, 102); rock(rx0 - 9, rt - 11.6, 3, 1.6, 103);
       rock(rx0 + 3, rt - 11.4, 12, 3.6, 104);
       for (let y = Math.round(rt - 8); y <= Math.round(rt - 1); y++) for (let x = rx0 - 2; x <= rx0 + 5; x++) { // the window: keep the sky behind it clear
-        const d = ((x - rx0 - 1.5) / 3) ** 2 + ((y - rt + 4.5) / 3) ** 2; if (d < 1) { const h = hash2(x + Math.floor(cam * f), y); g.set(x, y, .04); if (h > .9) star(g, x, y, .5 + .5 * Math.sin(t * 2 + x)); }
+        const d = ((x - rx0 - 1.5) / 3) ** 2 + ((y - rt + 4.5) / 3) ** 2; if (d < 1) { const h = hash2(x + Math.floor(Math.floor(camC * f)), y); g.set(x, y, .04); if (h > .9) star(g, x, y, .5 + .5 * Math.sin(t * 2 + x)); }
       }
     }
   }
 
   { // the Albritton Bell Tower on campus: a tall brick shaft with an open belfry at the top
     const f = .75, P = WALK.period, mid = WALK.start[4] + 250, rp = Math.round((cam + C / 2 - mid) / P);
-    const cx = Math.round(C / 2 + (mid + rp * P - cam - C / 2) * f), Ht = Math.min(gy - 10, 22);
+    const cx = Math.round(C / 2 + (mid + rp * P - camC - C / 2) * f), Ht = Math.min(gy - 10, 22);
     if (cx > -6 && cx < C + 6 && layerMix(f)("kyle", cx) > .4) {
       for (let d = 0; d < Ht; d++) { const y = gy - 1 - d; for (let dx = -2; dx <= 2; dx++) g.set(cx + dx, y, (dx < 0 ? .5 : .36) + ((d + (dx & 1)) % 3 === 0 ? .06 : 0), 3); }
       const bt = gy - 1 - Ht; for (let y = bt - 4; y < bt; y++) { g.set(cx - 2, y, .55, 3); g.set(cx + 2, y, .45, 3); g.set(cx, y, .08); g.set(cx - 1, y, .08); g.set(cx + 1, y, .08); }
@@ -1220,7 +1231,7 @@ ARTS.skyline = (g, t, st) => {
   }
 
   /* water: the lake and the sea, with the far shore mirrored in it and a path of moonlight */
-  const sea = cam * .8;
+  const sea = Math.floor(camC * .8);
   for (let x = 0; x < C; x++) {
     const w = MF("water", x); if (w < .02) continue;
     const top = Math.round(lerp(gy, wT, ease(Math.min(1, w * 1.4)))), X = x + sea, rough = MF("rough", x) > .5;
@@ -1566,7 +1577,7 @@ ARTS.skyline = (g, t, st) => {
 
   /* the near foreground: large shapes right in front of the viewer, passing faster than the path, so the view has depth */
   {
-    const f = 1.35, nX = cam * f, gap = 21;
+    const f = 1.35, nX = Math.floor(camC * f), gap = 21;
     const tuft = (x, hgt, k) => { for (let b = -2; b <= 2; b++) { const lean = b * .5 + Math.sin(t * 1.2 + k + b) * .25; for (let d = 0; d < hgt - Math.abs(b); d++) g.put(Math.round(x + lean * d * .5), R - 1 - d, d === hgt - Math.abs(b) - 1 ? "'" : lean > .3 ? "/" : lean < -.3 ? "\\" : "|", 0); } };
     const boulder = (x, rx, ry, k) => { for (let y = Math.floor(R - ry); y < R; y++) for (let xx = Math.floor(x - rx); xx <= x + rx; xx++) { const d = ((xx - x) / rx) ** 2 + ((y - R + .5) / ry) ** 2; if (d <= 1) { const rim = d > .7 && xx < x + rx * .3 && y < R - ry * .3; g.set(xx, y, rim ? .55 : .05, rim ? 5 : 0); } } };
     const pear = (px, k) => { // a big prickly pear, close enough to see its spines and fruit
@@ -1590,6 +1601,13 @@ ARTS.skyline = (g, t, st) => {
       else if (scene === 6) bush(x, k);
     }
   }
+};
+// whether any layer has reached a new whole column since the last frame: the loop redraws the footer right then, so each
+// layer steps at its own steady rate instead of waiting for the next of the 24 frames a second
+ARTS.skyline.steps = (g, t, st) => {
+  if (st.walk == null || st.last == null) return true;
+  const C = g.c, camC = 170 - C * .62 + (st.walk + Math.min(.2, Math.max(0, t - st.last))) * (C < 200 ? 4.5 : 7);
+  return LAYER_FS.map((f) => Math.floor(camC * f)).join() !== st.sig;
 };
 
 function blit(dst, src, dx, dy) { // copy src into dst shifted by (dx, dy) cells
